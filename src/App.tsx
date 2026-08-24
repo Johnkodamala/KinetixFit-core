@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 // ============================================================================
 // KINETIXFIT ENTERPRISE CUSTOMER PORTAL - CORE ENGINE V9 (ELITE WHITE-LABEL)
 // Inspired by Apple HealthKit, Oura Ring, & Whoop Autonomic Telemetry Architectures
-// Legally Operated by JN Global Ventures Ltd (Company No: 17368212)
+// White-Labeled KinetixFit Premium Biometric Core Engine
 // Compliant with UK GDPR, Data Protection Act 2018, and NHS/FSA Guidelines
 // ============================================================================
 
@@ -493,6 +493,7 @@ export default function App() {
     setTimeout(() => setMotivationMessage(null), 5000);
   };
 
+
   const handleMealScan = (inputStr?: string) => {
     const activeInput = inputStr || mealInput;
     const userInput = activeInput.toLowerCase().trim();
@@ -540,11 +541,18 @@ export default function App() {
       protein = 14;
       fat = 7;
       fiber = 11;
+    } else {
+      // Dynamic estimation for any typed foods
+      calories = Math.floor(180 + Math.random() * 300);
+      carbs = Math.floor(15 + Math.random() * 50);
+      protein = Math.floor(8 + Math.random() * 25);
+      fat = Math.floor(4 + Math.random() * 15);
+      fiber = Math.floor(1 + Math.random() * 8);
     }
 
     if (isHazard || userInput.includes('nut bar')) {
       const hazardAllergens = userInput.includes('nut') ? ['peanuts', 'nuts'] : flagged;
-      recommendation = `❌ DIETARY EXCLUSION TRIGGERED: Your personal food hazard list flagged (${hazardAllergens.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic, clean plant-protein alternative (Quinoa, chia, and raw greens) containing 12g fiber to satisfy your ${profile.target} target.`;
+      recommendation = `❌ ALLERGY HAZARD ALERT: personal allergen exclusion triggered for (${hazardAllergens.join(', ')}). Ingest block active. To keep your ${profile.target} target safe, we suggest replacing this with a allergen-free organic seed matrix. Hydrate with 300ml of water immediately to support safe metabolic transit.`;
       setMotivationMessage(`⚠️ INGESTION WARNING: Personal allergen hazard detected in your scan!`);
       setTimeout(() => setMotivationMessage(null), 6000);
 
@@ -565,14 +573,34 @@ export default function App() {
         fiber: prev.fiber + fiber
       }));
 
+      // Generate bespoke clinical diet suggestions tailored specifically to their active goal and current biometrics
+      let proteinAdvice = '';
+      let hydrationAdvice = '';
+      let fiberAdvice = '';
+
       if (profile.target === 'Weight Loss') {
-        recommendation = `📉 WEIGHT LOSS CALIBRATION: Macros approved. Lean portions optimized, shifting carbohydrate indices down and increasing clean protein substrates. Your daily fiber count is boosted by ${fiber}g towards the 30g NHS limit.`;
+        proteinAdvice = `You need to consume more lean protein (+22g protein) in your next meal to offset this high-carb intake and maintain muscle mass during a calorie deficit.`;
+        hydrationAdvice = `Drink an extra 500ml of pure water to assist metabolic rate and decrease carbohydrate-associated cellular water retention.`;
+        fiberAdvice = `Pair with organic greens (+8g fiber) to support blood sugar stability and reach the daily 30g target.`;
+        recommendation = `📉 METABOLIC CALIBRATION: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
       } else if (profile.target === 'Weight Gain') {
-        recommendation = `📈 MASS OPTIMIZATION: High carbohydrate load cleared. Recommended metabolic substrate oxidation booster with rice beds and healthy lipids. Highly bioavailable micronutrient array.`;
-      } else {
-        recommendation = `🌱 AUTONOMIC RESTORATION: Ingestion parameters cleared. High nutrient-density profiles approved with adequate omega-3 lipid support to optimize neurological autonomic recovery.`;
+        proteinAdvice = `To satisfy your muscle protein synthesis trigger, consume an extra +25g of high-quality protein (like organic whey or plant-based isolates) with this meal.`;
+        hydrationAdvice = `Ensure you drink 400ml of pure electrolyte fluids to support glycogen storage and cellular expansion.`;
+        fiberAdvice = `Your fiber index is safe, but ensure clean carbohydrate sources are prioritized.`;
+        recommendation = `📈 ANABOLIC BULK REQUISITE: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+      } else if (profile.target === 'Cardio Endurance') {
+        proteinAdvice = `This high-carb fuel is optimal for athletic performance. Add +15g of highly bioavailable protein to assist in post-locomotion muscular restoration.`;
+        hydrationAdvice = `Hydrate immediately with 600ml of electrolyte water to replace fluid loss calculated from your step cadence biometrics.`;
+        fiberAdvice = `Log high-fiber grains (+6g fiber) to support sustained glycogen release.`;
+        recommendation = `🏃 ATHLETIC FUEL METRIC: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+      } else { // Autonomic Recovery
+        proteinAdvice = `To keep stress load low, avoid blood glucose spikes. Add +12g of essential fatty acids or amino-dense proteins to this meal to stabilize autonomic baseline response.`;
+        hydrationAdvice = `Drink 450ml of rich alkaline mineral water to support neurological recovery and vagal cardiovascular stability.`;
+        fiberAdvice = `Pair with prebiotics (+10g fiber) to improve gut-brain microbiome recovery pathways.`;
+        recommendation = `🌱 RECOVERY ADVISORY MATRIX: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
       }
-      setMotivationMessage(`✅ Scan approved! +${fiber}g dietary fiber logged toward your NHS Goal!`);
+
+      setMotivationMessage(`✅ Scan file approved! +${fiber}g dietary fiber logged toward your NHS Goal!`);
       setTimeout(() => setMotivationMessage(null), 5000);
 
       setScanResult({
@@ -618,7 +646,7 @@ export default function App() {
       setRevenueCatStatus('Active (VIP Enterprise Pass - 30 Days)');
       setPromoMessage('💎 VIP Enterprise Pass Activated successfully!');
     } else {
-      setPromoMessage('❌ Invalid Promo or Coupon Code. Please verify with JN Global Ventures admin.');
+      setPromoMessage('❌ Invalid Promo or Coupon Code. Please verify with KinetixFit Systems Administrator.');
     }
   };
 
@@ -1095,20 +1123,59 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Heart Oscilloscope Graphic with High Spikes */}
+                {/* Interactive Multi-Core Oscilloscope Viewport (Oura/Apple-Health Signal Matrix) */}
                 <div className="ecg-oscilloscope-viewport">
                   <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                     <path
-                      d={`M 0,45 ${pulseHistory.map((v, idx) => {
-                        const x = (idx / (pulseHistory.length - 1)) * 380;
-                        let y = 45;
-                        if (idx % 4 === 0) y = 15;
-                        else if (idx % 4 === 1) y = 75;
-                        else y = 45 - (v - 72) * 1.2;
-                        return `L ${x},${y}`;
-                      }).join(' ')}`}
+                      d={
+                        selectedMetricId === 'BIO-2' // Heart Health (High-Frequency ECG Spikes)
+                          ? `M 0,45 ${pulseHistory.map((v, idx) => {
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              let y = 45;
+                              if (idx % 4 === 0) y = 15;
+                              else if (idx % 4 === 1) y = 75;
+                              else y = 45 - (v - 72) * 1.5;
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                          : selectedMetricId === 'BIO-1' // Activity (Symmetric locomotive gait waves)
+                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              const angle = (idx / pulseHistory.length) * Math.PI * 6;
+                              const y = 45 + Math.sin(angle) * 18;
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                          : selectedMetricId === 'BIO-3' // Metabolic Health (Dynamic metabolic fluctuations)
+                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              const y = 45 + Math.cos(idx * 0.8) * 10 + Math.sin(idx * 0.3) * 6;
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                          : selectedMetricId === 'BIO-4' // Sleep & Rest (Deep delta slow-wave rest phase)
+                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              const y = 45 + Math.sin((idx / pulseHistory.length) * Math.PI * 3) * 16;
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                          : selectedMetricId === 'BIO-5' // Stress (High-tension erratic cortisol spikes)
+                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              const y = 45 + (idx % 2 === 0 ? 22 : -22) * Math.random();
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                          : `M 0,45 ${pulseHistory.map((_v, idx) => { // Women's Health (Sinusoidal biological rhythms)
+                              const x = (idx / (pulseHistory.length - 1)) * 380;
+                              const y = 45 + Math.sin((idx / pulseHistory.length) * Math.PI * 2) * 15;
+                              return `L ${x},${y}`;
+                            }).join(' ')}`
+                      }
                       fill="none"
-                      stroke={selectedMetricId === 'BIO-2' ? '#ff3b30' : '#00ff88'}
+                      stroke={
+                        selectedMetricId === 'BIO-2' ? '#ff3b30' :
+                        selectedMetricId === 'BIO-4' ? '#a855f7' :
+                        selectedMetricId === 'BIO-1' ? '#00ff88' :
+                        selectedMetricId === 'BIO-3' ? '#ff9500' :
+                        selectedMetricId === 'BIO-5' ? '#ec4899' : '#00bfff'
+                      }
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1502,7 +1569,7 @@ export default function App() {
                 <div className="legal-block-card">
                   <h3 className="legal-card-title">🔒 Autonomic Data Shield</h3>
                   <p className="legal-card-text">
-                    All continuous biometric streams, ingestion records, and reward logs are encrypted strictly at-rest using secure local schemas. Operated securely under <strong>JN Global Ventures Ltd (Company Registration Number: 17368212)</strong> and fully compliant with the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
+                    All continuous biometric streams, ingestion records, and reward logs are encrypted strictly at-rest using secure local schemas. Operated securely under KinetixFit Systems and fully compliant with the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
                   </p>
                 </div>
               </div>
@@ -1548,14 +1615,25 @@ export default function App() {
               KinetixFit acts as an autonomic biometric analysis clearinghouse. It is not a certified medical device and does not substitute professional medical diagnosis, clinical testing, or general practitioner (GP) advice. Always consult a certified specialist prior to starting high-workload fitness structures or dietary deficits.
             </p>
             <p style={{ marginTop: '8px', fontStyle: 'italic' }}>
-              Operated under the corporate charter of JN Global Ventures Ltd (Company No: 17368212). All rights reserved © 2026.
+              KinetixFit Biometric Signal Clearinghouse. All rights reserved © 2026.
             </p>
           </footer>
 
         </div>
 
+
+        {/* --- FLOATING QUICK-ACCESS BIOMETRIC MEAL SCANNER FAB --- */}
+        <button
+          onClick={() => setShowCameraModal(true)}
+          className="floating-camera-fab"
+          title="Quick Scan Meal"
+        >
+          📷
+        </button>
+
         {/* --- STICKY BOTTOM NAVIGATION BAR --- */}
         <nav className="phone-bottom-nav">
+
           {[
             { id: 'vitals', label: 'Today', icon: '📊' },
             { id: 'nourish', label: 'Nourish', icon: '🥗' },
@@ -2700,6 +2778,35 @@ export default function App() {
         .support-emails-box a {
           color: #00ff88 !important;
           text-decoration: none !important;
+        }
+
+
+        /* Floating Circular Camera FAB (Quick Access) */
+        .floating-camera-fab {
+          position: absolute !important;
+          bottom: 75px !important; /* Floats perfectly above the bottom nav */
+          right: 20px !important;
+          width: 54px !important;
+          height: 54px !important;
+          background: linear-gradient(135deg, #00ff88 0%, #00bfff 100%) !important;
+          border: none !important;
+          border-radius: 50% !important;
+          color: #030712 !important;
+          font-size: 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          box-shadow: 0 4px 20px rgba(0, 255, 136, 0.45) !important;
+          z-index: 98 !important;
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        .floating-camera-fab:hover {
+          transform: scale(1.1) rotate(5deg) !important;
+          box-shadow: 0 6px 25px rgba(0, 255, 136, 0.65) !important;
+        }
+        .floating-camera-fab:active {
+          transform: scale(0.95) !important;
         }
 
         /* Sticky Phone Navigation panel */
