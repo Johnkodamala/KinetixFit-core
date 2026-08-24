@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KinetixFit</string>
+    <string name="title_activity_main">KinetixFit</string>
+    <string name="package_name">com.jnglobalventures.kinetixfit</string>
+    <string name="custom_url_scheme">com.jnglobalventures.kinetixfit</string>
+</resources>
