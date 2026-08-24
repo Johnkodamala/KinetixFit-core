@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
 // ============================================================================
-// KINETIXFIT ENTERPRISE CUSTOMER PORTAL - CORE ENGINE V9 (ELITE WHITE-LABEL)
-// Inspired by Apple HealthKit, Oura Ring, & Whoop Autonomic Telemetry Architectures
-// White-Labeled KinetixFit Premium Biometric Core Engine
+// KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
+// Designed with Sci-Fi Tactical HUD & Hollywood-Level Operations Architecture
+// 100% White-Labeled & White-Space Aligned under Proprietary Security Policies
 // Compliant with UK GDPR, Data Protection Act 2018, and NHS/FSA Guidelines
 // ============================================================================
 
@@ -15,6 +15,7 @@ interface TelemetryStream {
   reading: string | number;
   status: 'Optimal' | 'Syncing' | 'Calibrating' | 'Critical';
   behavior: string;
+  waveType: 'sinusoidal' | 'ecg' | 'mitochondrial' | 'delta' | 'erratic_spikes' | 'slow_sinusoidal';
   details: {
     title: string;
     description: string;
@@ -67,18 +68,13 @@ export default function App() {
     return saved === 'true';
   });
 
-  const [viewMode, setViewMode] = useState<'landing' | 'app'>(() => {
-    const saved = localStorage.getItem('kinetix_logged_in');
-    return saved === 'true' ? 'app' : 'landing';
-  });
-
-  const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0: Login, 1: Profile Setup, 2: Allergen Selection, 3: Device Sync, 4: Active Portal
+  const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0: Landing/Marketing, 1: Login, 2: Profile, 3: Allergens, 4: Device, 5: Portal
   const [emailInput, setEmailInput] = useState<string>('');
   const [otpInput, setOtpInput] = useState<string>('');
   const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
 
   // --- 2. ACTIVE NAVIGATION TAB ---
-  // "vitals" (Today), "nourish" (Natasha's Law Scanner), "rewards" (Quests & Kinetix Rewards), "hub" (Corporate Hub & Pass Allocations)
+  // "vitals" (Today), "nourish" (Ingest Scanner), "rewards" (Quests & Kinetix Rewards), "hub" (Corporate Hub & Pass Allocations)
   const [activeTab, setActiveTab] = useState<string>('vitals');
 
   // --- 3. SELECTED METRIC FOR DETAILED TRIPLE-TIER DRILLDOWN ---
@@ -117,13 +113,13 @@ export default function App() {
   };
 
   // --- 5. DYNAMIC MOTIVATION POPUPS & REVENUE DEFENSE CONTROLS ---
-  const [motivationMessage, setMotivationMessage] = useState<string | null>('KinetixFit Multi-Device Synced Core Running Perfectly.');
+  const [motivationMessage, setMotivationMessage] = useState<string | null>('KinetixFit Active Telemetry Pipeline Initialized.');
 
   const [lastRedemptionTime, setLastLastRedemptionTime] = useState<number>(0);
   const [requiredTaskCountForRedeem] = useState<number>(2); // Multi-step validation defense
   const [tasksCompletedTodayCount, setTasksCompletedTodayCount] = useState<number>(0);
 
-  // --- 🛠️ VISA PRESENTATION MODE (DEMO MODE SWITCH) ---
+  // --- 🛠️ Pitch Presentation Bypass Mode ---
   const [visaDemoMode, setVisaDemoMode] = useState<boolean>(false);
 
   // --- 6. REAL-TIME LIVE PULSE WAVE OSCILLATION MODULE ---
@@ -132,7 +128,7 @@ export default function App() {
   const [pulseHistory, setPulseHistory] = useState<number[]>([72, 74, 71, 70, 75, 78, 73, 71, 72, 75, 79, 73, 70, 72, 74, 71]);
 
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 4) return;
+    if (!isLoggedIn || onboardingStep < 5) return;
     const interval = setInterval(() => {
       setLiveBpm(prev => {
         const delta = (Math.random() - 0.5) * 6;
@@ -157,6 +153,7 @@ export default function App() {
       reading: '110 SPM',
       status: 'Optimal',
       behavior: 'Verified Biomechanical Load',
+      waveType: 'sinusoidal',
       details: {
         title: 'Locomotive Cadence & Step Vectors',
         description: 'Analyzes locomotive movement frequencies to filter out synthetic hardware shakers and mechanical oscillators.',
@@ -174,6 +171,7 @@ export default function App() {
       reading: '72 BPM / 68 ms HRV',
       status: 'Optimal',
       behavior: 'High Vagal Tone Detected',
+      waveType: 'ecg',
       details: {
         title: 'Cardiovascular Autonomic Stability',
         description: 'Measures high-frequency heart rate fluctuations and vagal tone pathways to evaluate nervous system recharge rates.',
@@ -191,6 +189,7 @@ export default function App() {
       reading: '1.2 Metabolic Coeff',
       status: 'Syncing',
       behavior: 'Substrate Oxidation Balanced',
+      waveType: 'mitochondrial',
       details: {
         title: 'Mitochondrial Energy Balance',
         description: 'Evaluates dynamic carbohydrate and lipid oxidation ratios calculated in real-time from active respiratory rates.',
@@ -208,6 +207,7 @@ export default function App() {
       reading: '84% Quality',
       status: 'Optimal',
       behavior: 'Deep/REM Stages Synchronized',
+      waveType: 'delta',
       details: {
         title: 'Circadian Sleep Architecture',
         description: 'Decomposes sleep cycles, synchronizing deep sleep and rapid eye movement (REM) phases with stress recovery ceilings.',
@@ -225,6 +225,7 @@ export default function App() {
       reading: 'Low Autonomic Stress',
       status: 'Optimal',
       behavior: 'Neurological Exhaustion Ceilings Safe',
+      waveType: 'erratic_spikes',
       details: {
         title: 'Neurological Exhaustion Thresholds',
         description: 'Monitors peripheral continuous autonomic sensory signals to compute mental fatigue indexes and autonomic boundaries.',
@@ -242,6 +243,7 @@ export default function App() {
       reading: 'Phase 2 Follicular',
       status: 'Calibrating',
       behavior: 'Basal Trend Optimization Active',
+      waveType: 'slow_sinusoidal',
       details: {
         title: 'Biological Rhythm Alignment',
         description: 'Integrates natural biological cycle tracking to schedule active stress thresholds and resting basals cleanly.',
@@ -322,7 +324,7 @@ export default function App() {
     if (profile.target === 'Weight Loss') {
       specificTasks = [
         { id: 'TOD-1', text: 'Enforce 400 kcal caloric deficit target', completed: false, xpValue: 150, pointsValue: 220 },
-        { id: 'TOD-2', text: 'Log high-fiber lunch target (>10g fiber in single meal)', completed: false, xpValue: 100, pointsValue: 150 },
+        { id: 'TOD-2', text: 'Log high-fiber formulation target (>10g fiber in single meal)', completed: false, xpValue: 100, pointsValue: 150 },
         { id: 'TOD-3', text: 'Log 45-min Zone 3 aerobic cardio workload', completed: false, xpValue: 120, pointsValue: 180 }
       ];
     } else if (profile.target === 'Weight Gain') {
@@ -365,7 +367,7 @@ export default function App() {
 
   const caloriesRemaining = nhsTargets.calories - dailyConsumables.calories + caloriesBurned;
 
-  // --- 10. 1-TAP NATASHA'S LAW AI SCREENNER & MACRO MATRIX ---
+  // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
@@ -376,18 +378,18 @@ export default function App() {
     'soya', 'wheat', 'celery', 'mustard', 'sesame', 'sulphur dioxide', 'lupin'
   ];
 
-  // --- 11. KINETIX WHITE-LABEL REWARDS & FINANCIAL CONTROLS ---
+  // --- 11. REWARDS LEDGERS (100% Branded & White-Labeled) ---
   const [vouchers, setVouchers] = useState<VoucherLog[]>([
-    { id: 'TX-KTX-9921', provider: 'High-Street Beverage Voucher', value: '£15.00', sku: 'KTX-COSTA-UK', state: 'Settled', timestamp: 'Today, 08:30' }
+    { id: 'TX-UK-9921', provider: 'Premium High-Street Beverage Token', value: '£15.00', sku: 'KTX-COSTA-UK', state: 'Settled', timestamp: 'Today, 08:30' }
   ]);
 
-  // --- 🎗️ UK COMMUNITY NATURE & CHARITY DONATIONS REGISTRY ---
+  // --- CSR CHARITY DONATIONS REGISTRY ---
   const [charityDonations, setCharityDonations] = useState<number>(() => parseInt(localStorage.getItem('kinetix_charity_donations') || '0'));
 
   const ukCharities = [
-    { id: 'CHAR-NHS', name: 'National Clinical Infrastructure Program', mission: 'Supporting frontline NHS clinical teams, patient recovery programs, and local healthcare structures.', desc: 'Strengthen local health ecosystems.' },
-    { id: 'CHAR-BHF', name: 'National Cardiovascular Foundation', mission: 'Funding continuous cardiac clinical trials, medical science research, and life-saving tech.', desc: 'Support clinical science research.' },
-    { id: 'CHAR-TRUSSELL', name: 'National Food Security Network', mission: 'Providing direct community food supply, supporting networks to halt hunger and stop poverty.', desc: 'Direct societal food security relief.' }
+    { id: 'CHAR-NHS', name: 'NHS Charities Together', mission: 'Supporting frontline health staff, clinical equipment, and patient recovery schemes.', desc: 'Strengthen local health ecosystems.' },
+    { id: 'CHAR-BHF', name: 'British Heart Foundation', mission: 'Funding cardiovascular health research, clinical trials, and life-saving tech.', desc: 'Support clinical science research.' },
+    { id: 'CHAR-TRUSSELL', name: 'The Trussell Trust', mission: 'Stopping hunger and supporting local food banks to end poverty in the UK.', desc: 'Direct societal food security relief.' }
   ];
 
   const handleDonateToCharity = (charityName: string) => {
@@ -417,17 +419,17 @@ export default function App() {
     localStorage.setItem('kinetix_charity_donations', updatedDonationsTotal.toString());
 
     setVouchers([newTx, ...vouchers]);
-    setMotivationMessage(`🎗️ Corporate Social Value Matching Complete! Match funds allocated and matching logged.`);
-    setTimeout(() => setMotivationMessage(null), 5000);
-    alert(`🎗️ KinetixFit Social Value Matching Complete! Match funds allocated and matching logged.`);
+    setMotivationMessage(`🎗️ SOCIAL VALUE LOGGED: Programmatic matching donation matched successfully.`);
+    setTimeout(() => setMotivationMessage(null), 7000);
+    alert(`🎗️ Kinetix Social Value Handshake Complete! Your donation to ${charityName} has been recorded.`);
   };
 
-  // --- 12. SUBSCRIPTIONS & ADMIN OVERRIDES ---
+  // --- SUBSCRIPTIONS & ADMIN MANAGED PROMOS ---
   const [promoCodeInput, setPromoCodeInput] = useState<string>('');
   const [promoMessage, setPromoMessage] = useState<string>('');
   const [revenueCatStatus, setRevenueCatStatus] = useState<string>('7-Day Free Trial Active');
 
-  // --- 13. CONTACT FORM STATE ---
+  // --- CONTACT FORM STATE ---
   const [contactName, setContactName] = useState<string>('');
   const [contactEmail, setContactEmail] = useState<string>('');
   const [contactMsg, setContactMsg] = useState<string>('');
@@ -435,6 +437,7 @@ export default function App() {
 
   // --- ACTION HANDLERS ---
 
+  // OTP Login Simulation
   const handleRequestOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput.includes('@') || !emailInput.includes('.')) {
@@ -442,7 +445,7 @@ export default function App() {
       return;
     }
     setIsOtpSent(true);
-    setMotivationMessage(`📩 Security token sent to ${emailInput}. Please verify!`);
+    setMotivationMessage(`📩 Security token successfully transmitted to ${emailInput}.`);
     setTimeout(() => setMotivationMessage(null), 5000);
   };
 
@@ -454,18 +457,18 @@ export default function App() {
         email: emailInput,
         name: emailInput.split('@')[0].toUpperCase()
       });
-      setOnboardingStep(1);
+      setOnboardingStep(2); // Onboarding Step 2: Physical Parameters
     } else {
-      alert("Invalid verification code. Please try using '1234' for developer sandbox entry.");
+      alert("Invalid verification code. Please use '1234' for developer sandbox entry.");
     }
   };
 
   const handleCompleteOnboarding = () => {
     setIsLogged(true);
     localStorage.setItem('kinetix_logged_in', 'true');
-    setOnboardingStep(4);
+    setOnboardingStep(5); // Launch main platform portal
     setMotivationMessage('🏆 Access Handshake Operational. Welcome to KinetixFit!');
-    setTimeout(() => setMotivationMessage(null), 5000);
+    setTimeout(() => setMotivationMessage(null), 7000);
   };
 
   const handleTogglePersonalAllergen = (allergen: string) => {
@@ -477,8 +480,8 @@ export default function App() {
 
   const handleSimulateSteps = (cadence: number) => {
     if (cadence > 350) {
-      setMotivationMessage("🚨 FRAUD WARNING: Locomotive device oscillation frequency is physically impossible (>350 SPM). Activity dropped. Financial ledger frozen.");
-      alert("⚠️ ANTI-CHEAT INTERCEPT: Device oscillation frequency exceeds human locomotion velocity threshold (350 SPM). Payload dropped. Financial transaction blocked. Admin cheat logs updated.");
+      setMotivationMessage("🚨 FRAUD WARNING: Locomotive device oscillation frequency is physically impossible (>350 SPM). Activity dropped.");
+      alert("⚠️ ANTI-CHEAT INTERCEPT: Device oscillation frequency exceeds human locomotion velocity threshold (350 SPM). Payload dropped. Financial transaction blocked.");
       setTimeout(() => setMotivationMessage(null), 7000);
       return;
     }
@@ -498,7 +501,6 @@ export default function App() {
     setTimeout(() => setMotivationMessage(null), 5000);
   };
 
-
   const handleMealScan = (inputStr?: string) => {
     const activeInput = inputStr || mealInput;
     const userInput = activeInput.toLowerCase().trim();
@@ -515,7 +517,7 @@ export default function App() {
     let fiber = 8;
     let recommendation = '';
 
-    // Completely white-labeled, high-end, generic, premium food item descriptions:
+    // Generic, highly-premium, white-labeled formulation references:
     if (userInput.includes('tomato pasta') || userInput.includes('organic tomato pasta')) {
       calories = 380;
       carbs = 65;
@@ -546,18 +548,12 @@ export default function App() {
       protein = 14;
       fat = 7;
       fiber = 11;
-    } else {
-      // Dynamic estimation for any typed foods
-      calories = Math.floor(180 + Math.random() * 300);
-      carbs = Math.floor(15 + Math.random() * 50);
-      protein = Math.floor(8 + Math.random() * 25);
-      fat = Math.floor(4 + Math.random() * 15);
-      fiber = Math.floor(1 + Math.random() * 8);
     }
 
+    // Advanced dynamic bio-telemetry diet recommendations based on selected profiles & biometrics:
     if (isHazard || userInput.includes('nut bar')) {
       const hazardAllergens = userInput.includes('nut') ? ['peanuts', 'nuts'] : flagged;
-      recommendation = `❌ ALLERGY HAZARD ALERT: personal allergen exclusion triggered for (${hazardAllergens.join(', ')}). Ingest block active. To keep your ${profile.target} target safe, we suggest replacing this with a allergen-free organic seed matrix. Hydrate with 300ml of water immediately to support safe metabolic transit.`;
+      recommendation = `❌ DIETARY EXCLUSION INGESTION TRIGGERED: Your personal food hazard list flagged (${hazardAllergens.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic plant-protein alternative formulation containing 12g fiber to satisfy your ${profile.target} target.`;
       setMotivationMessage(`⚠️ INGESTION WARNING: Personal allergen hazard detected in your scan!`);
       setTimeout(() => setMotivationMessage(null), 6000);
 
@@ -578,34 +574,17 @@ export default function App() {
         fiber: prev.fiber + fiber
       }));
 
-      // Generate bespoke clinical diet suggestions tailored specifically to their active goal and current biometrics
-      let proteinAdvice = '';
-      let hydrationAdvice = '';
-      let fiberAdvice = '';
-
+      // Highly customized, advanced medical-grade nutritional compliance suggestions
       if (profile.target === 'Weight Loss') {
-        proteinAdvice = `You need to consume more lean protein (+22g protein) in your next meal to offset this high-carb intake and maintain muscle mass during a calorie deficit.`;
-        hydrationAdvice = `Drink an extra 500ml of pure water to assist metabolic rate and decrease carbohydrate-associated cellular water retention.`;
-        fiberAdvice = `Pair with organic greens (+8g fiber) to support blood sugar stability and reach the daily 30g target.`;
-        recommendation = `📉 METABOLIC CALIBRATION: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+        recommendation = `📉 METABOLIC CALIBRATION MATRIX APPROVED. High-fiber indices confirmed. Consuming this meal requires +22g of clean, lean protein substrates in your next training block to defend skeletal muscle fibers from caloric deficit exhaustion. Ingest +500ml of hydration to optimize metabolic transport and satisfy your strict daily NHS fiber guidelines.`;
       } else if (profile.target === 'Weight Gain') {
-        proteinAdvice = `To satisfy your muscle protein synthesis trigger, consume an extra +25g of high-quality protein (like organic whey or plant-based isolates) with this meal.`;
-        hydrationAdvice = `Ensure you drink 400ml of pure electrolyte fluids to support glycogen storage and cellular expansion.`;
-        fiberAdvice = `Your fiber index is safe, but ensure clean carbohydrate sources are prioritized.`;
-        recommendation = `📈 ANABOLIC BULK REQUISITE: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+        recommendation = `📈 HYPER-TROPHIC ANABOLIC CALIBRATION APPROVED. Mass accumulation threshold logged. Carbohydrate metrics cleared. Recommending an immediate secondary baseline boost of +35g carbohydrates and +15g amino acid substrates to satisfy continuous metabolic tissue restoration. Ensure continuous hydration syncing.`;
       } else if (profile.target === 'Cardio Endurance') {
-        proteinAdvice = `This high-carb fuel is optimal for athletic performance. Add +15g of highly bioavailable protein to assist in post-locomotion muscular restoration.`;
-        hydrationAdvice = `Hydrate immediately with 600ml of electrolyte water to replace fluid loss calculated from your step cadence biometrics.`;
-        fiberAdvice = `Log high-fiber grains (+6g fiber) to support sustained glycogen release.`;
-        recommendation = `🏃 ATHLETIC FUEL METRIC: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+        recommendation = `⚡ CARDIOVASCULAR OXIDATION CALIBRATION APPROVED. Glycogen reserves successfully replenished. Estimated metabolic oxidation coefficient verified at optimal efficiency. Ensure a high-density hydration protocol of +750ml containing essential mineral matrices to support cardiovascular pulse load and low autonomic stress during high-workload locomotion.`;
       } else { // Autonomic Recovery
-        proteinAdvice = `To keep stress load low, avoid blood glucose spikes. Add +12g of essential fatty acids or amino-dense proteins to this meal to stabilize autonomic baseline response.`;
-        hydrationAdvice = `Drink 450ml of rich alkaline mineral water to support neurological recovery and vagal cardiovascular stability.`;
-        fiberAdvice = `Pair with prebiotics (+10g fiber) to improve gut-brain microbiome recovery pathways.`;
-        recommendation = `🌱 RECOVERY ADVISORY MATRIX: ${proteinAdvice} ${hydrationAdvice} ${fiberAdvice}`;
+        recommendation = `🌱 AUTONOMIC RESTORATION MATRIX APPROVED. Low glycemic response confirmed. To help schedule active stress thresholds and keep resting cardiovascular heart rate low, supplement this formulation with +12g of essential healthy lipids and drink +450ml of alkaline hydration to speed vagal tone restoration.`;
       }
-
-      setMotivationMessage(`✅ Scan file approved! +${fiber}g dietary fiber logged toward your NHS Goal!`);
+      setMotivationMessage(`✅ Scan approved! +${fiber}g dietary fiber logged toward your NHS Goal!`);
       setTimeout(() => setMotivationMessage(null), 5000);
 
       setScanResult({
@@ -636,7 +615,7 @@ export default function App() {
       saveProfileToStorage({ ...profile, smartDeviceConnected: device });
       setSyncingDeviceType(null);
       setShowDeviceSyncModal(false);
-      setMotivationMessage(`🔋 Live sync verified with your ${device}! Core biometrics now updating.`);
+      setMotivationMessage(`🔋 Live telemetry feed established with your ${device}! Continuous streams now updating.`);
       setTimeout(() => setMotivationMessage(null), 5000);
     }, 2000);
   };
@@ -678,7 +657,7 @@ export default function App() {
 
     const newTx: VoucherLog = {
       id: `TX-UK-${Math.floor(1000 + Math.random() * 9000)}`,
-      provider: 'High-Street Beverage Reward',
+      provider: 'Premium High-Street Beverage Token',
       value: '£5.00',
       sku: 'KTX-NERO-UK',
       state: 'Settled',
@@ -717,11 +696,11 @@ export default function App() {
 
     return (
       <div style={{ marginBottom: '10px' }}>
-        <h2 style={{ fontSize: '20px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
-          👋 {timeGreeting}, {profile.name || 'Alex Mercer'}!
+        <h2 style={{ fontSize: '18px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
+          ⚡ {timeGreeting}, {profile.name || 'GUEST_REST_MODE'}
         </h2>
-        <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-          Biometric Sync: {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Awaiting sensor handshake.'}
+        <span style={{ fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace' }}>
+          Biometric Feed Status: {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Awaiting sensor handshake.'}
         </span>
       </div>
     );
@@ -732,580 +711,630 @@ export default function App() {
 
   // --- RENDERING ROUTER ---
 
-  // A0. PUBLIC LANDING PAGE (Unified Home)
-  if (viewMode === 'landing') {
-    return (
-      <div className="landing-page-wrapper" style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', overflowX: 'hidden' }}>
-        {/* Navigation Bar */}
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 6%', borderBottom: '1px solid #1f2937', backgroundColor: 'rgba(3, 7, 18, 0.85)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ filter: 'drop-shadow(0 0 8px rgba(0, 255, 136, 0.4))' }}>
-              <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '1.5px', color: '#ffffff' }}>KINETIXFIT</span>
-          </div>
-
-          <div className="desktop-nav-links" style={{ display: 'flex', gap: '25px', fontSize: '12px' }}>
-            <a href="#home" style={{ color: '#ffffff', textDecoration: 'none' }}>Home</a>
-            <a href="#biometrics" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Biometrics</a>
-            <a href="#scanner" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Scanner</a>
-            <a href="#rewards" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Rewards</a>
-          </div>
-
-          <div>
-            <button
-              onClick={() => setViewMode('app')}
-              style={{ backgroundColor: '#00ff88', color: '#000000', border: 'none', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', fontFamily: 'monospace', boxShadow: '0 0 15px rgba(0, 255, 136, 0.3)' }}
-            >
-              Sign In to Portal →
-            </button>
-          </div>
-        </nav>
-
-        {/* Hero Section */}
-        <header id="home" style={{ padding: '80px 6% 40px 6%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '25px' }}>
-          <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.08)', border: '1px solid rgba(0, 255, 136, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00ff88', fontWeight: 'bold', letterSpacing: '1px' }}>
-            👑 CATEGORY-OF-ONE BIOMETRIC CLEARINGHOUSE
-          </div>
-          <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: '#ffffff', margin: 0, lineHeight: '1.2', maxWidth: '800px', letterSpacing: '-0.5px' }}>
-            The Biometric Clearinghouse for <span style={{ color: '#00ff88', textShadow: '0 0 15px rgba(0, 255, 136, 0.15)' }}>High-Performance Lives</span>
-          </h1>
-          <p style={{ fontSize: '14px', color: '#9ca3af', maxWidth: '680px', lineHeight: '1.6', margin: 0 }}>
-            Track your live health telemetry, verify your training targets, scan your daily ingredients for severe allergens, and convert your physical consistency into premium lifestyle rewards. Built for gym-goers, students, and professionals who demand precision.
-          </p>
-          <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-            <button
-              onClick={() => setViewMode('app')}
-              style={{ backgroundColor: '#00ff88', color: '#000000', border: 'none', padding: '14px 28px', borderRadius: '30px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', fontFamily: 'monospace', boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)' }}
-            >
-              Start 7-Day Free Trial
-            </button>
-            <button
-              onClick={() => alert('📱 Companion App: Download "KinetixFit" from Google Play / Apple App Store to sync your active smart wearables.')}
-              style={{ backgroundColor: '#1f2937', color: '#ffffff', border: '1px solid #374151', padding: '14px 28px', borderRadius: '30px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', fontFamily: 'monospace' }}
-            >
-              Download Mobile App
-            </button>
-          </div>
-          <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '5px' }}>
-            Platform Licensing: £14.99 / Month per active endpoint • Cancel Anytime
-          </span>
-        </header>
-
-        {/* 6-Core Biometrics Showcase */}
-        <section id="biometrics" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '45px' }}>
-            <h2 style={{ fontSize: '24px', color: '#ffffff', margin: '0 0 10px 0' }}>6-Core Biometric Signal Architecture</h2>
-            <p style={{ fontSize: '12px', color: '#9ca3af', maxWidth: '600px', margin: '0 auto' }}>
-              We extract and interpret biological coordinates from your favorite wearable sensors to plot active health patterns.
-            </p>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-            {[
-              { title: 'Activity & Movement', desc: 'Kinetic Step Velocity Layer monitoring locomotion velocity vectors and biomechanical distribution.', icon: '📊', color: '#00ff88' },
-              { title: 'Heart Health', desc: 'Precision Cardiovascular Array mapping real-time heart rate variability (HRV) and nervous system stability.', icon: '❤️', color: '#ff3b30' },
-              { title: 'Metabolic Health', desc: 'Metabolic Velocity Index evaluating dynamic substrate oxidation ratios based on oxygen utilization.', icon: '⚡', color: '#ff9500' },
-              { title: 'Sleep & Rest', desc: 'Contextual Sleep Telemetry decomposing circadian Light, Deep, and REM cycles cleanly.', icon: '💤', color: '#00bfff' },
-              { title: 'Stress & Autonomic Load', desc: 'Autonomic Load Tracker monitoring peripheral neurological fatigue ceilings.', icon: '🧠', color: '#a855f7' },
-              { title: 'Women\'s Biological Sync', desc: 'Dynamic Biological Rhythm Sync aligning schedule workloads with hormonal temperature trends.', icon: '🌸', color: '#ec4899' },
-            ].map((core, i) => (
-              <div key={i} style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', padding: '25px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '24px' }}>{core.icon}</span>
-                  <span style={{ fontSize: '9px', color: core.color, fontWeight: 'bold', border: `1px solid ${core.color}`, padding: '2px 8px', borderRadius: '10px' }}>ACTIVE NODE</span>
-                </div>
-                <h3 style={{ fontSize: '16px', color: '#ffffff', margin: 0 }}>{core.title}</h3>
-                <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>{core.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 1-Tap AI Scanner & Food Ingestion */}
-        <section id="scanner" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '50px', alignItems: 'center' }}>
-          <div>
-            <div style={{ backgroundColor: 'rgba(0, 191, 255, 0.08)', border: '1px solid rgba(0, 191, 255, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00bfff', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
-              🥗 1-TAP INGESTION INTELLIGENCE
-            </div>
-            <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 15px 0', lineHeight: '1.3' }}>
-              Natasha's Law Allergen Scanner with <span style={{ color: '#00bfff' }}>Biometric-Guided Nutrition</span>
-            </h2>
-            <p style={{ fontSize: '12.5px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '20px' }}>
-              Verify product formulations or meal barcodes against the 14 major UK allergens. When you capture a meal scan, KinetixFit does more than count calories: our AI cross-references your real-time biometrics and active fitness target to suggest micro/macro adjustments instantly (e.g. recommending more protein to protect muscle mass or specific hydration steps to lower autonomic stress).
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '11px', color: '#9ca3af' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: '#00ff88' }}>✓</span>
-                <span>Fully compliant with UK Food Information Regulations</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: '#00ff88' }}>✓</span>
-                <span>Assists with strict NHS 30g daily fiber target checks</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ color: '#00ff88' }}>✓</span>
-                <span>Personalized allergen exclusion profiles with instant alerts</span>
-              </div>
-            </div>
-          </div>
-          <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '20px', padding: '30px', position: 'relative' }}>
-            <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '1px', display: 'block', marginBottom: '10px' }}>AI SCAN VIEWPORT DEMO</span>
-            <div style={{ backgroundColor: '#030712', borderRadius: '12px', border: '1px solid #1f2937', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Meal: Organic Tomato Pasta</span>
-                <span style={{ fontSize: '9px', backgroundColor: 'rgba(0, 255, 136, 0.1)', color: '#00ff88', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>CLEARED</span>
-              </div>
-              <div style={{ fontSize: '10.5px', color: '#9ca3af' }}>
-                • Calorie Index: 380 kcal<br/>
-                • Fiber Intake: +2g (NHS Target Check)<br/>
-                • Autonomic Goal Matching: Weight Loss Deficit approved
-              </div>
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', fontSize: '10px', borderLeft: '3px solid #00ff88' }}>
-                <strong>Calibrated Biometric Diet Target:</strong>
-                <p style={{ margin: '4px 0 0 0', lineHeight: '1.4' }}>"Consuming high carbohydrates requires +22g of lean protein in your next meal to maintain muscle mass under active calorie deficit."</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Anti-Cheat Step Validation */}
-        <section style={{ padding: '60px 6%', backgroundColor: '#0b0f19', borderTop: '1px solid #1f2937', borderBottom: '1px solid #1f2937' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '50px', alignItems: 'center' }}>
-            <div className="anti-cheat-flex-box" style={{ flex: 1 }}>
-              <div style={{ backgroundColor: 'rgba(255, 149, 0, 0.08)', border: '1px solid rgba(255, 149, 0, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#ff9500', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
-                🛡️ HARDWARE INTEGRITY CONTROLS
-              </div>
-              <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 15px 0', lineHeight: '1.3' }}>
-                4-Stage Anti-Cheat <span style={{ color: '#ff9500' }}>Step Validation Engine</span>
-              </h2>
-              <p style={{ fontSize: '12.5px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '20px' }}>
-                To ensure fair play and secure reward systems, KinetixFit monitors raw physical locomotion vectors in real-time. Our proprietary algorithms filter device hardware oscillation. If step cadences exceed a physical limit of 350 Steps Per Minute (SPM), the data packet is flagged as fraudulent, telemetry payloads are dropped, and transactions are frozen to guarantee that only authentic effort is recognized.
-              </p>
-            </div>
-            <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '20px', padding: '30px' }}>
-              <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '1px', display: 'block', marginBottom: '10px' }}>ANTI-CHEAT TEST BED</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.05)', border: '1px solid #00ff88', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ fontSize: '12px', color: '#00ff88', display: 'block' }}>Verified Locomotive Feed</strong>
-                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Standard Cadence</span>
-                  </div>
-                  <strong style={{ color: '#00ff88', fontSize: '14px' }}>120 SPM</strong>
-                </div>
-                <div style={{ backgroundColor: 'rgba(255, 59, 48, 0.05)', border: '1px solid #ff3b30', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong style={{ fontSize: '12px', color: '#ff3b30', display: 'block' }}>Mechanical Shaker Detected</strong>
-                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Cheater Cadence (Suspended)</span>
-                  </div>
-                  <strong style={{ color: '#ff3b30', fontSize: '14px' }}>420 SPM</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Kinetix Rewards Vault & Social Philanthropy */}
-        <section id="rewards" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '45px' }}>
-            <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.08)', border: '1px solid rgba(0, 255, 136, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00ff88', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
-              🎫 PREMIUM SECURE REWARDS
-            </div>
-            <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 10px 0' }}>The Kinetix Rewards Vault</h2>
-            <p style={{ fontSize: '12.5px', color: '#9ca3af', maxWidth: '600px', margin: '0 auto', lineHeight: '1.5' }}>
-              Exchange your verified biomechanical efforts for premium vouchers or donate points to sponsor registered UK Charities funded under our CSR match partnerships.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-            {/* Rewards Card */}
-            <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '16px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <h3 style={{ fontSize: '18px', color: '#00ff88', margin: 0 }}>Verified Reward Settlements</h3>
-              <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
-                Accumulate points from daily movement verification to instantly redeem high-street beverage cards, media vouchers, or apparel rewards cleanly settled directly into your secure wallet.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-                <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '20px', display: 'block' }}>☕</span>
-                  <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Hot Beverage Reward</span>
-                </div>
-                <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                  <span style={{ fontSize: '20px', display: 'block' }}>📦</span>
-                  <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Online Merchant Voucher</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Philanthropy Card */}
-            <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '16px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <h3 style={{ fontSize: '18px', color: '#00bfff', margin: 0 }}>UK Social Philanthropy Portal</h3>
-              <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
-                Convert your biometric success into a Match CSR community donation. Every 1,000 points represent a £2.50 direct corporate donation to leading registered organizations:
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px', color: '#9ca3af' }}>
-                <div>• NHS Charities Together (Sponsoring patient recovery and clinical care)</div>
-                <div>• British Heart Foundation (Funding heart-tech and clinical trials)</div>
-                <div>• The Trussell Trust (Strengthening local community food security)</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer style={{ borderTop: '1px solid #1f2937', padding: '40px 6%', backgroundColor: '#0b0f19' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '30px', fontSize: '11px', color: '#6b7280' }}>
-            <div>
-              <p style={{ color: '#ffffff', fontWeight: 'bold', margin: '0 0 10px 0', fontSize: '14px' }}>KINETIXFIT</p>
-              <p style={{ margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
-                Bespoke, white-labeled health telemetry clearinghouse for elite training consistency and biological tracking. All system databases are encrypted locally for complete compliance under UK GDPR and the Data Protection Act 2018.
-              </p>
-            </div>
-            <div>
-              <p style={{ color: '#ffffff', fontWeight: 'bold', margin: '0 0 10px 0' }}>Contact Channels</p>
-              <p style={{ margin: '0 0 5px 0' }}>• Corporate Desk: <a href="mailto:info@kinetixfit.co.uk" style={{ color: '#00ff88', textDecoration: 'none' }}>info@kinetixfit.co.uk</a></p>
-              <p style={{ margin: '0 0 5px 0' }}>• Partnership Desk: <a href="mailto:partnerships@kinetixfit.co.uk" style={{ color: '#00bfff', textDecoration: 'none' }}>partnerships@kinetixfit.co.uk</a></p>
-              <p style={{ margin: 0 }}>• Data Protection: <a href="mailto:legal@kinetixfit.co.uk" style={{ color: '#9ca3af', textDecoration: 'none' }}>legal@kinetixfit.co.uk</a></p>
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid #1f2937', marginTop: '30px', paddingTop: '20px', textAlign: 'center', fontSize: '10px', color: '#6b7280' }}>
-            All rights reserved © 2026 KinetixFit. Built with complete white-label security frameworks.
-          </div>
-        </footer>
-      </div>
-    );
-  }
-
-  // A. PRE-LOGIN: Secure OTP B2B Email Gateway
+  // A. MARKETING FRONT HOME LANDING PAGE
   if (!isLoggedIn && onboardingStep === 0) {
     return (
-      <div style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-        <div style={{ width: '100%', maxWidth: '420px', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '30px', boxShadow: '0 10px 30px rgba(0, 255, 136, 0.05)' }}>
-
-          {/* Back to Homepage Button */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
-            <button
-              onClick={() => setViewMode('landing')}
-              style={{ background: 'none', border: 'none', color: '#00ff88', cursor: 'pointer', fontFamily: 'monospace', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', padding: 0 }}
-            >
-              ← Back to Website
-            </button>
-            <span style={{ fontSize: '10px', color: '#6b7280', letterSpacing: '1px' }}>SECURE GATEWAY</span>
+      <div className="workspace-container">
+        <div className="mobile-phone-frame">
+          {/* Status bar notch */}
+          <div className="phone-notch-header">
+            <span>12:00</span>
+            <div className="phone-notch"></div>
+            <span>LTE 🔋</span>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
-            <div style={{
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '180px',
-              height: '90px',
-              borderRadius: '16px',
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(0, 255, 136, 0.15)',
-              padding: '10px',
-              boxShadow: '0 8px 32px 0 rgba(0, 255, 136, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
-            }}>
-              <svg width="100" height="50" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0px 4px 12px rgba(0, 255, 136, 0.2))' }}>
-                <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
+          <div className="app-scroll-body relative" style={{ padding: '0px', gap: '0px' }}>
+            {/* Cinematic Hero Backdrop */}
+            <div className="landing-cinematic-hero">
+              <div className="matrix-particles"></div>
 
-          <div style={{ textAlign: 'center', marginBottom: '25px' }}>
-            <span style={{ fontSize: '10px', color: '#6b7280', letterSpacing: '2px', fontWeight: 'bold' }}>B2B HEALTH TELEMETRY CLEARINGHOUSE</span>
-          </div>
+              <div className="landing-top-bar">
+                <div className="glowing-logo">
+                  <svg width="45" height="25" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div className="landing-tag">BIOMETRIC SIGNAL MATRIX</div>
+              </div>
 
-          {!isOtpSent ? (
-            <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <p style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4' }}>
-                Secure corporate login gateway. Enter your company email to request a 4-digit verification token.
-              </p>
-              <label style={{ fontSize: '11px', color: '#9ca3af' }}>Business Email Address
-                <input
-                  type="email"
-                  required
-                  placeholder="name@company.co.uk"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  className="auth-input"
-                />
-              </label>
-              <button type="submit" className="primary-btn">
-                Request Verification Token
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <p style={{ fontSize: '11px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4' }}>
-                Verification token sent to <strong style={{ color: '#00ff88' }}>{emailInput}</strong>. Enter code <strong style={{ color: '#00ff88' }}>1234</strong> to verify sandbox workspace.
-              </p>
-              <label style={{ fontSize: '11px', color: '#9ca3af' }}>4-Digit Security Token
-                <input
-                  type="text"
-                  maxLength={4}
-                  required
-                  placeholder="e.g. 1234"
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value)}
-                  className="auth-otp-input"
-                />
-              </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="button" onClick={() => setIsOtpSent(false)} className="secondary-btn">
-                  Back
-                </button>
-                <button type="submit" className="primary-btn" style={{ flex: 2 }}>
-                  Verify Token
+              <div className="landing-main-text">
+                <h1 className="cinematic-title">KINETIXFIT</h1>
+                <p className="cinematic-subtitle">THE BIOMETRIC CLEARINGHOUSE FOR HIGH-PERFORMANCE LIVES</p>
+                <div className="hud-line"></div>
+              </div>
+
+              <div className="landing-cta-box">
+                <p className="hero-disclaimer">Platform Subscription: £14.99 / Month • Includes 7-Day Free Trial</p>
+                <button onClick={() => setOnboardingStep(1)} className="landing-launch-btn">
+                  INITIALIZE PLATFORM KEY →
                 </button>
               </div>
-            </form>
-          )}
-        </div>
+            </div>
 
-        {/* CSS Declarations for Complete Contrast & Alignment */}
+            {/* Core Tech Showcase Grid */}
+            <div className="landing-tech-grid">
+              <h3 className="grid-section-title">🧬 Telemetry Architecture</h3>
+              <p className="grid-section-desc">Continuous tactical tracking of biological parameters to schedule active stress thresholds cleanly.</p>
+
+              <div className="tech-cards-grid">
+                <div className="tech-mini-card">
+                  <div className="tech-card-header">
+                    <span>SECTOR 01</span>
+                    <span className="glow-bullet green"></span>
+                  </div>
+                  <h4>6-Core Biometrics Array</h4>
+                  <p>Heart Health, Metabolic oxidation metrics, sleep tracking, and biological rhythm synchronizations in real-time.</p>
+                </div>
+                <div className="tech-mini-card">
+                  <div className="tech-card-header">
+                    <span>SECTOR 02</span>
+                    <span className="glow-bullet cyan"></span>
+                  </div>
+                  <h4>1-Tap Chemical Ingest Scanner</h4>
+                  <p>Optical scanning technology analyzing allergen formulation hazards, dietary exclusions, and NHS fiber limits.</p>
+                </div>
+                <div className="tech-mini-card">
+                  <div className="tech-card-header">
+                    <span>SECTOR 03</span>
+                    <span className="glow-bullet amber"></span>
+                  </div>
+                  <h4>Anti-Cheat Velocity Sensor</h4>
+                  <p>4-Stage hardware verification filtering out mechanical device oscillations exceeding 350 Steps Per Minute.</p>
+                </div>
+                <div className="tech-mini-card">
+                  <div className="tech-card-header">
+                    <span>SECTOR 04</span>
+                    <span className="glow-bullet purple"></span>
+                  </div>
+                  <h4>Kinetix Rewards Vault</h4>
+                  <p>Secured gamification coordinates converting verified efforts to lifestyle vouchers or matching UK CSR donations.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance Footer */}
+            <div className="landing-footer-block">
+              <p>OPERATIONAL INTEGRITY HANDSHAKE COMPLIANT</p>
+              <p style={{ opacity: 0.5, fontSize: '8px', marginTop: '4px' }}>In complete alignment with UK GDPR & Data Protection Act 2018 guidelines.</p>
+            </div>
+          </div>
+        </div>
         <style>{`
-          .auth-input {
-            width: 100% !important;
-            background-color: #030712 !important;
-            border: 1px solid #374151 !important;
-            color: #ffffff !important;
-            padding: 10px !important;
-            margin-top: 6px !important;
-            font-size: 12px !important;
-            font-family: monospace !important;
-            border-radius: 4px !important;
-            outline: none !important;
+          .landing-cinematic-hero {
+            height: 480px;
+            background: radial-gradient(circle at center, #0f172a 0%, #030712 100%);
+            border-bottom: 1px solid #1f2937;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 25px 20px;
+            box-sizing: border-box;
+            overflow: hidden;
           }
-          .auth-input:focus {
-            border-color: #00ff88 !important;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2) !important;
+          .matrix-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: radial-gradient(#00ff88 1px, transparent 1px);
+            background-size: 16px 16px;
+            opacity: 0.05;
+            pointer-events: none;
+            animation: matrixFade 10s infinite alternate;
           }
-          .auth-otp-input {
-            width: 100% !important;
-            background-color: #030712 !important;
-            border: 1px solid #374151 !important;
-            color: #ffffff !important;
-            padding: 10px !important;
-            margin-top: 6px !important;
-            font-size: 14px !important;
-            letter-spacing: 5px !important;
-            text-align: center !important;
+          @keyframes matrixFade {
+            0% { opacity: 0.03; }
+            100% { opacity: 0.08; }
+          }
+          .landing-top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .landing-tag {
+            font-size: 8px;
+            color: #6b7280;
+            letter-spacing: 2px;
+            font-weight: bold;
+            border-left: 2px solid #00ff88;
+            padding-left: 6px;
+          }
+          .landing-main-text {
+            text-align: center;
+            margin-top: 40px;
+          }
+          .cinematic-title {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 12px;
+            color: #ffffff;
+            margin: 0;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+          }
+          .cinematic-subtitle {
+            font-size: 8.5px;
+            color: #00ff88;
+            letter-spacing: 2.5px;
+            margin-top: 10px;
+            line-height: 1.4;
+          }
+          .hud-line {
+            width: 140px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            margin: 20px auto 0 auto;
+          }
+          .landing-cta-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+          }
+          .hero-disclaimer {
+            font-size: 8.5px;
+            color: #9ca3af;
+            letter-spacing: 1px;
+            margin: 0;
+          }
+          .landing-launch-btn {
+            background-color: transparent !important;
+            border: 1px solid #00ff88 !important;
+            color: #00ff88 !important;
             font-weight: bold !important;
-            font-family: monospace !important;
-            border-radius: 4px !important;
-            outline: none !important;
-          }
-          .auth-otp-input:focus {
-            border-color: #00ff88 !important;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2) !important;
-          }
-          .primary-btn {
-            background-color: #00ff88 !important;
-            color: #000000 !important;
-            font-weight: bold !important;
-            border: none !important;
-            padding: 10px !important;
-            cursor: pointer !important;
-            border-radius: 4px !important;
-            font-size: 12px !important;
-            font-family: monospace !important;
-            transition: all 0.2s !important;
-          }
-          .primary-btn:hover {
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
-            transform: translateY(-1px) !important;
-          }
-          .secondary-btn {
-            background-color: #1f2937 !important;
-            color: #ffffff !important;
-            border: 1px solid #374151 !important;
-            padding: 10px !important;
-            cursor: pointer !important;
+            padding: 12px 25px !important;
             border-radius: 4px !important;
             font-size: 11px !important;
             font-family: monospace !important;
+            letter-spacing: 1.5px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.1) !important;
+          }
+          .landing-launch-btn:hover {
+            background-color: #00ff88 !important;
+            color: #000000 !important;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4) !important;
+          }
+          .landing-tech-grid {
+            background-color: #030712;
+            padding: 25px 20px;
+            box-sizing: border-box;
+          }
+          .grid-section-title {
+            font-size: 13px;
+            color: #ffffff;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin: 0 0 6px 0;
+            border-left: 3px solid #00ff88;
+            padding-left: 8px;
+          }
+          .grid-section-desc {
+            font-size: 10px;
+            color: #9ca3af;
+            line-height: 1.4;
+            margin: 0 0 20px 0;
+          }
+          .tech-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
+          .tech-mini-card {
+            background-color: #0b0f19;
+            border: 1px solid #1f2937;
+            border-radius: 8px;
+            padding: 12px;
+            box-sizing: border-box;
+          }
+          .tech-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 7.5px;
+            color: #6b7280;
+            letter-spacing: 1px;
+            font-weight: bold;
+          }
+          .glow-bullet {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+          }
+          .glow-bullet.green { background-color: #00ff88; box-shadow: 0 0 8px #00ff88; }
+          .glow-bullet.cyan { background-color: #00bfff; box-shadow: 0 0 8px #00bfff; }
+          .glow-bullet.amber { background-color: #ff9500; box-shadow: 0 0 8px #ff9500; }
+          .glow-bullet.purple { background-color: #a855f7; box-shadow: 0 0 8px #a855f7; }
+          .tech-mini-card h4 {
+            font-size: 10px;
+            color: #ffffff;
+            margin: 0 0 4px 0;
+            font-weight: bold;
+          }
+          .tech-mini-card p {
+            font-size: 8.5px;
+            color: #9ca3af;
+            line-height: 1.3;
+            margin: 0;
+          }
+          .landing-footer-block {
+            background-color: #070a13;
+            border-top: 1px solid #111827;
+            padding: 20px;
+            text-align: center;
+            font-size: 8px;
+            color: #6b7280;
+            letter-spacing: 2px;
+            font-weight: bold;
           }
         `}</style>
       </div>
     );
   }
 
-  // B. ONBOARDING STEP 1: Biographical profile setup
-  if (onboardingStep === 1) {
+  // B. PRE-LOGIN: Secure OTP B2B Email Gateway
+  if (!isLoggedIn && onboardingStep === 1) {
     return (
-      <div style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-        <div style={{ width: '100%', maxWidth: '420px', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '30px' }}>
-          <span style={{ fontSize: '10px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 1 OF 3: PROFILE DEPLOYMENT</span>
-          <h2 style={{ fontSize: '18px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Setup Physical Telemetry Benchmarks</h2>
+      <div className="workspace-container">
+        <div className="mobile-phone-frame">
+          <div className="phone-notch-header">
+            <span>12:00</span>
+            <div className="phone-notch"></div>
+            <span>LTE 🔋</span>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <label style={{ fontSize: '11px', color: '#9ca3af' }}>Your Display Name
-              <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="auth-input" />
-            </label>
-            <label style={{ fontSize: '11px', color: '#9ca3af' }}>Height (cm)
-              <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="auth-input" />
-            </label>
-            <label style={{ fontSize: '11px', color: '#9ca3af' }}>Weight (kg)
-              <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
-            </label>
-            <label style={{ fontSize: '11px', color: '#9ca3af' }}>Primary Fitness Target
-              <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="auth-input-select">
-                <option value="Autonomic Recovery">Autonomic Recovery</option>
-                <option value="Weight Loss">Weight Loss</option>
-                <option value="Weight Gain">Weight Gain</option>
-                <option value="Cardio Endurance">Cardio Endurance</option>
-              </select>
-            </label>
-            <button onClick={() => setOnboardingStep(2)} className="primary-btn" style={{ marginTop: '10px' }}>
-              Confirm & Continue
-            </button>
+          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '120px',
+                  height: '60px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(0, 255, 136, 0.15)',
+                  padding: '5px',
+                  boxShadow: '0 4px 20px rgba(0, 255, 136, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
+                }}>
+                  <svg width="70" height="35" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0px 4px 10px rgba(0, 255, 136, 0.15))' }}>
+                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '2px', fontWeight: 'bold' }}>B2B HEALTH TELEMETRY CLEARINGHOUSE</span>
+              </div>
+
+              {!isOtpSent ? (
+                <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <p style={{ fontSize: '10.5px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4', margin: 0 }}>
+                    Secure corporate login gateway. Enter your company email to request a 4-digit verification token.
+                  </p>
+                  <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Business Email Address
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@company.co.uk"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      className="auth-input"
+                    />
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" onClick={() => setOnboardingStep(0)} className="secondary-btn">
+                      Back
+                    </button>
+                    <button type="submit" className="primary-btn" style={{ flex: 2 }}>
+                      Request Token
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <p style={{ fontSize: '10.5px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4', margin: 0 }}>
+                    Verification token sent to <strong style={{ color: '#00ff88' }}>{emailInput}</strong>. Enter code <strong style={{ color: '#00ff88' }}>1234</strong> to verify sandbox workspace.
+                  </p>
+                  <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>4-Digit Security Token
+                    <input
+                      type="text"
+                      maxLength={4}
+                      required
+                      placeholder="e.g. 1234"
+                      value={otpInput}
+                      onChange={(e) => setOtpInput(e.target.value)}
+                      className="auth-otp-input"
+                    />
+                  </label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" onClick={() => setIsOtpSent(false)} className="secondary-btn">
+                      Back
+                    </button>
+                    <button type="submit" className="primary-btn" style={{ flex: 2 }}>
+                      Verify Token
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <style>{`
+              .auth-input {
+                width: 100% !important;
+                background-color: #030712 !important;
+                border: 1px solid #374151 !important;
+                color: #ffffff !important;
+                padding: 10px !important;
+                margin-top: 6px !important;
+                font-size: 11.5px !important;
+                font-family: monospace !important;
+                border-radius: 4px !important;
+                outline: none !important;
+                box-sizing: border-box !important;
+              }
+              .auth-input:focus {
+                border-color: #00ff88 !important;
+                box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
+              }
+              .auth-otp-input {
+                width: 100% !important;
+                background-color: #030712 !important;
+                border: 1px solid #374151 !important;
+                color: #ffffff !important;
+                padding: 10px !important;
+                margin-top: 6px !important;
+                font-size: 14px !important;
+                letter-spacing: 5px !important;
+                text-align: center !important;
+                font-weight: bold !important;
+                font-family: monospace !important;
+                border-radius: 4px !important;
+                outline: none !important;
+                box-sizing: border-box !important;
+              }
+              .auth-otp-input:focus {
+                border-color: #00ff88 !important;
+                box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
+              }
+              .primary-btn {
+                background-color: #00ff88 !important;
+                color: #000000 !important;
+                font-weight: bold !important;
+                border: none !important;
+                padding: 10px !important;
+                cursor: pointer !important;
+                border-radius: 4px !important;
+                font-size: 11.5px !important;
+                font-family: monospace !important;
+                transition: all 0.2s !important;
+              }
+              .primary-btn:hover {
+                box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
+                transform: translateY(-1px) !important;
+              }
+              .secondary-btn {
+                background-color: #1f2937 !important;
+                color: #ffffff !important;
+                border: 1px solid #374151 !important;
+                padding: 10px !important;
+                cursor: pointer !important;
+                border-radius: 4px !important;
+                font-size: 11px !important;
+                font-family: monospace !important;
+              }
+            `}</style>
           </div>
         </div>
-        <style>{`
-          .auth-input-select {
-            width: 100% !important;
-            background-color: #030712 !important;
-            border: 1px solid #374151 !important;
-            color: #ffffff !important;
-            padding: 8px !important;
-            margin-top: 4px !important;
-            font-family: monospace !important;
-            border-radius: 4px !important;
-            outline: none !important;
-          }
-          .auth-input-select option {
-            background-color: #0b0f19 !important;
-            color: #ffffff !important;
-          }
-        `}</style>
       </div>
     );
   }
 
-  // C. ONBOARDING STEP 2: Personal Allergy Manager Setup
+  // C. ONBOARDING STEP 2: Biographical profile setup
   if (onboardingStep === 2) {
     return (
-      <div style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-        <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '30px' }}>
-          <span style={{ fontSize: '10px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: UK NATASHA'S LAW CONFIGURATION</span>
-          <h2 style={{ fontSize: '18px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
-          <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '15px' }}>
-            Select any of the UK's 14 major food allergens you are sensitive to. The 1-Tap AI Scanner will dynamically block and highlight these hazards.
-          </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', maxHeight: '200px', overflowY: 'auto', paddingRight: '10px', marginBottom: '20px' }}>
-            {the14Allergens.map(allergen => {
-              const active = profile.personalAllergens.includes(allergen);
-              return (
-                <button
-                  key={allergen}
-                  onClick={() => handleTogglePersonalAllergen(allergen)}
-                  style={{
-                    backgroundColor: active ? 'rgba(0, 255, 136, 0.1)' : '#030712',
-                    border: `1px solid ${active ? '#00ff88' : '#374151'}`,
-                    color: active ? '#00ff88' : '#fff',
-                    padding: '8px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '11px',
-                    textAlign: 'left',
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  {active ? '✓ ' : '+ '} {allergen.toUpperCase()}
-                </button>
-              );
-            })}
+      <div className="workspace-container">
+        <div className="mobile-phone-frame">
+          <div className="phone-notch-header">
+            <span>12:00</span>
+            <div className="phone-notch"></div>
+            <span>LTE 🔋</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => setOnboardingStep(1)} className="secondary-btn" style={{ flex: 1 }}>
-              Back
-            </button>
-            <button onClick={() => setOnboardingStep(3)} className="primary-btn" style={{ flex: 2 }}>
-              Confirm Allergens
-            </button>
+          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
+              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 1 OF 3: PROFILE DEPLOYMENT</span>
+              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Setup Physical Telemetry Benchmarks</h2>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Your Display Name
+                  <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="auth-input" />
+                </label>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Height (cm)
+                  <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="auth-input" />
+                </label>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Weight (kg)
+                  <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
+                </label>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Primary Fitness Target
+                  <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="auth-input-select">
+                    <option value="Autonomic Recovery">Autonomic Recovery</option>
+                    <option value="Weight Loss">Weight Loss</option>
+                    <option value="Weight Gain">Weight Gain</option>
+                    <option value="Cardio Endurance">Cardio Endurance</option>
+                  </select>
+                </label>
+                <button onClick={() => setOnboardingStep(3)} className="primary-btn" style={{ marginTop: '10px' }}>
+                  Confirm & Continue
+                </button>
+              </div>
+            </div>
+            <style>{`
+              .auth-input-select {
+                width: 100% !important;
+                background-color: #030712 !important;
+                border: 1px solid #374151 !important;
+                color: #ffffff !important;
+                padding: 8px !important;
+                margin-top: 4px !important;
+                font-family: monospace !important;
+                border-radius: 4px !important;
+                outline: none !important;
+                box-sizing: border-box !important;
+              }
+              .auth-input-select option {
+                background-color: #0b0f19 !important;
+                color: #ffffff !important;
+              }
+            `}</style>
           </div>
         </div>
       </div>
     );
   }
 
-  // D. ONBOARDING STEP 3: Smart Device Sync Gateway
+  // D. ONBOARDING STEP 3: Personal Allergy Manager Setup
   if (onboardingStep === 3) {
     return (
-      <div style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-        <div style={{ width: '100%', maxWidth: '420px', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '30px' }}>
-          <span style={{ fontSize: '10px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 3 OF 3: SMART DEVICE INTEGRATION</span>
-          <h2 style={{ fontSize: '18px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Connect Your Smart Device</h2>
-          <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '20px' }}>
-            Synchronize your continuous telemetry feeds (pulse fluctuation, steps, and HRV metrics) directly with our clearinghouse.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-            {['Apple Health', 'Oura Cloud Sync', 'Garmin Connect', 'Fitbit Network'].map(device => (
-              <button
-                key={device}
-                onClick={() => handleInitiateDeviceConnection(device)}
-                disabled={syncingDeviceType !== null}
-                style={{
-                  backgroundColor: '#030712',
-                  border: '1px solid #1f2937',
-                  color: '#fff',
-                  padding: '12px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  textAlign: 'left',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontFamily: 'monospace'
-                }}
-              >
-                <span>⚡ {device}</span>
-                <span style={{ color: '#00ff88' }}>
-                  {syncingDeviceType === device ? 'Syncing...' : 'Sync Sensor →'}
-                </span>
-              </button>
-            ))}
+      <div className="workspace-container">
+        <div className="mobile-phone-frame">
+          <div className="phone-notch-header">
+            <span>12:00</span>
+            <div className="phone-notch"></div>
+            <span>LTE 🔋</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => setOnboardingStep(2)} className="secondary-btn" style={{ flex: 1 }}>
-              Back
-            </button>
-            <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.5, backgroundColor: profile.smartDeviceConnected ? '#00ff88' : 'rgba(0, 255, 136, 0.4)' }}>
-              Skip & Launch Portal
-            </button>
+          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
+              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: FOOD EXCLUSION CONFIGURATION</span>
+              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
+              <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '15px', margin: '0 0 15px 0' }}>
+                Select any food allergen classifications you are sensitive to. The AI Scanner will dynamically scan and flag these chemical hazards.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px' }}>
+                {the14Allergens.map(allergen => {
+                  const active = profile.personalAllergens.includes(allergen);
+                  return (
+                    <button
+                      key={allergen}
+                      onClick={() => handleTogglePersonalAllergen(allergen)}
+                      style={{
+                        backgroundColor: active ? 'rgba(0, 255, 136, 0.08)' : '#030712',
+                        border: `1px solid ${active ? '#00ff88' : '#374151'}`,
+                        color: active ? '#00ff88' : '#ffffff',
+                        padding: '6px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '10px',
+                        textAlign: 'left',
+                        fontFamily: 'monospace'
+                      }}
+                    >
+                      {active ? '✓ ' : '+ '} {allergen.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => setOnboardingStep(2)} className="secondary-btn" style={{ flex: 1 }}>
+                  Back
+                </button>
+                <button onClick={() => setOnboardingStep(4)} className="primary-btn" style={{ flex: 1.5 }}>
+                  Confirm Allergens
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // E. MAIN PLATFORM PORTAL: GORGEOUS CENTERED HYBRID MOBILE APP WRAPPER
-  return (
-    <div className="workspace-container">
+  // E. ONBOARDING STEP 4: Smart Device Sync Gateway
+  if (onboardingStep === 4) {
+    return (
+      <div className="workspace-container">
+        <div className="mobile-phone-frame">
+          <div className="phone-notch-header">
+            <span>12:00</span>
+            <div className="phone-notch"></div>
+            <span>LTE 🔋</span>
+          </div>
 
-      {/* 📱 Real Simulated Apple/Oura Style Mobile Bezel & Body */}
-      <div className="mobile-phone-frame">
+          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
+              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 3 OF 3: TELEMETRY INTEGRATION</span>
+              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Connect Biometric Sensor</h2>
+              <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '15px', margin: '0 0 15px 0' }}>
+                Synchronize your continuous physical sensors (pulse fluctuations, sleep recovery waves, stress baselines) with our secure clearinghouse.
+              </p>
 
-        {/* Device Notch Header */}
-        <div className="phone-notch-header">
-          <div className="phone-time">09:41</div>
-          <div className="phone-notch"></div>
-          <div className="phone-signals">
-            <span>📶</span>
-            <span>📡</span>
-            <span style={{ color: '#00ff88' }}>🔋 100%</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
+                {['Continuous Wrist Sensor', 'Biometric Ring Stream', 'Heart Strap Sync', 'Rest Sleep Sensor'].map(device => (
+                  <button
+                    key={device}
+                    onClick={() => handleInitiateDeviceConnection(device)}
+                    disabled={syncingDeviceType !== null}
+                    style={{
+                      backgroundColor: '#030712',
+                      border: '1px solid #1f2937',
+                      color: '#ffffff',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '10.5px',
+                      textAlign: 'left',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    <span>⚡ {device}</span>
+                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>
+                      {syncingDeviceType === device ? 'Syncing...' : 'Link Sensor'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={() => setOnboardingStep(3)} className="secondary-btn" style={{ flex: 1 }}>
+                  Back
+                </button>
+                <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.5 }}>
+                  Launch Dashboard
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* --- SYSTEM NOTIFICATION ANNOUNCEMENT TICKER --- */}
+  // F. MAIN HOLLYWOOD HUD PLATFORM PORTAL SCREEN WITH GLASS SCI-FI OVERLAYS
+  return (
+    <div className="workspace-container">
+      <div className="mobile-phone-frame">
+        {/* Status bar notch */}
+        <div className="phone-notch-header">
+          <span>12:00</span>
+          <div className="phone-notch"></div>
+          <span>LTE 🔋</span>
+        </div>
+
+        {/* --- DYNAMIC GLOWING ANNOUNCEMENT TICKER --- */}
         {motivationMessage && (
           <div className="alert-ticker">
             {motivationMessage}
@@ -1334,7 +1363,7 @@ export default function App() {
             </div>
           </header>
 
-          {/* ==================== TAB 1: TODAY (VITALS & TRIPLE-TIER DRILLDOWN) ==================== */}
+          {/* ==================== TAB 1: TODAY (VITALS & SCI-FI DRILLDOWN) ==================== */}
           {activeTab === 'vitals' && (
             <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -1342,7 +1371,7 @@ export default function App() {
               <div className="vitals-hero-card">
                 <div style={{ flex: 1.2 }}>
                   {getPersonalizedWelcome()}
-                  <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginTop: '10px' }}>
+                  <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginTop: '10px', margin: '10px 0 0 0' }}>
                     Continuous biometric telemetry active. Security velocity limits calibrated. Click any of the 6-Core Metrics below to analyze deep autonomic fluctuations.
                   </p>
                 </div>
@@ -1383,59 +1412,44 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Interactive Multi-Core Oscilloscope Viewport (Oura/Apple-Health Signal Matrix) */}
+                {/* Tactical Holographic Wave Oscilloscope */}
                 <div className="ecg-oscilloscope-viewport">
+                  {/* Glowing background grid lines */}
+                  <div className="hud-grid-background"></div>
+
                   <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                     <path
-                      d={
-                        selectedMetricId === 'BIO-2' // Heart Health (High-Frequency ECG Spikes)
-                          ? `M 0,45 ${pulseHistory.map((v, idx) => {
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              let y = 45;
-                              if (idx % 4 === 0) y = 15;
-                              else if (idx % 4 === 1) y = 75;
-                              else y = 45 - (v - 72) * 1.5;
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                          : selectedMetricId === 'BIO-1' // Activity (Symmetric locomotive gait waves)
-                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              const angle = (idx / pulseHistory.length) * Math.PI * 6;
-                              const y = 45 + Math.sin(angle) * 18;
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                          : selectedMetricId === 'BIO-3' // Metabolic Health (Dynamic metabolic fluctuations)
-                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              const y = 45 + Math.cos(idx * 0.8) * 10 + Math.sin(idx * 0.3) * 6;
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                          : selectedMetricId === 'BIO-4' // Sleep & Rest (Deep delta slow-wave rest phase)
-                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              const y = 45 + Math.sin((idx / pulseHistory.length) * Math.PI * 3) * 16;
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                          : selectedMetricId === 'BIO-5' // Stress (High-tension erratic cortisol spikes)
-                          ? `M 0,45 ${pulseHistory.map((_v, idx) => {
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              const y = 45 + (idx % 2 === 0 ? 22 : -22) * Math.random();
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                          : `M 0,45 ${pulseHistory.map((_v, idx) => { // Women's Health (Sinusoidal biological rhythms)
-                              const x = (idx / (pulseHistory.length - 1)) * 380;
-                              const y = 45 + Math.sin((idx / pulseHistory.length) * Math.PI * 2) * 15;
-                              return `L ${x},${y}`;
-                            }).join(' ')}`
-                      }
+                      d={`M 0,32.5 ${pulseHistory.map((v, idx) => {
+                        const x = (idx / (pulseHistory.length - 1)) * 380;
+                        let y = 32.5;
+
+                        // RENDER DYNAMIC HOLLYWOOD-STYLE MATHEMATICAL WAVE SCHEMAS
+                        if (selectedMetric.waveType === 'ecg') {
+                          // Traditional Cardio ECG Signature with R-peaks
+                          if (idx % 4 === 0) y = 10;
+                          else if (idx % 4 === 1) y = 55;
+                          else y = 32.5 - (v - 72) * 1.2;
+                        } else if (selectedMetric.waveType === 'sinusoidal') {
+                          // Smooth High-Frequency Movement wave
+                          y = 32.5 + Math.sin(idx * 1.5) * 20;
+                        } else if (selectedMetric.waveType === 'delta') {
+                          // Very slow deep delta sleep waves
+                          y = 32.5 + Math.sin(idx * 0.4) * 25;
+                        } else if (selectedMetric.waveType === 'mitochondrial') {
+                          // Rapid high-energy metabolic curves
+                          y = 32.5 + Math.cos(idx * 2.2) * 15 + Math.sin(idx * 1.1) * 8;
+                        } else if (selectedMetric.waveType === 'erratic_spikes') {
+                          // High-stress jagged stress peaks
+                          y = 32.5 + (Math.sin(idx * 3.5) * 12) + ((idx % 2 === 0 ? 1 : -1) * 18);
+                        } else if (selectedMetric.waveType === 'slow_sinusoidal') {
+                          // Long structural biological rhythm waves
+                          y = 32.5 + Math.sin(idx * 0.2) * 22;
+                        }
+
+                        return `L ${x},${y}`;
+                      }).join(' ')}`}
                       fill="none"
-                      stroke={
-                        selectedMetricId === 'BIO-2' ? '#ff3b30' :
-                        selectedMetricId === 'BIO-4' ? '#a855f7' :
-                        selectedMetricId === 'BIO-1' ? '#00ff88' :
-                        selectedMetricId === 'BIO-3' ? '#ff9500' :
-                        selectedMetricId === 'BIO-5' ? '#ec4899' : '#00bfff'
-                      }
+                      stroke={selectedMetricId === 'BIO-2' ? '#ff3b30' : '#00ff88'}
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -1532,7 +1546,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ==================== TAB 2: NOURISH (NATASHA'S LAW SCANNERS) ==================== */}
+          {/* ==================== TAB 2: NOURISH (QUANTUM SPECTRAL SCANNERS) ==================== */}
           {activeTab === 'nourish' && (
             <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
@@ -1634,40 +1648,42 @@ export default function App() {
 
               {/* Gamification point balances */}
               <div className="rewards-summary-card">
-                <span className="vitals-label">SECURE LEDGER BALANCES • LEVEL {level} ({xp} XP)</span>
-                <h3 className="rewards-wallet-balance">
-                  {totalVoucherPoints} <span style={{ fontSize: '14px', color: '#9ca3af' }}>Points Available</span>
-                </h3>
-                <p style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1.4', marginTop: '5px' }}>
-                  Daily biometric quest completions verify physical locomotion thresholds, clearing matching point allocations. B2B voucher redemptions settle natively below.
+                <span className="vitals-label">SECURE POINTS LEDGER • LEVEL {level} ({xp} XP)</span>
+                <h3 className="rewards-wallet-balance">{totalVoucherPoints} Points</h3>
+                <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', margin: '5px 0 12px 0' }}>
+                  Exchange your verified biomechanical efforts for premium vouchers or donate points to sponsor registered UK Charities funded under our CSR match partnerships.
                 </p>
 
-                {/* Visa Pitch Demo Mode Bypass */}
-                <div style={{ borderTop: '1px dashed #1f2937', marginTop: '15px', paddingTop: '15px' }}>
+                {/* 🛡️ Secure Presentation Override Toggle */}
+                <div style={{ borderTop: '1px dashed #1f2937', paddingTop: '10px' }}>
                   <label className="demo-toggle-label">
                     <input
                       type="checkbox"
                       checked={visaDemoMode}
-                      onChange={(e) => setVisaDemoMode(e.target.checked)}
+                      onChange={(e) => {
+                        setVisaDemoMode(e.target.checked);
+                        setMotivationMessage(e.target.checked ? '🚀 Pitch Mode Active! Point limits and quest requirements bypassed.' : '🔒 Standard verification gates restored.');
+                        setTimeout(() => setMotivationMessage(null), 5000);
+                      }}
                       className="demo-toggle-checkbox"
                     />
-                    ⚡ Enable Pitch Mode (Unlock instant, free voucher settlements)
+                    ⚡ Enable Demo Pitch Mode (Bypass verification limits)
                   </label>
                 </div>
               </div>
 
-              {/* Locomotive Cadence Tester */}
+              {/* Physical locomotion validator accelerometer anti-cheat */}
               <div className="biopoint-validator-card">
-                <span className="validator-label">⚡ BIOMECHANICAL SPEED CADENCE SIMULATOR</span>
+                <span className="validator-label">⚡ BIOMECHANICAL HARDWARE DETECTOR</span>
                 <p className="validator-desc">
-                  To protect partner reserves, our 4-Stage Anti-Cheat Step Engine blocks automated devices and mechanical shakers. Real steps earn reward point ledgers; cadences exceeding 350 SPM freeze balances.
+                  Accumulate points from daily movement verification to instantly redeem high-street beverage cards, media vouchers, or apparel rewards cleanly settled directly into your secure wallet.
                 </p>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal">
-                    🏃 Step Cadence (120 SPM)
+                    🏃 Active Run (120 SPM)
                   </button>
                   <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert">
-                    🚨 Cheat Hack (420 SPM)
+                    🚨 Fraud Shake (420 SPM)
                   </button>
                 </div>
               </div>
@@ -1829,7 +1845,7 @@ export default function App() {
                 <div className="legal-block-card">
                   <h3 className="legal-card-title">🔒 Autonomic Data Shield</h3>
                   <p className="legal-card-text">
-                    All continuous biometric streams, ingestion records, and reward logs are encrypted strictly at-rest using secure local schemas. Operated securely under KinetixFit Systems and fully compliant with the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
+                    All continuous biometric streams, ingestion records, and reward logs are encrypted strictly at-rest using secure local schemas. Operated securely under strict compliance with the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
                   </p>
                 </div>
               </div>
@@ -1874,26 +1890,24 @@ export default function App() {
             <p style={{ lineHeight: '1.4' }}>
               KinetixFit acts as an autonomic biometric analysis clearinghouse. It is not a certified medical device and does not substitute professional medical diagnosis, clinical testing, or general practitioner (GP) advice. Always consult a certified specialist prior to starting high-workload fitness structures or dietary deficits.
             </p>
-            <p style={{ marginTop: '8px', fontStyle: 'italic' }}>
-              KinetixFit Biometric Signal Clearinghouse. All rights reserved © 2026.
-            </p>
           </footer>
 
         </div>
 
-
-        {/* --- FLOATING QUICK-ACCESS BIOMETRIC MEAL SCANNER FAB --- */}
+        {/* --- FLOATING HOLLYWOOD QUICK ACCESS CAMERA BUTTON (FAB) --- */}
         <button
-          onClick={() => setShowCameraModal(true)}
-          className="floating-camera-fab"
-          title="Quick Scan Meal"
+          onClick={() => {
+            setActiveTab('nourish');
+            setShowCameraModal(true);
+          }}
+          className="floating-hud-camera-fab"
+          title="Launch Ingestion Scan"
         >
           📷
         </button>
 
         {/* --- STICKY BOTTOM NAVIGATION BAR --- */}
         <nav className="phone-bottom-nav">
-
           {[
             { id: 'vitals', label: 'Today', icon: '📊' },
             { id: 'nourish', label: 'Nourish', icon: '🥗' },
@@ -1950,7 +1964,7 @@ export default function App() {
       {showCameraModal && (
         <div className="portal-overlay-modal">
           <div className="modal-content-card">
-            <h3 className="modal-title">📷 AI Barcode OCR Scanner</h3>
+            <h3 className="modal-title">📷 AI Spectral Ingestion Scanner</h3>
 
             {isCameraScanning ? (
               <div className="camera-viewfinder-scanning">
@@ -1962,22 +1976,22 @@ export default function App() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <p className="modal-desc">
-                  Select a B2B product formulation below to simulate an instant high-speed camera barcode snap.
+                  Select a product formulation below to simulate an instant high-speed camera barcode snap and molecular allergen interrogation.
                 </p>
 
                 <div className="modal-options-stack">
                   <button onClick={() => triggerCameraScan('Organic Tomato Pasta')} className="camera-mock-choice-btn hover-green">
-                    <span>🛒 Snap: Organic Tomato Pasta</span>
+                    <span>🛒 Scan: Organic Tomato Pasta</span>
                     <span style={{ color: '#00ff88', fontWeight: 'bold' }}>CLEARED</span>
                   </button>
 
                   <button onClick={() => triggerCameraScan('Protein Nut Bar')} className="camera-mock-choice-btn hover-red">
-                    <span>🛒 Snap: Protein Nut Bar</span>
-                    <span style={{ color: '#ff3b30', fontWeight: 'bold' }}>ALLERGEN WARNING</span>
+                    <span>🛒 Scan: Protein Nut Bar</span>
+                    <span style={{ color: '#ff3b30', fontWeight: 'bold' }}>HAZARD FLAGGED</span>
                   </button>
 
                   <button onClick={() => triggerCameraScan('Sweet Potato Bhaji Formulation')} className="camera-mock-choice-btn hover-green">
-                    <span>🛒 Snap: Sweet Potato Bhaji</span>
+                    <span>🛒 Scan: Sweet Potato Bhaji</span>
                     <span style={{ color: '#00ff88', fontWeight: 'bold' }}>CLEARED</span>
                   </button>
                 </div>
@@ -2169,7 +2183,7 @@ export default function App() {
           margin-top: 4px !important;
         }
 
-        /* ECG Oscilloscope card */
+        /* ECG Oscilloscope card with Holographic CSS properties */
         .ecg-module-card {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
@@ -2178,6 +2192,7 @@ export default function App() {
           display: flex !important;
           flex-direction: column !important;
           gap: 12px !important;
+          position: relative !important;
         }
         .ecg-card-header {
           display: flex !important;
@@ -2217,8 +2232,45 @@ export default function App() {
           position: relative !important;
           overflow: hidden !important;
         }
+        .hud-grid-background {
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          background-image:
+            linear-gradient(rgba(0, 255, 136, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 136, 0.05) 1px, transparent 1px) !important;
+          background-size: 15px 15px !important;
+          pointer-events: none !important;
+        }
         .ecg-path {
-          filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.5)) !important;
+          filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.6)) !important;
+        }
+
+        /* Floating Sci-Fi Circular Camera Button FAB */
+        .floating-hud-camera-fab {
+          position: absolute !important;
+          bottom: 80px !important;
+          right: 25px !important;
+          width: 52px !important;
+          height: 52px !important;
+          border-radius: 50% !important;
+          background: radial-gradient(circle, #0b0f19 0%, #030712 100%) !important;
+          border: 2px solid #00ff88 !important;
+          color: #00ff88 !important;
+          font-size: 20px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 20px rgba(0, 255, 136, 0.35) !important;
+          z-index: 98 !important;
+          transition: all 0.3s ease !important;
+        }
+        .floating-hud-camera-fab:hover {
+          transform: scale(1.1) rotate(15deg) !important;
+          box-shadow: 0 0 25px rgba(0, 255, 136, 0.6) !important;
         }
 
         /* Submetrics details panels */
@@ -2921,7 +2973,7 @@ export default function App() {
           font-size: 10.5px !important;
           font-family: monospace !important;
           border-radius: 4px !important;
-          outline: none !important;
+          outline: none;
         }
         .promo-text-input:focus {
           border-color: #00bfff !important;
@@ -3038,35 +3090,6 @@ export default function App() {
         .support-emails-box a {
           color: #00ff88 !important;
           text-decoration: none !important;
-        }
-
-
-        /* Floating Circular Camera FAB (Quick Access) */
-        .floating-camera-fab {
-          position: absolute !important;
-          bottom: 75px !important; /* Floats perfectly above the bottom nav */
-          right: 20px !important;
-          width: 54px !important;
-          height: 54px !important;
-          background: linear-gradient(135deg, #00ff88 0%, #00bfff 100%) !important;
-          border: none !important;
-          border-radius: 50% !important;
-          color: #030712 !important;
-          font-size: 20px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          box-shadow: 0 4px 20px rgba(0, 255, 136, 0.45) !important;
-          z-index: 98 !important;
-          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-        }
-        .floating-camera-fab:hover {
-          transform: scale(1.1) rotate(5deg) !important;
-          box-shadow: 0 6px 25px rgba(0, 255, 136, 0.65) !important;
-        }
-        .floating-camera-fab:active {
-          transform: scale(0.95) !important;
         }
 
         /* Sticky Phone Navigation panel */
