@@ -67,6 +67,11 @@ export default function App() {
     return saved === 'true';
   });
 
+  const [viewMode, setViewMode] = useState<'landing' | 'app'>(() => {
+    const saved = localStorage.getItem('kinetix_logged_in');
+    return saved === 'true' ? 'app' : 'landing';
+  });
+
   const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0: Login, 1: Profile Setup, 2: Allergen Selection, 3: Device Sync, 4: Active Portal
   const [emailInput, setEmailInput] = useState<string>('');
   const [otpInput, setOtpInput] = useState<string>('');
@@ -727,11 +732,266 @@ export default function App() {
 
   // --- RENDERING ROUTER ---
 
+  // A0. PUBLIC LANDING PAGE (Unified Home)
+  if (viewMode === 'landing') {
+    return (
+      <div className="landing-page-wrapper" style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', overflowX: 'hidden' }}>
+        {/* Navigation Bar */}
+        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 6%', borderBottom: '1px solid #1f2937', backgroundColor: 'rgba(3, 7, 18, 0.85)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ filter: 'drop-shadow(0 0 8px rgba(0, 255, 136, 0.4))' }}>
+              <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '1.5px', color: '#ffffff' }}>KINETIXFIT</span>
+          </div>
+
+          <div className="desktop-nav-links" style={{ display: 'flex', gap: '25px', fontSize: '12px' }}>
+            <a href="#home" style={{ color: '#ffffff', textDecoration: 'none' }}>Home</a>
+            <a href="#biometrics" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Biometrics</a>
+            <a href="#scanner" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Scanner</a>
+            <a href="#rewards" style={{ color: '#9ca3af', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = '#00ff88'} onMouseOut={e => e.currentTarget.style.color = '#9ca3af'}>Rewards</a>
+          </div>
+
+          <div>
+            <button
+              onClick={() => setViewMode('app')}
+              style={{ backgroundColor: '#00ff88', color: '#000000', border: 'none', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', fontSize: '11px', cursor: 'pointer', fontFamily: 'monospace', boxShadow: '0 0 15px rgba(0, 255, 136, 0.3)' }}
+            >
+              Sign In to Portal →
+            </button>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <header id="home" style={{ padding: '80px 6% 40px 6%', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '25px' }}>
+          <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.08)', border: '1px solid rgba(0, 255, 136, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00ff88', fontWeight: 'bold', letterSpacing: '1px' }}>
+            👑 CATEGORY-OF-ONE BIOMETRIC CLEARINGHOUSE
+          </div>
+          <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: '#ffffff', margin: 0, lineHeight: '1.2', maxWidth: '800px', letterSpacing: '-0.5px' }}>
+            The Biometric Clearinghouse for <span style={{ color: '#00ff88', textShadow: '0 0 15px rgba(0, 255, 136, 0.15)' }}>High-Performance Lives</span>
+          </h1>
+          <p style={{ fontSize: '14px', color: '#9ca3af', maxWidth: '680px', lineHeight: '1.6', margin: 0 }}>
+            Track your live health telemetry, verify your training targets, scan your daily ingredients for severe allergens, and convert your physical consistency into premium lifestyle rewards. Built for gym-goers, students, and professionals who demand precision.
+          </p>
+          <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+            <button
+              onClick={() => setViewMode('app')}
+              style={{ backgroundColor: '#00ff88', color: '#000000', border: 'none', padding: '14px 28px', borderRadius: '30px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', fontFamily: 'monospace', boxShadow: '0 0 20px rgba(0, 255, 136, 0.4)' }}
+            >
+              Start 7-Day Free Trial
+            </button>
+            <button
+              onClick={() => alert('📱 Companion App: Download "KinetixFit" from Google Play / Apple App Store to sync your active smart wearables.')}
+              style={{ backgroundColor: '#1f2937', color: '#ffffff', border: '1px solid #374151', padding: '14px 28px', borderRadius: '30px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', fontFamily: 'monospace' }}
+            >
+              Download Mobile App
+            </button>
+          </div>
+          <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '5px' }}>
+            Platform Licensing: £14.99 / Month per active endpoint • Cancel Anytime
+          </span>
+        </header>
+
+        {/* 6-Core Biometrics Showcase */}
+        <section id="biometrics" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '45px' }}>
+            <h2 style={{ fontSize: '24px', color: '#ffffff', margin: '0 0 10px 0' }}>6-Core Biometric Signal Architecture</h2>
+            <p style={{ fontSize: '12px', color: '#9ca3af', maxWidth: '600px', margin: '0 auto' }}>
+              We extract and interpret biological coordinates from your favorite wearable sensors to plot active health patterns.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            {[
+              { title: 'Activity & Movement', desc: 'Kinetic Step Velocity Layer monitoring locomotion velocity vectors and biomechanical distribution.', icon: '📊', color: '#00ff88' },
+              { title: 'Heart Health', desc: 'Precision Cardiovascular Array mapping real-time heart rate variability (HRV) and nervous system stability.', icon: '❤️', color: '#ff3b30' },
+              { title: 'Metabolic Health', desc: 'Metabolic Velocity Index evaluating dynamic substrate oxidation ratios based on oxygen utilization.', icon: '⚡', color: '#ff9500' },
+              { title: 'Sleep & Rest', desc: 'Contextual Sleep Telemetry decomposing circadian Light, Deep, and REM cycles cleanly.', icon: '💤', color: '#00bfff' },
+              { title: 'Stress & Autonomic Load', desc: 'Autonomic Load Tracker monitoring peripheral neurological fatigue ceilings.', icon: '🧠', color: '#a855f7' },
+              { title: 'Women\'s Biological Sync', desc: 'Dynamic Biological Rhythm Sync aligning schedule workloads with hormonal temperature trends.', icon: '🌸', color: '#ec4899' },
+            ].map((core, i) => (
+              <div key={i} style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', padding: '25px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '24px' }}>{core.icon}</span>
+                  <span style={{ fontSize: '9px', color: core.color, fontWeight: 'bold', border: `1px solid ${core.color}`, padding: '2px 8px', borderRadius: '10px' }}>ACTIVE NODE</span>
+                </div>
+                <h3 style={{ fontSize: '16px', color: '#ffffff', margin: 0 }}>{core.title}</h3>
+                <p style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>{core.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 1-Tap AI Scanner & Food Ingestion */}
+        <section id="scanner" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '50px', alignItems: 'center' }}>
+          <div>
+            <div style={{ backgroundColor: 'rgba(0, 191, 255, 0.08)', border: '1px solid rgba(0, 191, 255, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00bfff', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
+              🥗 1-TAP INGESTION INTELLIGENCE
+            </div>
+            <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 15px 0', lineHeight: '1.3' }}>
+              Natasha's Law Allergen Scanner with <span style={{ color: '#00bfff' }}>Biometric-Guided Nutrition</span>
+            </h2>
+            <p style={{ fontSize: '12.5px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '20px' }}>
+              Verify product formulations or meal barcodes against the 14 major UK allergens. When you capture a meal scan, KinetixFit does more than count calories: our AI cross-references your real-time biometrics and active fitness target to suggest micro/macro adjustments instantly (e.g. recommending more protein to protect muscle mass or specific hydration steps to lower autonomic stress).
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '11px', color: '#9ca3af' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: '#00ff88' }}>✓</span>
+                <span>Fully compliant with UK Food Information Regulations</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: '#00ff88' }}>✓</span>
+                <span>Assists with strict NHS 30g daily fiber target checks</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: '#00ff88' }}>✓</span>
+                <span>Personalized allergen exclusion profiles with instant alerts</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '20px', padding: '30px', position: 'relative' }}>
+            <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '1px', display: 'block', marginBottom: '10px' }}>AI SCAN VIEWPORT DEMO</span>
+            <div style={{ backgroundColor: '#030712', borderRadius: '12px', border: '1px solid #1f2937', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Meal: Organic Tomato Pasta</span>
+                <span style={{ fontSize: '9px', backgroundColor: 'rgba(0, 255, 136, 0.1)', color: '#00ff88', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>CLEARED</span>
+              </div>
+              <div style={{ fontSize: '10.5px', color: '#9ca3af' }}>
+                • Calorie Index: 380 kcal<br/>
+                • Fiber Intake: +2g (NHS Target Check)<br/>
+                • Autonomic Goal Matching: Weight Loss Deficit approved
+              </div>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '4px', fontSize: '10px', borderLeft: '3px solid #00ff88' }}>
+                <strong>Calibrated Biometric Diet Target:</strong>
+                <p style={{ margin: '4px 0 0 0', lineHeight: '1.4' }}>"Consuming high carbohydrates requires +22g of lean protein in your next meal to maintain muscle mass under active calorie deficit."</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Anti-Cheat Step Validation */}
+        <section style={{ padding: '60px 6%', backgroundColor: '#0b0f19', borderTop: '1px solid #1f2937', borderBottom: '1px solid #1f2937' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '50px', alignItems: 'center' }}>
+            <div className="anti-cheat-flex-box" style={{ flex: 1 }}>
+              <div style={{ backgroundColor: 'rgba(255, 149, 0, 0.08)', border: '1px solid rgba(255, 149, 0, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#ff9500', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
+                🛡️ HARDWARE INTEGRITY CONTROLS
+              </div>
+              <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 15px 0', lineHeight: '1.3' }}>
+                4-Stage Anti-Cheat <span style={{ color: '#ff9500' }}>Step Validation Engine</span>
+              </h2>
+              <p style={{ fontSize: '12.5px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '20px' }}>
+                To ensure fair play and secure reward systems, KinetixFit monitors raw physical locomotion vectors in real-time. Our proprietary algorithms filter device hardware oscillation. If step cadences exceed a physical limit of 350 Steps Per Minute (SPM), the data packet is flagged as fraudulent, telemetry payloads are dropped, and transactions are frozen to guarantee that only authentic effort is recognized.
+              </p>
+            </div>
+            <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '20px', padding: '30px' }}>
+              <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '1px', display: 'block', marginBottom: '10px' }}>ANTI-CHEAT TEST BED</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.05)', border: '1px solid #00ff88', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '12px', color: '#00ff88', display: 'block' }}>Verified Locomotive Feed</strong>
+                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Standard Cadence</span>
+                  </div>
+                  <strong style={{ color: '#00ff88', fontSize: '14px' }}>120 SPM</strong>
+                </div>
+                <div style={{ backgroundColor: 'rgba(255, 59, 48, 0.05)', border: '1px solid #ff3b30', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '12px', color: '#ff3b30', display: 'block' }}>Mechanical Shaker Detected</strong>
+                    <span style={{ fontSize: '10px', color: '#9ca3af' }}>Cheater Cadence (Suspended)</span>
+                  </div>
+                  <strong style={{ color: '#ff3b30', fontSize: '14px' }}>420 SPM</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Kinetix Rewards Vault & Social Philanthropy */}
+        <section id="rewards" style={{ padding: '60px 6%', maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '45px' }}>
+            <div style={{ backgroundColor: 'rgba(0, 255, 136, 0.08)', border: '1px solid rgba(0, 255, 136, 0.2)', padding: '6px 15px', borderRadius: '20px', fontSize: '10px', color: '#00ff88', fontWeight: 'bold', letterSpacing: '1px', display: 'inline-block', marginBottom: '15px' }}>
+              🎫 PREMIUM SECURE REWARDS
+            </div>
+            <h2 style={{ fontSize: '28px', color: '#ffffff', margin: '0 0 10px 0' }}>The Kinetix Rewards Vault</h2>
+            <p style={{ fontSize: '12.5px', color: '#9ca3af', maxWidth: '600px', margin: '0 auto', lineHeight: '1.5' }}>
+              Exchange your verified biomechanical efforts for premium vouchers or donate points to sponsor registered UK Charities funded under our CSR match partnerships.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+            {/* Rewards Card */}
+            <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '16px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h3 style={{ fontSize: '18px', color: '#00ff88', margin: 0 }}>Verified Reward Settlements</h3>
+              <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
+                Accumulate points from daily movement verification to instantly redeem high-street beverage cards, media vouchers, or apparel rewards cleanly settled directly into your secure wallet.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '20px', display: 'block' }}>☕</span>
+                  <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Hot Beverage Reward</span>
+                </div>
+                <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '20px', display: 'block' }}>📦</span>
+                  <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>Online Merchant Voucher</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Philanthropy Card */}
+            <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '16px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h3 style={{ fontSize: '18px', color: '#00bfff', margin: 0 }}>UK Social Philanthropy Portal</h3>
+              <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>
+                Convert your biometric success into a Match CSR community donation. Every 1,000 points represent a £2.50 direct corporate donation to leading registered organizations:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '11px', color: '#9ca3af' }}>
+                <div>• NHS Charities Together (Sponsoring patient recovery and clinical care)</div>
+                <div>• British Heart Foundation (Funding heart-tech and clinical trials)</div>
+                <div>• The Trussell Trust (Strengthening local community food security)</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer style={{ borderTop: '1px solid #1f2937', padding: '40px 6%', backgroundColor: '#0b0f19' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '30px', fontSize: '11px', color: '#6b7280' }}>
+            <div>
+              <p style={{ color: '#ffffff', fontWeight: 'bold', margin: '0 0 10px 0', fontSize: '14px' }}>KINETIXFIT</p>
+              <p style={{ margin: 0, maxWidth: '400px', lineHeight: '1.5' }}>
+                Bespoke, white-labeled health telemetry clearinghouse for elite training consistency and biological tracking. All system databases are encrypted locally for complete compliance under UK GDPR and the Data Protection Act 2018.
+              </p>
+            </div>
+            <div>
+              <p style={{ color: '#ffffff', fontWeight: 'bold', margin: '0 0 10px 0' }}>Contact Channels</p>
+              <p style={{ margin: '0 0 5px 0' }}>• Corporate Desk: <a href="mailto:info@kinetixfit.co.uk" style={{ color: '#00ff88', textDecoration: 'none' }}>info@kinetixfit.co.uk</a></p>
+              <p style={{ margin: '0 0 5px 0' }}>• Partnership Desk: <a href="mailto:partnerships@kinetixfit.co.uk" style={{ color: '#00bfff', textDecoration: 'none' }}>partnerships@kinetixfit.co.uk</a></p>
+              <p style={{ margin: 0 }}>• Data Protection: <a href="mailto:legal@kinetixfit.co.uk" style={{ color: '#9ca3af', textDecoration: 'none' }}>legal@kinetixfit.co.uk</a></p>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #1f2937', marginTop: '30px', paddingTop: '20px', textAlign: 'center', fontSize: '10px', color: '#6b7280' }}>
+            All rights reserved © 2026 KinetixFit. Built with complete white-label security frameworks.
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
   // A. PRE-LOGIN: Secure OTP B2B Email Gateway
   if (!isLoggedIn && onboardingStep === 0) {
     return (
       <div style={{ backgroundColor: '#030712', color: '#ffffff', minHeight: '100vh', fontFamily: 'monospace', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
         <div style={{ width: '100%', maxWidth: '420px', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '30px', boxShadow: '0 10px 30px rgba(0, 255, 136, 0.05)' }}>
+
+          {/* Back to Homepage Button */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
+            <button
+              onClick={() => setViewMode('landing')}
+              style={{ background: 'none', border: 'none', color: '#00ff88', cursor: 'pointer', fontFamily: 'monospace', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', padding: 0 }}
+            >
+              ← Back to Website
+            </button>
+            <span style={{ fontSize: '10px', color: '#6b7280', letterSpacing: '1px' }}>SECURE GATEWAY</span>
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
             <div style={{
