@@ -67,7 +67,7 @@ export default function App() {
   const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
 
   // --- 2. ACTIVE NAVIGATION TAB ---
-  // "vitals" (Today), "nourish" (Natasha's Law Scanner), "rewards" (Quests & Tango Card), "hub" (Corporate Hub & Pass Allocations)
+  // "vitals" (Today), "nourish" (Natasha's Law Scanner), "rewards" (Quests & Kinetix Rewards Vault), "hub" (Corporate Hub & Pass Allocations)
   const [activeTab, setActiveTab] = useState<string>('vitals');
 
   // --- 3. USER PROFILE DATA STATE (With LocalStorage Persistence) ---
@@ -269,9 +269,9 @@ export default function App() {
     'soya', 'wheat', 'celery', 'mustard', 'sesame', 'sulphur dioxide', 'lupin'
   ];
 
-  // --- 10. TANGO CARD REWARDS & FINANCIAL CONTROLS ---
+  // --- 10. KINETIX PREMIUM REWARDS VAULT & FINANCIAL CONTROLS ---
   const [vouchers, setVouchers] = useState<VoucherLog[]>([
-    { id: 'TX-UK-9921', provider: 'Costa Coffee Clearing', value: '£15.00', sku: 'TANGO-COSTA-UK', state: 'Settled', timestamp: 'Today, 08:30' }
+    { id: 'TX-UK-9921', provider: 'Costa Coffee Clearing', value: '£15.00', sku: 'KTX-COSTA-UK', state: 'Settled', timestamp: 'Today, 08:30' }
   ]);
 
   // --- 🎗️ UK COMMUNITY NATURE & CHARITY DONATIONS REGISTRY ---
@@ -532,8 +532,8 @@ export default function App() {
     }
   };
 
-  // Tango Card rewards - strictly bounded to protect corporate balance assets
-  const triggerTangoReward = () => {
+  // Kinetix Premium Rewards Vault settlement - strictly bounded to protect corporate balance assets
+  const triggerRewardSettlement = () => {
     // Demo bypass validation
     if (!visaDemoMode) {
       // 1. Task Completion Validation Gate (Must finish at least 2 target tasks first)
@@ -562,7 +562,7 @@ export default function App() {
       id: `TX-UK-${Math.floor(1000 + Math.random() * 9000)}`,
       provider: 'Caffè Nero Reward Clearing',
       value: '£5.00',
-      sku: 'TANGO-NERO-UK',
+      sku: 'KTX-NERO-UK',
       state: 'Settled',
       timestamp: 'Just Now'
     };
@@ -575,7 +575,7 @@ export default function App() {
     setLastLastRedemptionTime(Date.now());
     setMotivationMessage("☕ £5.00 Caffè Nero Reward Voucher settled successfully! Sincere efforts pay off!");
     setTimeout(() => setMotivationMessage(null), 6000);
-    alert("☕ Tango Card Wholesale API called successfully! Your £5.00 Caffè Nero Reward Voucher has been programmatically settled and logged.");
+    alert("☕ Kinetix Reward Settlement API called successfully! Your £5.00 Caffè Nero Reward Voucher has been programmatically settled and logged.");
   };
 
   // Send Contact Message simulation
@@ -1246,7 +1246,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ==================== TAB 3: QUESTS & REWARDS (Gamification & Tango Card Vouchers) ==================== */}
+        {/* ==================== TAB 3: QUESTS & REWARDS (Gamification & Kinetix Rewards Vault) ==================== */}
         {activeTab === 'rewards' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
             
@@ -1258,7 +1258,7 @@ export default function App() {
                   Wallet Balance: <span style={{ color: '#00ff88' }}>{totalVoucherPoints} Points</span>
                 </h3>
                 <span style={{ fontSize: '11px', color: '#9ca3af', display: 'block', lineHeight: '1.4' }}>
-                  Your completed daily quests are processed using secure device velocity checks. Accrued balance points settle programmatically via the Tango Card API [TX-UK-9921].
+                  Automatic reward vault settlement. Gamified quest points convert directly into premium merchant balances.
                 </span>
                 
                 {/* 🛡️ Secure Visa Presentations Toggle Override */}
@@ -1357,14 +1357,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tango Card Voucher Redemptions */}
+            {/* Kinetix Premium Rewards Vault Redemptions */}
             <div style={{ backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '16px', padding: '25px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <h2 style={{ fontSize: '15px', borderLeft: '3px solid #00ff88', paddingLeft: '10px', textTransform: 'uppercase' }}>
-                  Tango Card Automated Wholesale Voucher Settlement
+                  Kinetix Premium Rewards Vault
                 </h2>
                 <button
-                  onClick={triggerTangoReward}
+                  onClick={triggerRewardSettlement}
                   style={{
                     backgroundColor: '#00ff88',
                     color: '#000',
@@ -1897,6 +1897,15 @@ export default function App() {
         }
         @media (max-width: 768px) {
           .hidden-xs { display: none !important; }
+        }
+        input, textarea, select, option {
+          color: #ffffff !important;
+          background-color: #0b0f19 !important;
+        }
+        input:focus, textarea:focus, select:focus {
+          border-color: #00ff88 !important;
+          box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
+          outline: none !important;
         }
       `}</style>
       
