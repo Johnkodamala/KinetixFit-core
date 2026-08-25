@@ -715,14 +715,7 @@ export default function App() {
   if (!isLoggedIn && onboardingStep === 0) {
     return (
       <div className="workspace-container">
-        <div className="mobile-phone-frame">
-          {/* Status bar notch */}
-          <div className="phone-notch-header">
-            <span>12:00</span>
-            <div className="phone-notch"></div>
-            <span>LTE 🔋</span>
-          </div>
-
+        <div className="app-viewport-container">
           <div className="app-scroll-body relative" style={{ padding: '0px', gap: '0px' }}>
             {/* Cinematic Hero Backdrop */}
             <div className="landing-cinematic-hero">
@@ -980,12 +973,7 @@ export default function App() {
   if (!isLoggedIn && onboardingStep === 1) {
     return (
       <div className="workspace-container">
-        <div className="mobile-phone-frame">
-          <div className="phone-notch-header">
-            <span>12:00</span>
-            <div className="phone-notch"></div>
-            <span>LTE 🔋</span>
-          </div>
+        <div className="app-viewport-container">
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
@@ -1142,12 +1130,7 @@ export default function App() {
   if (onboardingStep === 2) {
     return (
       <div className="workspace-container">
-        <div className="mobile-phone-frame">
-          <div className="phone-notch-header">
-            <span>12:00</span>
-            <div className="phone-notch"></div>
-            <span>LTE 🔋</span>
-          </div>
+        <div className="app-viewport-container">
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
@@ -1205,12 +1188,7 @@ export default function App() {
   if (onboardingStep === 3) {
     return (
       <div className="workspace-container">
-        <div className="mobile-phone-frame">
-          <div className="phone-notch-header">
-            <span>12:00</span>
-            <div className="phone-notch"></div>
-            <span>LTE 🔋</span>
-          </div>
+        <div className="app-viewport-container">
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
@@ -1264,12 +1242,7 @@ export default function App() {
   if (onboardingStep === 4) {
     return (
       <div className="workspace-container">
-        <div className="mobile-phone-frame">
-          <div className="phone-notch-header">
-            <span>12:00</span>
-            <div className="phone-notch"></div>
-            <span>LTE 🔋</span>
-          </div>
+        <div className="app-viewport-container">
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
@@ -1326,14 +1299,7 @@ export default function App() {
   // F. MAIN HOLLYWOOD HUD PLATFORM PORTAL SCREEN WITH GLASS SCI-FI OVERLAYS
   return (
     <div className="workspace-container">
-      <div className="mobile-phone-frame">
-        {/* Status bar notch */}
-        <div className="phone-notch-header">
-          <span>12:00</span>
-          <div className="phone-notch"></div>
-          <span>LTE 🔋</span>
-        </div>
-
+      <div className="app-viewport-container">
         {/* --- DYNAMIC GLOWING ANNOUNCEMENT TICKER --- */}
         {motivationMessage && (
           <div className="alert-ticker">
@@ -2046,7 +2012,7 @@ export default function App() {
 
         /* 🖥️ Responsive Cinematic Layout Frame */
         /* On desktop, this expands into a full-screen high-tech command center. No outer phone shell clipping! */
-        .mobile-phone-frame {
+        .app-viewport-container {
           width: 100vw !important;
           max-width: 1440px !important;
           height: 100vh !important;
@@ -2060,17 +2026,6 @@ export default function App() {
           flex-direction: column !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
-        }
-
-        /* Status bar notch - hidden on full-screen desktop dashboard */
-        .phone-notch-header {
-          display: none !important;
-        }
-        .phone-notch {
-          width: 110px !important;
-          height: 18px !important;
-          background-color: #1f2937 !important;
-          border-radius: 0 0 12px 12px !important;
         }
 
         /* Scrollable body of app - restructured as a gorgeous dashboard grid on desktop */
