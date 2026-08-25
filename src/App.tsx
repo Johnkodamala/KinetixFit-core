@@ -1941,7 +1941,7 @@ export default function App() {
               Synchronize raw continuous telemetry datasets cleanly with our active clearinghouse pipelines.
             </p>
             <div className="modal-options-stack">
-              {['Apple HealthKit Sync', 'Oura Cloud Sync', 'Garmin Connect', 'Fitbit Network'].map(dev => (
+              {['Cardiovascular Sensor Sync', 'Circadian Ring Sensor Sync', 'Skeletal Locomotion Sync', 'Autonomic Band Sync'].map(dev => (
                 <button
                   key={dev}
                   onClick={() => handleInitiateDeviceConnection(dev)}
@@ -2322,6 +2322,7 @@ export default function App() {
         .core-biometrics-grid {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
+          grid-auto-rows: 1fr !important;
           gap: 10px !important;
         }
         .biometric-item-card {
@@ -2332,6 +2333,11 @@ export default function App() {
           cursor: pointer !important;
           transition: all 0.2s ease !important;
           position: relative !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          min-height: 125px !important;
+          box-sizing: border-box !important;
         }
         .biometric-item-card:hover {
           border-color: rgba(0, 255, 136, 0.3) !important;
