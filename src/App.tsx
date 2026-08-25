@@ -1365,7 +1365,8 @@ export default function App() {
 
           {/* ==================== TAB 1: TODAY (VITALS & SCI-FI DRILLDOWN) ==================== */}
           {activeTab === 'vitals' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="tab-fade-in vitals-dashboard-grid">
+              <div className="vitals-left-panel">
 
               {/* Oura & Apple Health Goal Rings */}
               <div className="vitals-hero-card">
@@ -1474,8 +1475,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Advanced 6-Core Interactive Grid */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              </div> {/* End Left Panel */}
+
+              <div className="vitals-right-panel">
+                {/* Advanced 6-Core Interactive Grid */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h3 className="section-header">6-Core Health Telemetry Sync</h3>
                 <div className="core-biometrics-grid">
                   {biometrics.map(bio => {
@@ -1543,6 +1547,7 @@ export default function App() {
                 </div>
               )}
 
+              </div> {/* End Right Panel */}
             </div>
           )}
 
@@ -2009,28 +2014,47 @@ export default function App() {
           🎨 ADVANCED SYSTEM STYLESHEET (FIXES CONTRAST, ALIGNMENT, AND SCALING)
           ========================================================================= */}
       <style>{`
-        /* Core Workspace Container - perfectly centers the phone on desktop */
+        /* =========================================================================
+            🌌 KINETIXFIT CINEMATIC FLUID HUD DESIGN SYSTEM (V14 ULTIMATE COCKPIT)
+           ========================================================================= */
+
+        /* Prevent default scrolling on body to maintain tactical app feel */
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          background-color: #030712 !important;
+        }
+
+        /* Core Desktop Workspace Container */
         .workspace-container {
           background-color: #030712 !important;
+          background-image:
+            linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px) !important;
+          background-size: 30px 30px !important;
           color: #ffffff !important;
           min-height: 100vh !important;
           font-family: monospace !important;
           display: flex !important;
           justify-content: center !important;
           align-items: center !important;
-          padding: 20px !important;
+          padding: 0 !important;
           box-sizing: border-box !important;
+          overflow: hidden !important;
         }
 
-        /* 📱 Simulated Phone Shell */
+        /* 🖥️ Responsive Cinematic Layout Frame */
+        /* On desktop, this expands into a full-screen high-tech command center. No outer phone shell clipping! */
         .mobile-phone-frame {
-          width: 100% !important;
-          max-width: 412px !important;
-          height: 840px !important;
-          background-color: #030712 !important;
-          border: 12px solid #1f2937 !important;
-          border-radius: 40px !important;
-          box-shadow: 0 25px 50px -12px rgba(0, 255, 136, 0.12), inset 0 0 10px rgba(255, 255, 255, 0.05) !important;
+          width: 100vw !important;
+          max-width: 1440px !important;
+          height: 100vh !important;
+          background-color: rgba(3, 7, 18, 0.95) !important;
+          backdrop-filter: blur(10px) !important;
+          border: none !important;
+          border-radius: 0px !important;
+          box-shadow: none !important;
           position: relative !important;
           display: flex !important;
           flex-direction: column !important;
@@ -2038,18 +2062,9 @@ export default function App() {
           box-sizing: border-box !important;
         }
 
-        /* Status bar notch */
+        /* Status bar notch - hidden on full-screen desktop dashboard */
         .phone-notch-header {
-          height: 40px !important;
-          background-color: #0b0f19 !important;
-          border-bottom: 1px solid #111827 !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          padding: 0 20px !important;
-          font-size: 11px !important;
-          color: #9ca3af !important;
-          z-index: 10 !important;
+          display: none !important;
         }
         .phone-notch {
           width: 110px !important;
@@ -2058,14 +2073,14 @@ export default function App() {
           border-radius: 0 0 12px 12px !important;
         }
 
-        /* Scrollable body of app */
+        /* Scrollable body of app - restructured as a gorgeous dashboard grid on desktop */
         .app-scroll-body {
           flex: 1 !important;
           overflow-y: auto !important;
-          padding: 15px 20px 90px 20px !important;
+          padding: 25px 30px 100px 30px !important;
           display: flex !important;
           flex-direction: column !important;
-          gap: 20px !important;
+          gap: 25px !important;
           box-sizing: border-box !important;
         }
         /* Thin beautiful custom scrollbars */
@@ -2082,36 +2097,42 @@ export default function App() {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          padding-bottom: 10px !important;
-          border-bottom: 1px solid #1f2937 !important;
+          padding: 15px 30px !important;
+          background-color: #0b0f19 !important;
+          border-bottom: 2px solid #1f2937 !important;
+          z-index: 50 !important;
         }
         .glowing-logo {
-          filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.3)) !important;
+          filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5)) !important;
         }
         .app-brand-title {
-          font-size: 16px !important;
-          font-weight: bold !important;
+          font-size: 20px !important;
+          font-weight: 900 !important;
           color: #ffffff !important;
           margin: 0 !important;
-          letter-spacing: 1px !important;
+          letter-spacing: 2px !important;
+          text-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
         }
         .app-brand-subtitle {
-          font-size: 8.5px !important;
+          font-size: 9px !important;
           color: #6b7280 !important;
-          letter-spacing: 1.5px !important;
+          letter-spacing: 2px !important;
           display: block !important;
+          text-transform: uppercase !important;
         }
         .app-auth-pill {
           background-color: rgba(0, 255, 136, 0.08) !important;
-          border: 1px solid rgba(0, 255, 136, 0.2) !important;
+          border: 1px solid rgba(0, 255, 136, 0.3) !important;
           color: #00ff88 !important;
-          font-size: 9px !important;
+          font-size: 10px !important;
           font-weight: bold !important;
-          padding: 4px 10px !important;
+          padding: 6px 14px !important;
           border-radius: 20px !important;
           display: flex !important;
           align-items: center !important;
-          gap: 6px !important;
+          gap: 8px !important;
+          letter-spacing: 1px !important;
+          box-shadow: 0 0 15px rgba(0, 255, 136, 0.1) !important;
         }
 
         /* Alert Notification banner */
@@ -2146,21 +2167,41 @@ export default function App() {
           padding-left: 8px !important;
         }
 
+        /* Grid layout for Desktop Tab 1 (Vitals) to look like a Sci-Fi Operations Room */
+        .vitals-dashboard-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1.5fr !important;
+          gap: 25px !important;
+          align-items: start !important;
+        }
+
+        .vitals-left-panel {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 25px !important;
+        }
+
+        .vitals-right-panel {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 25px !important;
+        }
+
         /* Hero vitals layout */
         .vitals-hero-card {
-          background-color: #0b0f19 !important;
+          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          gap: 15px !important;
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
+          gap: 20px !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
         }
         .progress-rings-box {
           display: flex !important;
-          gap: 12px !important;
+          gap: 15px !important;
           align-items: center !important;
         }
         .ring-indicator {
@@ -2172,27 +2213,30 @@ export default function App() {
           top: 38% !important;
           left: 50% !important;
           transform: translate(-50%, -50%) !important;
-          font-size: 8.5px !important;
+          font-size: 9px !important;
           font-weight: bold !important;
           color: #ffffff !important;
         }
         .ring-indicator span {
           display: block !important;
-          font-size: 8px !important;
+          font-size: 8.5px !important;
           color: #9ca3af !important;
-          margin-top: 4px !important;
+          margin-top: 6px !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.5px !important;
         }
 
-        /* ECG Oscilloscope card with Holographic CSS properties */
+        /* ECG Oscilloscope card */
         .ecg-module-card {
-          background-color: #0b0f19 !important;
+          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
           display: flex !important;
           flex-direction: column !important;
-          gap: 12px !important;
+          gap: 15px !important;
           position: relative !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
         }
         .ecg-card-header {
           display: flex !important;
@@ -2200,34 +2244,38 @@ export default function App() {
           align-items: flex-start !important;
         }
         .ecg-label {
-          font-size: 8.5px !important;
+          font-size: 9px !important;
           color: #6b7280 !important;
-          letter-spacing: 1.5px !important;
+          letter-spacing: 2px !important;
           display: block !important;
+          text-transform: uppercase !important;
         }
         .ecg-title {
-          font-size: 13.5px !important;
+          font-size: 15px !important;
           font-weight: bold !important;
           color: #ffffff !important;
-          margin: 3px 0 0 0 !important;
+          margin: 4px 0 0 0 !important;
+          letter-spacing: 0.5px !important;
         }
         .live-broadcast-pill {
           background-color: rgba(255, 59, 48, 0.08) !important;
-          border: 1px solid rgba(255, 59, 48, 0.2) !important;
+          border: 1px solid rgba(255, 59, 48, 0.3) !important;
           color: #ff3b30 !important;
-          font-size: 8px !important;
+          font-size: 8.5px !important;
           font-weight: bold !important;
-          padding: 3px 8px !important;
+          padding: 4px 10px !important;
           border-radius: 12px !important;
           display: flex !important;
           align-items: center !important;
-          gap: 4px !important;
+          gap: 6px !important;
+          letter-spacing: 1px !important;
+          box-shadow: 0 0 10px rgba(255, 59, 48, 0.1) !important;
         }
         .ecg-oscilloscope-viewport {
           width: 100% !important;
-          height: 65px !important;
-          background-color: #030712 !important;
-          border-radius: 8px !important;
+          height: 100px !important;
+          background-color: #02040a !important;
+          border-radius: 10px !important;
           border: 1px solid #1f2937 !important;
           position: relative !important;
           overflow: hidden !important;
@@ -2245,32 +2293,7 @@ export default function App() {
           pointer-events: none !important;
         }
         .ecg-path {
-          filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.6)) !important;
-        }
-
-        /* Floating Sci-Fi Circular Camera Button FAB */
-        .floating-hud-camera-fab {
-          position: absolute !important;
-          bottom: 80px !important;
-          right: 25px !important;
-          width: 52px !important;
-          height: 52px !important;
-          border-radius: 50% !important;
-          background: radial-gradient(circle, #0b0f19 0%, #030712 100%) !important;
-          border: 2px solid #00ff88 !important;
-          color: #00ff88 !important;
-          font-size: 20px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          box-shadow: 0 0 20px rgba(0, 255, 136, 0.35) !important;
-          z-index: 98 !important;
-          transition: all 0.3s ease !important;
-        }
-        .floating-hud-camera-fab:hover {
-          transform: scale(1.1) rotate(15deg) !important;
-          box-shadow: 0 0 25px rgba(0, 255, 136, 0.6) !important;
+          filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.6)) !important;
         }
 
         /* Submetrics details panels */
@@ -2278,42 +2301,43 @@ export default function App() {
           background-color: #030712 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 10px !important;
-          padding: 12px !important;
+          padding: 15px !important;
         }
         .drilldown-analysis-title {
-          font-size: 11px !important;
+          font-size: 11.5px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
-          margin: 0 0 4px 0 !important;
+          margin: 0 0 6px 0 !important;
           text-transform: uppercase !important;
+          letter-spacing: 1px !important;
         }
         .drilldown-analysis-desc {
-          font-size: 9.5px !important;
+          font-size: 10px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
-          margin: 0 0 10px 0 !important;
+          line-height: 1.5 !important;
+          margin: 0 0 12px 0 !important;
         }
         .drilldown-submetrics-grid {
           display: grid !important;
           grid-template-columns: repeat(3, 1fr) !important;
-          gap: 8px !important;
+          gap: 10px !important;
         }
         .drilldown-submetric-capsule {
           background-color: #0b0f19 !important;
           border: 1px solid #111827 !important;
           border-radius: 6px !important;
-          padding: 8px !important;
+          padding: 10px !important;
           text-align: center !important;
         }
         .capsule-label {
-          font-size: 8px !important;
+          font-size: 8.5px !important;
           color: #6b7280 !important;
           text-transform: uppercase !important;
           display: block !important;
-          margin-bottom: 2px !important;
+          margin-bottom: 3px !important;
         }
         .capsule-value {
-          font-size: 10.5px !important;
+          font-size: 11px !important;
           font-family: monospace !important;
           display: block !important;
         }
@@ -2321,91 +2345,99 @@ export default function App() {
         /* 6-Core Grid metrics layout */
         .core-biometrics-grid {
           display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          grid-auto-rows: 1fr !important;
-          gap: 10px !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 15px !important;
         }
         .biometric-item-card {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 12px !important;
-          padding: 12px !important;
+          padding: 15px !important;
           cursor: pointer !important;
-          transition: all 0.2s ease !important;
+          transition: all 0.25s ease !important;
           position: relative !important;
           display: flex !important;
           flex-direction: column !important;
           justify-content: space-between !important;
-          min-height: 125px !important;
+          min-height: 135px !important;
           box-sizing: border-box !important;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
         }
         .biometric-item-card:hover {
-          border-color: rgba(0, 255, 136, 0.3) !important;
-          transform: scale(1.02) !important;
+          border-color: #00ff88 !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 25px rgba(0, 255, 136, 0.15) !important;
         }
         .active-bio-card {
           border-color: #00ff88 !important;
-          box-shadow: 0 0 10px rgba(0, 255, 136, 0.1) !important;
+          background: linear-gradient(135deg, #0b0f19 0%, rgba(0, 255, 136, 0.03) 100%) !important;
+          box-shadow: 0 0 20px rgba(0, 255, 136, 0.1) !important;
         }
         .bio-card-header {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          margin-bottom: 4px !important;
+          margin-bottom: 6px !important;
         }
         .bio-system-label {
-          font-size: 7.5px !important;
+          font-size: 8px !important;
           color: #6b7280 !important;
           font-weight: bold !important;
           text-transform: uppercase !important;
+          letter-spacing: 0.5px !important;
         }
         .bio-status-badge {
-          font-size: 7px !important;
-          padding: 1px 5px !important;
+          font-size: 7.5px !important;
+          padding: 2px 6px !important;
           border-radius: 10px !important;
           font-weight: bold !important;
+          letter-spacing: 0.5px !important;
         }
         .status-optimal { background-color: rgba(0, 255, 136, 0.08) !important; color: #00ff88 !important; }
         .status-syncing { background-color: rgba(0, 191, 255, 0.08) !important; color: #00bfff !important; }
         .status-calibrating { background-color: rgba(255, 149, 0, 0.08) !important; color: #ff9500 !important; }
         .status-critical { background-color: rgba(255, 59, 48, 0.08) !important; color: #ff3b30 !important; }
         .bio-metric-title {
-          font-size: 11px !important;
+          font-size: 12px !important;
           color: #ffffff !important;
           margin: 0 !important;
           font-weight: normal !important;
+          letter-spacing: 0.5px !important;
         }
         .bio-metric-reading {
-          font-size: 14px !important;
+          font-size: 15px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
-          margin: 4px 0 !important;
+          margin: 6px 0 !important;
           font-family: monospace !important;
+          text-shadow: 0 0 10px rgba(0, 255, 136, 0.2) !important;
         }
         .bio-behavior-log {
-          font-size: 7.5px !important;
+          font-size: 8px !important;
           color: #9ca3af !important;
           display: block !important;
           border-top: 1px solid #111827 !important;
-          padding-top: 4px !important;
-          margin-top: 4px !important;
+          padding-top: 6px !important;
+          margin-top: 6px !important;
           white-space: nowrap !important;
           overflow: hidden !important;
           text-overflow: ellipsis !important;
         }
         .active-glow-indicator {
-          font-size: 7px !important;
+          font-size: 7.5px !important;
           color: #00ff88 !important;
           font-weight: bold !important;
           position: absolute !important;
           bottom: 3px !important;
-          right: 8px !important;
+          right: 10px !important;
+          letter-spacing: 0.5px !important;
         }
 
         /* Action Buttons Row */
         .profile-actions-row {
           display: flex !important;
-          gap: 10px !important;
+          gap: 12px !important;
+          margin-top: 10px !important;
         }
         .connect-wearable-btn {
           flex: 1.2 !important;
@@ -2413,22 +2445,31 @@ export default function App() {
           color: #000000 !important;
           font-weight: bold !important;
           border: none !important;
-          padding: 8px !important;
+          padding: 10px !important;
           border-radius: 20px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 10.5px !important;
           font-family: monospace !important;
+          transition: all 0.2s ease !important;
+        }
+        .connect-wearable-btn:hover {
+          box-shadow: 0 0 15px rgba(0, 191, 255, 0.4) !important;
+          transform: translateY(-1px) !important;
         }
         .edit-bio-btn {
           flex: 1 !important;
           background-color: #1f2937 !important;
           color: #ffffff !important;
           border: 1px solid #374151 !important;
-          padding: 8px !important;
+          padding: 10px !important;
           border-radius: 20px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 10.5px !important;
           font-family: monospace !important;
+          transition: all 0.2s ease !important;
+        }
+        .edit-bio-btn:hover {
+          background-color: #374151 !important;
         }
 
         /* Edit Profile Drawer drawer-card */
@@ -2436,21 +2477,23 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 12px !important;
-          padding: 15px !important;
+          padding: 20px !important;
+          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.01) !important;
         }
         .drawer-title {
-          font-size: 11.5px !important;
+          font-size: 12px !important;
           color: #00ff88 !important;
           text-transform: uppercase !important;
-          margin: 0 0 12px 0 !important;
+          margin: 0 0 15px 0 !important;
+          letter-spacing: 1px !important;
         }
         .drawer-form-grid {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
+          gap: 15px !important;
         }
         .drawer-label {
-          font-size: 9.5px !important;
+          font-size: 10px !important;
           color: #9ca3af !important;
         }
         .drawer-input {
@@ -2458,10 +2501,10 @@ export default function App() {
           background-color: #030712 !important;
           border: 1px solid #374151 !important;
           color: #ffffff !important;
-          padding: 6px !important;
-          margin-top: 3px !important;
+          padding: 8px !important;
+          margin-top: 4px !important;
           font-family: monospace !important;
-          font-size: 10.5px !important;
+          font-size: 11px !important;
           border-radius: 4px !important;
           outline: none !important;
           box-sizing: border-box !important;
@@ -2471,10 +2514,10 @@ export default function App() {
           background-color: #030712 !important;
           border: 1px solid #374151 !important;
           color: #ffffff !important;
-          padding: 6px !important;
-          margin-top: 3px !important;
+          padding: 8px !important;
+          margin-top: 4px !important;
           font-family: monospace !important;
-          font-size: 10.5px !important;
+          font-size: 11px !important;
           border-radius: 4px !important;
           outline: none !important;
           box-sizing: border-box !important;
@@ -2489,37 +2532,37 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .nourish-calories-remaining {
-          font-size: 18px !important;
+          font-size: 20px !important;
           font-weight: bold !important;
-          margin: 4px 0 !important;
+          margin: 6px 0 !important;
         }
         .macro-meters-stack {
           display: flex !important;
           flex-direction: column !important;
-          gap: 10px !important;
-          margin-top: 12px !important;
+          gap: 12px !important;
+          margin-top: 15px !important;
           border-top: 1px solid #1f2937 !important;
-          padding-top: 10px !important;
+          padding-top: 15px !important;
         }
         .macro-progress-bar {
           display: flex !important;
           flex-direction: column !important;
-          gap: 3px !important;
+          gap: 4px !important;
         }
         .macro-bar-header {
           display: flex !important;
           justify-content: space-between !important;
-          font-size: 9.5px !important;
+          font-size: 10px !important;
           color: #9ca3af !important;
         }
         .progress-track {
           width: 100% !important;
-          height: 6px !important;
+          height: 8px !important;
           background-color: #030712 !important;
-          border-radius: 3px !important;
+          border-radius: 4px !important;
           overflow: hidden !important;
         }
         .progress-fill {
@@ -2533,33 +2576,34 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .card-header-title {
-          font-size: 12px !important;
+          font-size: 13px !important;
           color: #ffffff !important;
-          margin: 0 0 4px 0 !important;
+          margin: 0 0 6px 0 !important;
           border-left: 3px solid #00ff88 !important;
-          padding-left: 8px !important;
+          padding-left: 10px !important;
           text-transform: uppercase !important;
+          letter-spacing: 1px !important;
         }
         .card-header-desc {
-          font-size: 10px !important;
+          font-size: 10.5px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
-          margin: 0 0 12px 0 !important;
+          line-height: 1.5 !important;
+          margin: 0 0 15px 0 !important;
         }
         .scanner-input-row {
           display: flex !important;
-          gap: 8px !important;
+          gap: 10px !important;
         }
         .scanner-text-input {
           flex: 1 !important;
           background-color: #030712 !important;
           border: 1px solid #374151 !important;
           color: #ffffff !important;
-          padding: 10px !important;
-          font-size: 11px !important;
+          padding: 12px !important;
+          font-size: 12px !important;
           font-family: monospace !important;
           border-radius: 6px !important;
           outline: none !important;
@@ -2571,21 +2615,25 @@ export default function App() {
           background-color: rgba(0, 255, 136, 0.08) !important;
           border: 1px solid #00ff88 !important;
           color: #00ff88 !important;
-          padding: 0 10px !important;
-          font-size: 14px !important;
+          padding: 0 15px !important;
+          font-size: 16px !important;
           cursor: pointer !important;
           border-radius: 6px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          transition: all 0.2s ease !important;
+        }
+        .scanner-camera-trigger:hover {
+          box-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
         }
         .scanner-submit-btn {
           background-color: #00ff88 !important;
           color: #000000 !important;
           font-weight: bold !important;
           border: none !important;
-          padding: 0 15px !important;
-          font-size: 11px !important;
+          padding: 0 20px !important;
+          font-size: 12px !important;
           font-family: monospace !important;
           cursor: pointer !important;
           border-radius: 6px !important;
@@ -2594,9 +2642,9 @@ export default function App() {
         /* Scan Outcome Panel */
         .scan-outcome-panel {
           background-color: #030712 !important;
-          border-radius: 8px !important;
-          padding: 12px !important;
-          margin-top: 15px !important;
+          border-radius: 10px !important;
+          padding: 15px !important;
+          margin-top: 20px !important;
           border: 1px solid #1f2937 !important;
         }
         .border-cleared { border-color: #00ff88 !important; }
@@ -2606,13 +2654,13 @@ export default function App() {
           justify-content: space-between !important;
           align-items: center !important;
           border-bottom: 1px solid #1f2937 !important;
-          padding-bottom: 8px !important;
-          margin-bottom: 10px !important;
-          font-size: 11px !important;
+          padding-bottom: 10px !important;
+          margin-bottom: 12px !important;
+          font-size: 12px !important;
         }
         .compliance-badge {
-          font-size: 8.5px !important;
-          padding: 2px 8px !important;
+          font-size: 9px !important;
+          padding: 3px 10px !important;
           border-radius: 4px !important;
           font-weight: bold !important;
         }
@@ -2649,13 +2697,13 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .rewards-wallet-balance {
-          font-size: 22px !important;
+          font-size: 24px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
-          margin: 3px 0 !important;
+          margin: 4px 0 !important;
         }
         .demo-toggle-label {
           display: flex !important;
@@ -2676,7 +2724,7 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .validator-label {
           font-size: 8.5px !important;
@@ -2721,18 +2769,18 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .quests-header {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
           border-bottom: 1px solid #1f2937 !important;
-          padding-bottom: 6px !important;
-          margin-bottom: 10px !important;
+          padding-bottom: 8px !important;
+          margin-bottom: 12px !important;
         }
         .quests-title {
-          font-size: 11.5px !important;
+          font-size: 12.5px !important;
           color: #00ff88 !important;
           margin: 0 !important;
           text-transform: uppercase !important;
@@ -2745,13 +2793,13 @@ export default function App() {
         .quest-item-pill {
           background-color: #030712 !important;
           border: 1px solid #1f2937 !important;
-          padding: 10px !important;
+          padding: 12px !important;
           border-radius: 8px !important;
           cursor: pointer !important;
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          font-size: 9.5px !important;
+          font-size: 10.5px !important;
           transition: border-color 0.2s !important;
         }
         .quest-item-completed {
@@ -2764,20 +2812,20 @@ export default function App() {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
           border-radius: 16px !important;
-          padding: 15px !important;
+          padding: 20px !important;
         }
         .rewards-redemption-header {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          margin-bottom: 10px !important;
+          margin-bottom: 12px !important;
         }
         .redemption-title {
-          font-size: 12px !important;
+          font-size: 13px !important;
           color: #ffffff !important;
           margin: 0 !important;
           border-left: 3px solid #00ff88 !important;
-          padding-left: 8px !important;
+          padding-left: 10px !important;
           text-transform: uppercase !important;
         }
         .redeem-rewards-btn {
@@ -3098,20 +3146,24 @@ export default function App() {
           text-decoration: none !important;
         }
 
-        /* Sticky Phone Navigation panel */
+        /* Sticky Phone Navigation panel - redesigned as floating glass tab bar */
         .phone-bottom-nav {
-          position: absolute !important;
-          bottom: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          height: 60px !important;
-          background-color: rgba(11, 15, 25, 0.96) !important;
-          backdrop-filter: blur(10px) !important;
-          border-top: 1px solid #1f2937 !important;
+          position: fixed !important;
+          bottom: 25px !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          width: 90% !important;
+          max-width: 500px !important;
+          height: 65px !important;
+          background-color: rgba(11, 15, 25, 0.85) !important;
+          backdrop-filter: blur(15px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          border-radius: 40px !important;
           display: flex !important;
           justify-content: space-around !important;
           align-items: center !important;
-          z-index: 99 !important;
+          z-index: 100 !important;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 136, 0.05) !important;
         }
         .nav-item-btn {
           background: none !important;
@@ -3122,19 +3174,45 @@ export default function App() {
           align-items: center !important;
           cursor: pointer !important;
           font-family: monospace !important;
-          font-size: 9.5px !important;
+          font-size: 10px !important;
           font-weight: bold !important;
-          gap: 3px !important;
-          transition: all 0.2s ease !important;
+          gap: 4px !important;
+          transition: all 0.25s ease !important;
         }
         .nav-item-active {
           color: #00ff88 !important;
         }
         .nav-icon {
-          font-size: 15px !important;
+          font-size: 16px !important;
         }
         .nav-item-active .nav-icon {
           filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.3)) !important;
+        }
+
+        /* Floating Tactical Quantum Scanner FAB */
+        .floating-hud-camera-fab {
+          position: fixed !important;
+          bottom: 110px !important;
+          right: 40px !important;
+          width: 56px !important;
+          height: 56px !important;
+          border-radius: 50% !important;
+          background: radial-gradient(circle, #0b0f19 0%, #030712 100%) !important;
+          border: 2px solid #00ff88 !important;
+          color: #00ff88 !important;
+          font-size: 22px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          box-shadow: 0 0 25px rgba(0, 255, 136, 0.4) !important;
+          z-index: 99 !important;
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        }
+        .floating-hud-camera-fab:hover {
+          transform: scale(1.15) rotate(15deg) !important;
+          box-shadow: 0 0 35px rgba(0, 255, 136, 0.7) !important;
+          border-color: #ffffff !important;
         }
 
         /* Overlay modal generic */
@@ -3144,8 +3222,8 @@ export default function App() {
           left: 0 !important;
           right: 0 !important;
           bottom: 0 !important;
-          background-color: rgba(3, 7, 18, 0.9) !important;
-          backdrop-filter: blur(5px) !important;
+          background-color: rgba(3, 7, 18, 0.95) !important;
+          backdrop-filter: blur(8px) !important;
           display: flex !important;
           justify-content: center !important;
           align-items: center !important;
@@ -3154,12 +3232,12 @@ export default function App() {
         }
         .modal-content-card {
           width: 100% !important;
-          max-width: 360px !important;
+          max-width: 420px !important;
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-          box-shadow: 0 10px 30px rgba(0, 255, 136, 0.05) !important;
+          border-radius: 20px !important;
+          padding: 25px !important;
+          box-shadow: 0 15px 40px rgba(0, 255, 136, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
         }
         .modal-title {
           font-size: 14px !important;
@@ -3280,8 +3358,8 @@ export default function App() {
 
         /* Generic classes */
         .green-pulse-dot {
-          width: 5px !important;
-          height: 5px !important;
+          width: 6px !important;
+          height: 6px !important;
           background-color: #00ff88 !important;
           border-radius: 50% !important;
           animation: syncPulse 1.5s infinite !important;
@@ -3299,18 +3377,29 @@ export default function App() {
           animation: syncPulse 1.2s infinite !important;
         }
 
-        /* Responsive full-viewport overrides for real mobile screens */
-        @media (max-width: 480px) {
-          .workspace-container {
-            padding: 0 !important;
+        /* 📱 Symmetrical Mobile Adaptation (Collapses seamlessly on smaller viewports) */
+        @media (max-width: 1024px) {
+          .vitals-dashboard-grid {
+            grid-template-columns: 1fr !important;
           }
-          .mobile-phone-frame {
-            height: 100vh !important;
-            border: none !important;
-            border-radius: 0 !important;
+          .core-biometrics-grid {
+            grid-template-columns: 1fr 1fr !important;
           }
-          .phone-notch-header {
-            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+          .app-scroll-body {
+            padding: 15px 15px 100px 15px !important;
+          }
+          .core-biometrics-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .floating-hud-camera-fab {
+            bottom: 100px !important;
+            right: 20px !important;
+            width: 50px !important;
+            height: 50px !important;
+            font-size: 18px !important;
           }
         }
       `}</style>
