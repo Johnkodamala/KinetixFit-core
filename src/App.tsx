@@ -1712,303 +1712,330 @@ export default function App() {
             </div>
           )}
 
-          {/* ==================== TAB 3: QUESTS & REWARDS (WHITE-LABEL LEDGERS) ==================== */}
-          {activeTab === 'rewards' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-              {/* Gamification point balances */}
-              <div className="rewards-summary-card">
-                <span className="vitals-label">SECURE POINTS LEDGER • LEVEL {level} ({xp} XP)</span>
-                <h3 className="rewards-wallet-balance">{totalVoucherPoints} Points</h3>
-                <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', margin: '5px 0 12px 0' }}>
-                  Exchange your verified biomechanical efforts for premium vouchers or donate points to sponsor registered UK Charities funded under our CSR match partnerships.
-                </p>
-
-                {/* 🛡️ Secure Presentation Override Toggle */}
-                <div style={{ borderTop: '1px dashed #1f2937', paddingTop: '10px' }}>
-                  <label className="demo-toggle-label">
-                    <input
-                      type="checkbox"
-                      checked={visaDemoMode}
-                      onChange={(e) => {
-                        setVisaDemoMode(e.target.checked);
-                        setMotivationMessage(e.target.checked ? '🚀 Pitch Mode Active! Point limits and quest requirements bypassed.' : '🔒 Standard verification gates restored.');
-                        setTimeout(() => setMotivationMessage(null), 5000);
-                      }}
-                      className="demo-toggle-checkbox"
-                    />
-                    ⚡ Enable Demo Pitch Mode (Bypass verification limits)
-                  </label>
-                </div>
-              </div>
-
-              {/* Physical locomotion validator accelerometer anti-cheat */}
-              <div className="biopoint-validator-card">
-                <span className="validator-label">⚡ BIOMECHANICAL HARDWARE DETECTOR</span>
-                <p className="validator-desc">
-                  Accumulate points from daily movement verification to instantly redeem high-street beverage cards, media vouchers, or apparel rewards cleanly settled directly into your secure wallet.
-                </p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal">
-                    🏃 Active Run (120 SPM)
-                  </button>
-                  <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert">
-                    🚨 Fraud Shake (420 SPM)
-                  </button>
-                </div>
-              </div>
-
-              {/* Today's Quests list */}
-              <div className="quests-card">
-                <div className="quests-header">
-                  <h3 className="quests-title">🔥 Daily Active Quests</h3>
-                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>{tasksCompletedTodayCount} Completed</span>
-                </div>
-                <div className="quests-list-stack">
-                  {todayTasks.map(t => (
-                    <div
-                      key={t.id}
-                      onClick={() => toggleTask(t.id)}
-                      className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
-                    >
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <span>{t.completed ? '🟢' : '⚫'}</span>
-                        <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff' }}>{t.text}</span>
-                      </div>
-                      <strong style={{ color: t.completed ? '#00ff88' : '#9ca3af' }}>+{t.pointsValue} pts</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Branded Reward Settlements Vault (Fully White-Labeled) */}
-              <div className="rewards-redemption-card">
-
-                {/* Interactive Reward Payout Gateway Selector */}
-                <div className="gateway-selector-container" style={{ marginBottom: '20px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '12px' }}>
-                  <span style={{ fontSize: '9px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>
-                    Select Reward Disbursement Gateway Protocol
-                  </span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                    {[
-                      { id: 'primary', label: 'KTX Global Gateway', sub: 'Review Pending', color: '#ff9500' },
-                      { id: 'direct', label: 'Direct API Gateway', sub: 'Active Fallback', color: '#00bfff' },
-                      { id: 'local', label: 'Local B2B Claim', sub: 'Active Instant', color: '#00ff88' }
-                    ].map(gateway => (
-                      <div
-                        key={gateway.id}
-                        onClick={() => {
-                          setRewardGateway(gateway.id as any);
-                          setMotivationMessage(`📡 GATEWAY REDIRECTED: Set active settlement protocol to ${gateway.label}.`);
-                          setTimeout(() => setMotivationMessage(null), 4000);
-                        }}
-                        style={{
-                          backgroundColor: '#0b0f19',
-                          border: `1px solid ${rewardGateway === gateway.id ? gateway.color : '#111827'}`,
-                          borderRadius: '8px',
-                          padding: '10px 8px',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <span style={{ fontSize: '10.5px', color: '#ffffff', fontWeight: 'bold', display: 'block' }}>{gateway.label}</span>
-                        <span style={{ fontSize: '8px', color: gateway.color }}>{gateway.sub}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rewards-redemption-header">
-                  <h3 className="redemption-title">Kinetix Rewards Vault</h3>
-                  <button onClick={triggerRewardVaultSettlement} className="redeem-rewards-btn">
-                    🎟️ Claim £5.00 Voucher {visaDemoMode ? '(0 Pts)' : '(2,500 Pts)'}
-                  </button>
-                </div>
-                <p className="redemption-description">
-                  Premium voucher settlement. Accrued quest coordinates convert instantly to active retail merchant allocations. Redemptions require at least 2 active quests completed.
-                </p>
-
-                {/* Ledger logs */}
-                <div className="ledger-table-container">
-                  <table className="ledger-table">
-                    <thead>
-                      <tr>
-                        <th>TXID</th>
-                        <th>REWARD TYPE</th>
-                        <th>VALUE</th>
-                        <th>SECURE SKU</th>
-                        <th>STATUS</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vouchers.map(v => (
-                        <tr key={v.id}>
-                          <td style={{ color: '#00bfff' }}>{v.id}</td>
-                          <td>{v.provider}</td>
-                          <td style={{ color: '#00ff88', fontWeight: 'bold' }}>{v.value}</td>
-                          <td style={{ color: '#6b7280' }}>{v.sku}</td>
-                          <td>
-                            <span className={`ledger-status-pill status-${v.state.toLowerCase()}`}>
-                              {v.state.toUpperCase()}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* CSR matching matching donations */}
-              <div className="charity-matching-card">
-                <div className="charity-card-header">
-                  <div>
-                    <h3 className="charity-title">🎗️ UK Social Philanthropy Portal</h3>
-                    <span className="charity-subtitle">Converts completed achievements directly into Match CSR donations.</span>
-                  </div>
-                  <span className="donations-count-pill">Issued: {charityDonations}</span>
-                </div>
-
-                <div className="charity-options-grid">
-                  {ukCharities.map(charity => (
-                    <div key={charity.id} className="charity-item-subcard">
-                      <div>
-                        <span className="charity-item-tag">{charity.desc}</span>
-                        <h4 className="charity-item-name">{charity.name}</h4>
-                        <p className="charity-item-mission">{charity.mission}</p>
-                      </div>
-                      <button onClick={() => handleDonateToCharity(charity.name)} className="donate-points-btn">
-                        🎗️ Donate 1,000 Pts (£2.50)
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          )}
-
-          {/* ==================== TAB 4: PROFILE & NATASHA'S LAW SETTINGS ==================== */}
+          {/* ==================== TAB 3: USER DASHBOARD, QUESTS & B2B REWARDS ==================== */}
           {activeTab === 'profile' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
 
-              {/* Athlete holographic card */}
-              <div className="vitals-hero-card">
-                <div style={{ flex: 1.2 }}>
-                  <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '1px' }}>👤 B2B ATHLETE BIOMETRIC IDENTITY</span>
-                  <h2 style={{ fontSize: '22px', color: '#fff', margin: '10px 0 5px 0', fontWeight: '900', fontFamily: 'monospace' }}>
-                    {profile.name || 'ANONYMOUS ATHLETE'}
-                  </h2>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <span className="bio-status-badge status-optimal">STREAK: 🔥 5-Day Active</span>
-                    <span className="bio-status-badge status-syncing">ATHLETE LEVEL: {level}</span>
+              {/* Symmetrical Dual-Grid Dashboard for Profile Overview on Desktop */}
+              <div className="vitals-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '25px', alignItems: 'start' }}>
+
+                {/* LEFT PROFILE PANEL */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+
+                  {/* Bio Athlete Holographic Status Card */}
+                  <div className="vitals-hero-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ flex: 1.2 }}>
+                      <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '2px', fontSize: '9px', textTransform: 'uppercase' }}>🛡️ B2B ATHLETE BIOMETRIC IDENTITY</span>
+                      <h2 style={{ fontSize: '20px', color: '#fff', margin: '12px 0 6px 0', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                        {profile.name || 'ANONYMOUS ATHLETE'}
+                      </h2>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                        <span className="bio-status-badge status-optimal" style={{ fontSize: '8px', padding: '2px 8px' }}>STREAK: 🔥 5-Day Active</span>
+                        <span className="bio-status-badge status-syncing" style={{ fontSize: '8px', padding: '2px 8px' }}>CONDITION: PEAK ATHLETE</span>
+                      </div>
+                    </div>
+                    <div className="glowing-logo" style={{ opacity: 0.15, transform: 'scale(1.1)' }}>
+                      <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
                   </div>
-                </div>
-                <div className="glowing-logo" style={{ opacity: 0.2 }}>
-                  <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              </div>
 
-              {/* Bio Parameters Setup */}
-              <div className="hub-support-card">
-                <h3 className="support-card-title">✏️ Configure Biological Benchmarks</h3>
-                <div className="drawer-form-grid" style={{ marginBottom: '15px' }}>
-                  <label className="drawer-label">Display Name
-                    <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" />
-                  </label>
-                  <label className="drawer-label">Height (cm)
-                    <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" />
-                  </label>
-                  <label className="drawer-label">Weight (kg)
-                    <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" />
-                  </label>
-                  <label className="drawer-label">Primary Fitness Target
-                    <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="drawer-select">
-                      <option value="Autonomic Recovery">Autonomic Recovery</option>
-                      <option value="Weight Loss">Weight Loss</option>
-                      <option value="Weight Gain">Weight Gain</option>
-                      <option value="Cardio Endurance">Cardio Endurance</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
+                  {/* Smart Point balances Tracker */}
+                  <div className="rewards-summary-card">
+                    <span className="vitals-label font-bold" style={{ letterSpacing: '1px', fontSize: '8.5px' }}>SECURE COCKPIT WALLET • LEVEL {level} ({xp} XP)</span>
+                    <h3 className="rewards-wallet-balance" style={{ fontSize: '24px', margin: '4px 0', color: '#00ff88', fontWeight: 'bold' }}>{totalVoucherPoints} Points</h3>
+                    <p style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
+                      Verified efforts accumulate point balances programmatically. Settle points instantly for premium coffee cards, direct API gift cards, or local B2B pilot claims.
+                    </p>
 
-              {/* Natasha's Law Exclusions list */}
-              <div className="scanner-module-card">
-                <h3 className="card-header-title">🥗 Natasha's Law Food Exclusions</h3>
-                <p className="card-header-desc">
-                  Select your allergen sensitivities. These will dynamically update the 1-Tap Scanner warnings and NHS nutrient recommendations.
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
-                  {the14Allergens.map(allergen => {
-                    const active = profile.personalAllergens.includes(allergen);
-                    return (
-                      <button
-                        key={allergen}
-                        onClick={() => handleTogglePersonalAllergen(allergen)}
-                        style={{
-                          backgroundColor: active ? 'rgba(255, 59, 48, 0.08)' : '#030712',
-                          border: `1px solid ${active ? '#ff3b30' : '#1f2937'}`,
-                          color: active ? '#ff3b30' : '#ffffff',
-                          padding: '10px',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontSize: '10.5px',
-                          textAlign: 'left',
-                          fontFamily: 'monospace',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {active ? '❌ ' : '+ '} {allergen.toUpperCase()}
+                    {/* 🛡️ Secure Presentation Override Toggle */}
+                    <div style={{ borderTop: '1px dashed #1f2937', paddingTop: '12px' }}>
+                      <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', color: '#ff9500', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={visaDemoMode}
+                          onChange={(e) => {
+                            setVisaDemoMode(e.target.checked);
+                            setMotivationMessage(e.target.checked ? '🚀 Pitch Mode Active! Point limits and quest requirements bypassed.' : '🔒 Standard verification gates restored.');
+                            setTimeout(() => setMotivationMessage(null), 5000);
+                          }}
+                          className="demo-toggle-checkbox"
+                          style={{ accentColor: '#ff9500', width: '13px', height: '13px' }}
+                        />
+                        ⚡ Enable Demo Pitch Mode (Bypass verification checks)
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Active Wearable Sensor Integration Panel */}
+                  <div className="biopoint-validator-card">
+                    <span className="validator-label" style={{ fontSize: '8.5px', letterSpacing: '1px' }}>🔋 ACTIVE TELEMETRY SENSOR LINKS</span>
+                    <p className="validator-desc" style={{ fontSize: '10px', lineHeight: '1.4' }}>
+                      Synchronize your wearable physical devices. Single-tap authorization feeds raw continuous telemetry streams straight to the KinetixFit clearinghouse.
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        🔌 Configure Smart Sensor Links
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+                  </div>
 
-              {/* Smart Wearable Integrations Status */}
-              <div className="hub-support-card">
-                <h3 className="support-card-title">🔋 Smart Wearable Link Status</h3>
-                <p style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '12px' }}>
-                  Your live continuous bio-telemetry feeds. Linking your sensor allows automatic background sync.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['Cardiovascular Sensor Sync', 'Circadian Ring Sensor Sync', 'Skeletal Locomotion Sync', 'Autonomic Band Sync'].map(device => {
-                    const active = profile.smartDeviceConnected === device;
-                    return (
-                      <div
-                        key={device}
-                        style={{
-                          backgroundColor: '#030712',
-                          border: `1px solid ${active ? '#00ff88' : '#1f2937'}`,
-                          padding: '12px',
-                          borderRadius: '8px',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>⚡ {device}</span>
+                  {/* Configure Biological Benchmarks Form */}
+                  <div className="hub-support-card">
+                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>⚙️ PHYSICAL PERFORMANCE PARAMETERS</span>
+                    <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Display Name
+                        <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Height (cm)
+                        <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Weight (kg)
+                        <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Fitness Target
+                        <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          <option value="Autonomic Recovery">Autonomic Recovery</option>
+                          <option value="Weight Loss">Weight Loss</option>
+                          <option value="Weight Gain">Weight Gain</option>
+                          <option value="Cardio Endurance">Cardio Endurance</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Natasha's Law Exclusions selection list */}
+                  <div className="scanner-module-card">
+                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1.5px', display: 'block', marginBottom: '4px' }}>🥗 NATASHA'S LAW FOOD EXCLUSIONS</span>
+                    <p className="card-header-desc" style={{ fontSize: '9.5px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
+                      Select food allergies. These dynamically update the 1-Tap formulation scanning engines and suggest custom protein target alternatives.
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
+                      {the14Allergens.map(allergen => {
+                        const active = profile.personalAllergens.includes(allergen);
+                        return (
+                          <button
+                            key={allergen}
+                            onClick={() => handleTogglePersonalAllergen(allergen)}
+                            style={{
+                              backgroundColor: active ? 'rgba(0, 255, 136, 0.08)' : '#030712',
+                              border: `1px solid ${active ? '#00ff88' : '#374151'}`,
+                              color: active ? '#00ff88' : '#ffffff',
+                              padding: '6px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '10px',
+                              textAlign: 'left',
+                              fontFamily: 'monospace'
+                            }}
+                          >
+                            {active ? '✓ ' : '+ '} {allergen.toUpperCase()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* RIGHT ACTIVE REWARDS PANEL */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+
+                  {/* Today's Gamified Quests list */}
+                  <div className="quests-card">
+                    <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
+                      <h3 className="quests-title" style={{ fontSize: '12px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Daily Active Quests</h3>
+                      <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold' }}>{tasksCompletedTodayCount} Completed</span>
+                    </div>
+                    <div className="quests-list-stack" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {todayTasks.map(t => (
+                        <div
+                          key={t.id}
+                          onClick={() => toggleTask(t.id)}
+                          className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
+                          style={{
+                            background: t.completed ? 'rgba(0, 255, 136, 0.03)' : '#030712',
+                            border: `1px solid ${t.completed ? '#00ff88' : '#1f2937'}`,
+                            padding: '12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '10px',
+                            transition: 'all 0.25s'
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            <span style={{ color: t.completed ? '#00ff88' : '#6b7280' }}>{t.completed ? '●' : '○'}</span>
+                            <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.3' }}>{t.text}</span>
+                          </div>
+                          <strong style={{ color: t.completed ? '#00ff88' : '#9ca3af', minWidth: '55px', textAlign: 'right' }}>+{t.pointsValue} pts</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Accrued Point Validator Accelerometer controls */}
+                  <div className="biopoint-validator-card">
+                    <span className="validator-label" style={{ fontSize: '8.5px', letterSpacing: '1.5px' }}>⚡ BIOMECHANICAL STEP VELOCIMETER</span>
+                    <p className="validator-desc" style={{ fontSize: '9.5px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
+                      Enforce locomotive anti-cheat boundaries. Steps below 350 SPM velocity ceilings accrue point balances. Mechanical phone shakers are intercepted.
+                    </p>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' }}>
+                        🏃 Locomotion (120 SPM)
+                      </button>
+                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' }}>
+                        🚨 Fraud Shake (420 SPM)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Kinetix Rewards Vault Card (Gateway selection) */}
+                  <div className="rewards-redemption-card">
+                    <div className="rewards-redemption-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
+                      <div>
+                        <h3 className="redemption-title" style={{ fontSize: '12.5px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Kinetix Rewards Vault</h3>
+                        <span style={{ fontSize: '8px', color: '#6b7280' }}>ACTIVE CLEARINGHOUSE ROUTER</span>
+                      </div>
+                      <button onClick={triggerRewardVaultSettlement} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '10.5px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        🎟️ Cash Out Voucher {visaDemoMode ? '(0 Pts)' : '(2,500 Pts)'}
+                      </button>
+                    </div>
+
+                    {/* Integrated Gateway Selector */}
+                    <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
+                      <span style={{ fontSize: '8px', color: '#6b7280', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Select Rewards Settlement Gateway:</span>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                         <button
                           onClick={() => {
-                            if (active) {
-                              saveProfileToStorage({ ...profile, smartDeviceConnected: null });
-                            } else {
-                              handleInitiateDeviceConnection(device);
-                            }
+                            setRewardGateway('primary');
+                            setMotivationMessage('📡 Primary Gateway: KTX Global Gateway selected. Awaiting B2B account validation.');
+                            setTimeout(() => setMotivationMessage(null), 5000);
                           }}
-                          className={active ? 'edit-bio-btn' : 'connect-wearable-btn'}
-                          style={{ padding: '6px 12px', fontSize: '9px', width: 'auto', flex: 'none', margin: 0 }}
+                          style={{
+                            backgroundColor: rewardGateway === 'primary' ? 'rgba(0, 255, 136, 0.08)' : '#0b0f19',
+                            border: `1px solid ${rewardGateway === 'primary' ? '#00ff88' : '#1f2937'}`,
+                            color: rewardGateway === 'primary' ? '#00ff88' : '#9ca3af',
+                            fontSize: '9px',
+                            padding: '6px 2px',
+                            fontFamily: 'monospace',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: rewardGateway === 'primary' ? 'bold' : 'normal'
+                          }}
                         >
-                          {active ? 'CONNECTED (DISCONNECT)' : 'LINK SENSOR'}
+                          KTX Global
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRewardGateway('direct');
+                            setMotivationMessage('⚡ Backup Gateway: Direct API Gateway selected. Sandbox tokens enabled.');
+                            setTimeout(() => setMotivationMessage(null), 5000);
+                          }}
+                          style={{
+                            backgroundColor: rewardGateway === 'direct' ? 'rgba(0, 191, 255, 0.08)' : '#0b0f19',
+                            border: `1px solid ${rewardGateway === 'direct' ? '#00bfff' : '#1f2937'}`,
+                            color: rewardGateway === 'direct' ? '#00bfff' : '#9ca3af',
+                            fontSize: '9px',
+                            padding: '6px 2px',
+                            fontFamily: 'monospace',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: rewardGateway === 'direct' ? 'bold' : 'normal'
+                          }}
+                        >
+                          Direct API
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRewardGateway('local');
+                            setMotivationMessage('🏆 Instant Gateway: Local B2B Claim selected. Generate claim codes directly.');
+                            setTimeout(() => setMotivationMessage(null), 5000);
+                          }}
+                          style={{
+                            backgroundColor: rewardGateway === 'local' ? 'rgba(255, 149, 0, 0.08)' : '#0b0f19',
+                            border: `1px solid ${rewardGateway === 'local' ? '#ff9500' : '#1f2937'}`,
+                            color: rewardGateway === 'local' ? '#ff9500' : '#9ca3af',
+                            fontSize: '9px',
+                            padding: '6px 2px',
+                            fontFamily: 'monospace',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: rewardGateway === 'local' ? 'bold' : 'normal'
+                          }}
+                        >
+                          Local B2B
                         </button>
                       </div>
-                    );
-                  })}
+
+                      {/* Sub-text diagnostic status checks based on selected gate */}
+                      <span style={{ fontSize: '8px', color: '#9ca3af', marginTop: '8px', display: 'block', lineHeight: '1.3' }}>
+                        {rewardGateway === 'primary' && "ℹ️ Primary Merchant Review in progress (Company: JN Global Ventures LTD). Response: 1-3 business days."}
+                        {rewardGateway === 'direct' && "⚡ Direct API Gateway: Active Sandbox connected. Gift cards & prepaid allocations ready for instantaneous issuance."}
+                        {rewardGateway === 'local' && "🏆 Local B2B Claim: Highly recommended for early pilots! Issues local claim verification IDs reconciled monthly directly with your B2B clients."}
+                      </span>
+                    </div>
+
+                    {/* Active vouchers history ledger */}
+                    <div className="ledger-table-container">
+                      <table className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #1f2937' }}>
+                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>TXID</th>
+                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>REWARD TYPE</th>
+                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>VALUE</th>
+                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>STATUS</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {vouchers.map(v => (
+                            <tr key={v.id} style={{ borderBottom: '1px solid #111827' }}>
+                              <td style={{ color: '#00bfff', padding: '6px 4px' }}>{v.id}</td>
+                              <td style={{ padding: '6px 4px' }}>{v.provider}</td>
+                              <td style={{ color: '#00ff88', fontWeight: 'bold', padding: '6px 4px' }}>{v.value}</td>
+                              <td style={{ padding: '6px 4px' }}>
+                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`} style={{ fontSize: '7.5px', padding: '1px 5px', borderRadius: '3px' }}>
+                                  {v.state.toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* UK Social Philanthropy match portal */}
+                  <div className="charity-matching-card">
+                    <div className="charity-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
+                      <div>
+                        <h3 className="charity-title" style={{ fontSize: '11.5px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🎗️ UK Social Philanthropy Portal</h3>
+                        <span className="charity-subtitle" style={{ fontSize: '8px', color: '#9ca3af' }}>Converts completed achievements directly into CSR donations.</span>
+                      </div>
+                      <span className="donations-count-pill" style={{ fontSize: '9.5px', color: '#00ff88', fontWeight: 'bold' }}>Issued: {charityDonations}</span>
+                    </div>
+
+                    <div className="charity-options-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {ukCharities.map(charity => (
+                        <div key={charity.id} className="charity-item-subcard" style={{ background: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px' }}>
+                          <div>
+                            <span className="charity-item-tag" style={{ fontSize: '7.5px', color: '#00bfff', textTransform: 'uppercase', fontWeight: 'bold' }}>{charity.desc}</span>
+                            <h4 className="charity-item-name" style={{ fontSize: '11px', color: '#ffffff', margin: '2px 0' }}>{charity.name}</h4>
+                            <p className="charity-item-mission" style={{ fontSize: '9px', color: '#9ca3af', lineHeight: '1.3', margin: 0 }}>{charity.mission}</p>
+                          </div>
+                          <button onClick={() => handleDonateToCharity(charity.name)} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '9.5px' }}>
+                            🎗️ Donate 1,000 Pts (£2.50)
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </div>
+
               </div>
 
             </div>
@@ -2140,11 +2167,46 @@ export default function App() {
         {/* --- STICKY BOTTOM NAVIGATION BAR --- */}
         <nav className="phone-bottom-nav">
           {[
-            { id: 'vitals', label: 'Today', icon: '📊' },
-            { id: 'nourish', label: 'Nourish', icon: '🥗' },
-            { id: 'rewards', label: 'Rewards', icon: '🏆' },
-            { id: 'profile', label: 'Profile', icon: '👤' },
-            { id: 'hub', label: 'Hub', icon: '🏢' },
+            {
+              id: 'vitals',
+              label: 'Today',
+              icon: (
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              )
+            },
+            {
+              id: 'nourish',
+              label: 'Nourish',
+              icon: (
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              )
+            },
+            {
+              id: 'profile',
+              label: 'Profile',
+              icon: (
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )
+            },
+            {
+              id: 'hub',
+              label: 'Hub',
+              icon: (
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                  <line x1="6" y1="6" x2="6.01" y2="6" />
+                  <line x1="6" y1="18" x2="6.01" y2="18" />
+                </svg>
+              )
+            },
           ].map(tab => {
             const active = activeTab === tab.id;
             return (
@@ -2154,9 +2216,15 @@ export default function App() {
                   setActiveTab(tab.id);
                 }}
                 className={`nav-item-btn ${active ? 'nav-item-active' : ''}`}
+                style={{ position: 'relative', overflow: 'hidden' }}
               >
-                <span className="nav-icon">{tab.icon}</span>
-                <span className="nav-label">{tab.label}</span>
+                <span className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? '#00ff88' : '#6b7280' }}>
+                  {tab.icon}
+                </span>
+                <span className="nav-label" style={{ fontSize: '9px', fontWeight: active ? 'bold' : 'normal', color: active ? '#ffffff' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {tab.label}
+                </span>
+                {active && <span style={{ position: 'absolute', bottom: '0', width: '12px', height: '2px', backgroundColor: '#00ff88', borderRadius: '10px' }}></span>}
               </button>
             );
           })}
