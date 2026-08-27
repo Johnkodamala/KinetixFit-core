@@ -74,7 +74,7 @@ export default function App() {
   const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
 
   // --- 2. ACTIVE NAVIGATION TAB ---
-  // "vitals" (Today), "nourish" (Ingest Scanner), "rewards" (Quests & Kinetix Rewards), "hub" (Corporate Hub & Pass Allocations)
+  // "vitals" (Today), "nourish" (Ingest Scanner), "rewards" (Quests & Kinetix Rewards), "profile" (Profile & Allergens), "hub" (Corporate Hub & Pass Allocations)
   const [activeTab, setActiveTab] = useState<string>('vitals');
 
   // --- 3. SELECTED METRIC FOR DETAILED TRIPLE-TIER DRILLDOWN ---
@@ -1889,6 +1889,131 @@ export default function App() {
             </div>
           )}
 
+          {/* ==================== TAB 4: PROFILE & NATASHA'S LAW SETTINGS ==================== */}
+          {activeTab === 'profile' && (
+            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Athlete holographic card */}
+              <div className="vitals-hero-card">
+                <div style={{ flex: 1.2 }}>
+                  <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '1px' }}>👤 B2B ATHLETE BIOMETRIC IDENTITY</span>
+                  <h2 style={{ fontSize: '22px', color: '#fff', margin: '10px 0 5px 0', fontWeight: '900', fontFamily: 'monospace' }}>
+                    {profile.name || 'ANONYMOUS ATHLETE'}
+                  </h2>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <span className="bio-status-badge status-optimal">STREAK: 🔥 5-Day Active</span>
+                    <span className="bio-status-badge status-syncing">ATHLETE LEVEL: {level}</span>
+                  </div>
+                </div>
+                <div className="glowing-logo" style={{ opacity: 0.2 }}>
+                  <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+
+              {/* Bio Parameters Setup */}
+              <div className="hub-support-card">
+                <h3 className="support-card-title">✏️ Configure Biological Benchmarks</h3>
+                <div className="drawer-form-grid" style={{ marginBottom: '15px' }}>
+                  <label className="drawer-label">Display Name
+                    <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" />
+                  </label>
+                  <label className="drawer-label">Height (cm)
+                    <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" />
+                  </label>
+                  <label className="drawer-label">Weight (kg)
+                    <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" />
+                  </label>
+                  <label className="drawer-label">Primary Fitness Target
+                    <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="drawer-select">
+                      <option value="Autonomic Recovery">Autonomic Recovery</option>
+                      <option value="Weight Loss">Weight Loss</option>
+                      <option value="Weight Gain">Weight Gain</option>
+                      <option value="Cardio Endurance">Cardio Endurance</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {/* Natasha's Law Exclusions list */}
+              <div className="scanner-module-card">
+                <h3 className="card-header-title">🥗 Natasha's Law Food Exclusions</h3>
+                <p className="card-header-desc">
+                  Select your allergen sensitivities. These will dynamically update the 1-Tap Scanner warnings and NHS nutrient recommendations.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+                  {the14Allergens.map(allergen => {
+                    const active = profile.personalAllergens.includes(allergen);
+                    return (
+                      <button
+                        key={allergen}
+                        onClick={() => handleTogglePersonalAllergen(allergen)}
+                        style={{
+                          backgroundColor: active ? 'rgba(255, 59, 48, 0.08)' : '#030712',
+                          border: `1px solid ${active ? '#ff3b30' : '#1f2937'}`,
+                          color: active ? '#ff3b30' : '#ffffff',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '10.5px',
+                          textAlign: 'left',
+                          fontFamily: 'monospace',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {active ? '❌ ' : '+ '} {allergen.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Smart Wearable Integrations Status */}
+              <div className="hub-support-card">
+                <h3 className="support-card-title">🔋 Smart Wearable Link Status</h3>
+                <p style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '12px' }}>
+                  Your live continuous bio-telemetry feeds. Linking your sensor allows automatic background sync.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {['Cardiovascular Sensor Sync', 'Circadian Ring Sensor Sync', 'Skeletal Locomotion Sync', 'Autonomic Band Sync'].map(device => {
+                    const active = profile.smartDeviceConnected === device;
+                    return (
+                      <div
+                        key={device}
+                        style={{
+                          backgroundColor: '#030712',
+                          border: `1px solid ${active ? '#00ff88' : '#1f2937'}`,
+                          padding: '12px',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <span style={{ fontSize: '11px', color: '#fff', fontWeight: 'bold' }}>⚡ {device}</span>
+                        <button
+                          onClick={() => {
+                            if (active) {
+                              saveProfileToStorage({ ...profile, smartDeviceConnected: null });
+                            } else {
+                              handleInitiateDeviceConnection(device);
+                            }
+                          }}
+                          className={active ? 'edit-bio-btn' : 'connect-wearable-btn'}
+                          style={{ padding: '6px 12px', fontSize: '9px', width: 'auto', flex: 'none', margin: 0 }}
+                        >
+                          {active ? 'CONNECTED (DISCONNECT)' : 'LINK SENSOR'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* ==================== TAB 4: HUB (CORPORATE PASSES & COMPLIANCE) ==================== */}
           {activeTab === 'hub' && (
             <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2018,6 +2143,7 @@ export default function App() {
             { id: 'vitals', label: 'Today', icon: '📊' },
             { id: 'nourish', label: 'Nourish', icon: '🥗' },
             { id: 'rewards', label: 'Rewards', icon: '🏆' },
+            { id: 'profile', label: 'Profile', icon: '👤' },
             { id: 'hub', label: 'Hub', icon: '🏢' },
           ].map(tab => {
             const active = activeTab === tab.id;
@@ -2091,6 +2217,16 @@ export default function App() {
                 </button>
               ))}
             </div>
+
+            {/* Real-time Syncing Educational Diagnostics Panel */}
+            <div className="sync-diagnostics-card" style={{ marginTop: '15px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '12px', borderRadius: '8px', fontSize: '9.5px', color: '#9ca3af', textAlign: 'left', lineHeight: '1.4' }}>
+              <span style={{ color: '#00bfff', fontWeight: 'bold', display: 'block', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                📡 Telemetry Sync Protocol: How it Works
+              </span>
+              KinetixFit operates on a **Single-Tap Aggregated Handshake**. Instead of connecting directly to 50 individual devices, our app links with your phone's native health data aggregation layer.
+              <br/><br/>
+              Whether you are syncing locomotive steps from a wristband, cardiac HRV streams from an ECG chest strap, or restorative deep sleep stages from a circadian ring, your smartphone aggregates them into a central feed. KinetixFit reads this central feed with a single click, instantly validating points in real-time!
+            </div>
             <button onClick={() => setShowDeviceSyncModal(false)} className="modal-close-btn">
               Cancel Sync
             </button>
@@ -2105,32 +2241,70 @@ export default function App() {
             <h3 className="modal-title">📷 AI Spectral Ingestion Scanner</h3>
 
             {isCameraScanning ? (
-              <div className="camera-viewfinder-scanning">
+              <div className="camera-viewfinder-scanning" style={{ height: '240px' }}>
                 <div className="laser-beam"></div>
-                <span className="scanner-timer">⌛</span>
-                <span className="scanner-status-text">INTERROGATING INGREDIENTS DICTIONARY...</span>
-                <span className="scanner-subtext">Verifying allergens against UK FSA/NHS guidelines</span>
+                <div className="ocr-matrix-output" style={{ padding: '15px', color: '#00ff88', fontSize: '9px', fontFamily: 'monospace', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div>⏳ [SYS_START]: INGESTION PIPELINE ACTIVE</div>
+                  <div>📡 [OCR_SNAP]: EXTRACTING INGREDIENT TEXT STRINGS</div>
+                  <div>🧬 [VECTOR]: COMPILING ALLERGEN VECTORS (UK FSA STANDARD)</div>
+                  <div>🛡️ [NATASHA]: CROSS-REFERENCING CUSTOM BIO PROFILE...</div>
+                </div>
+                <span className="scanner-timer" style={{ fontSize: '28px', marginTop: '10px' }}>⚡</span>
+                <span className="scanner-status-text" style={{ textShadow: '0 0 10px #00ff88', marginTop: '5px' }}>INTERROGATING INGREDIENTS DICTIONARY...</span>
+                <span className="scanner-subtext">UK Food Information Regulations Compliant</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <p className="modal-desc">
-                  Select a product formulation below to simulate an instant high-speed camera barcode snap and molecular allergen interrogation.
+                  Select a preloaded UK retail formulation below to simulate a high-speed camera barcode snap and molecular allergen interrogation.
                 </p>
 
-                <div className="modal-options-stack">
-                  <button onClick={() => triggerCameraScan('Organic Tomato Pasta')} className="camera-mock-choice-btn hover-green">
-                    <span>🛒 Scan: Organic Tomato Pasta</span>
-                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>CLEARED</span>
-                  </button>
+                {/* Preloaded database list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
+                  {[
+                    { name: 'Premium Deli Smoked Salmon Salad Box', ing: 'Atlantic Salmon (Fish), Mixed Leaves, Olive Oil, Soya Dressing, Sea Salt' },
+                    { name: 'Organic Peanut Protein Bar', ing: 'Roasted Peanuts, Peanut Butter, Oats, Milk Chocolate, Honey, Wheat Flour' },
+                    { name: 'Sweet Potato Bhaji Wrap', ing: 'Sweet Potato, Spices, Wheat Tortilla, Mustard Seed, Celery, Sesame Oil' },
+                    { name: 'High-Street Sausage Roll Formulation', ing: 'Wheat Flour, Pork Sausage, Butter (Milk), Eggs, Spices, Soya Protein' }
+                  ].map(p => (
+                    <button
+                      key={p.name}
+                      onClick={() => {
+                        setMealInput(p.ing);
+                        triggerCameraScan(p.ing);
+                      }}
+                      className="camera-mock-choice-btn hover-green"
+                      style={{ padding: '10px', fontSize: '11px', textTransform: 'none' }}
+                    >
+                      <div style={{ textAlign: 'left' }}>
+                        <span style={{ fontWeight: 'bold', color: '#fff', display: 'block', marginBottom: '2px' }}>🛒 {p.name}</span>
+                        <span style={{ color: '#6b7280', fontSize: '9px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
+                          Ingredients: {p.ing}
+                        </span>
+                      </div>
+                      <span style={{ color: '#00ff88', fontSize: '9px', fontWeight: 'bold', border: '1px solid #00ff88', padding: '2px 6px', borderRadius: '4px' }}>SCAN</span>
+                    </button>
+                  ))}
+                </div>
 
-                  <button onClick={() => triggerCameraScan('Protein Nut Bar')} className="camera-mock-choice-btn hover-red">
-                    <span>🛒 Scan: Protein Nut Bar</span>
-                    <span style={{ color: '#ff3b30', fontWeight: 'bold' }}>HAZARD FLAGGED</span>
-                  </button>
-
-                  <button onClick={() => triggerCameraScan('Sweet Potato Bhaji Formulation')} className="camera-mock-choice-btn hover-green">
-                    <span>🛒 Scan: Sweet Potato Bhaji</span>
-                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>CLEARED</span>
+                {/* OCR text custom capture box */}
+                <div style={{ borderTop: '1px solid #1f2937', paddingTop: '15px' }}>
+                  <label className="drawer-label" style={{ marginBottom: '6px', display: 'block' }}>Custom Formulation Viewfinder Capture</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Type or paste custom formulation ingredients (e.g. wheat, milk, eggs, peanuts) to run simulated AI character recognition scanner..."
+                    value={mealInput}
+                    onChange={(e) => setMealInput(e.target.value)}
+                    className="support-textarea"
+                    style={{ fontSize: '11px', background: '#030712', color: '#00ff88', border: '1px solid #00ff88', fontFamily: 'monospace', padding: '10px' }}
+                  />
+                  <button
+                    onClick={() => triggerCameraScan(mealInput)}
+                    disabled={!mealInput.trim()}
+                    className="primary-btn"
+                    style={{ width: '100%', marginTop: '10px', padding: '12px' }}
+                  >
+                    📷 RUN CUSTOM OCR SCANNER CAPTURE
                   </button>
                 </div>
 
