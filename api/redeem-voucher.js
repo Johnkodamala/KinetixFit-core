@@ -30,8 +30,8 @@ export default async function handler(req, res) {
   }
 
   const TREMENDOUS_API_KEY = process.env.TREMENDOUS_API_KEY;
-  // Automatically routes to testflight sandbox URL if key begins with 'TEST_'
-  const isSandbox = TREMENDOUS_API_KEY.startsWith('TEST_');
+  // Automatically routes to testflight sandbox URL if key begins with 'test_' (case-insensitive)
+  const isSandbox = TREMENDOUS_API_KEY.toLowerCase().startsWith('test_');
   const baseURL = isSandbox ? 'https://testflight.tremendous.com' : 'https://api.tremendous.com';
 
   try {
