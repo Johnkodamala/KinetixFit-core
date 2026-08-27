@@ -102,6 +102,9 @@ export default function App() {
     };
   });
 
+  const [rewardGateway, setRewardGateway] = useState<'primary' | 'direct' | 'local'>('local'); // Default to local for fast launch
+  const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
+  const [activeSportMode, setActiveSportMode] = useState<'rest' | 'run' | 'cycle' | 'swim'>('rest');
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
   const [syncingDeviceType, setSyncingDeviceType] = useState<string | null>(null);
@@ -299,6 +302,15 @@ export default function App() {
 
         const newXp = Math.max(0, xp + xpDiff);
         const newPts = Math.max(0, totalVoucherPoints + ptDiff);
+
+        // Dynamic Athlete Level Up Check (Level Up occurs at multiples of 500 XP)
+        const targetXpThreshold = level * 500;
+        if (nextCompleted && newXp >= targetXpThreshold) {
+          localStorage.setItem('kinetix_level', (level + 1).toString());
+          setTimeout(() => {
+            setShowLevelUpModal(true);
+          }, 350);
+        }
 
         setXp(newXp);
         setTotalVoucherPoints(newPts);
@@ -655,11 +667,32 @@ export default function App() {
       }
     }
 
+    // Handle Active Payout Gateway
+    let prefix = 'TX-UK-';
+    let voucherTitle = 'Premium High-Street Beverage Token';
+    let sku = 'KTX-NERO-UK';
+    let alertMsg = '';
+
+    if (rewardGateway === 'primary') {
+      alert("⚠️ GATEWAY PENDING: KTX Global Gateway B2B compliance review is currently in progress for JN Global Ventures LTD (1-3 days). To bypass this delay, please toggle the Gateway Selector to 'Direct API Gateway' or 'Local B2B Claim' to redeem immediately!");
+      return;
+    } else if (rewardGateway === 'direct') {
+      prefix = 'TX-API-';
+      voucherTitle = 'Direct API Payout: £5.00 Coffee Voucher';
+      sku = 'KTX-DIRECT-UK';
+      alertMsg = "🎟️ Direct API Gateway: Payout settled! Your £5.00 Premium High-Street Beverage e-gift code (KTX-COFFEE-8821) has been generated and queued for delivery to your inbox!";
+    } else {
+      prefix = 'TX-LOC-';
+      voucherTitle = 'Local Claim: £5.00 Corporate Coffee Voucher';
+      sku = 'JN-LOCAL-CLAIM';
+      alertMsg = "🎁 Local Corporate Claim Succeeded! Your claim reference code (JN-LOCAL-COFFEE-9921) has been settled. Please show this reference to your corporate office or HR administrator to receive your physical high-street voucher directly!";
+    }
+
     const newTx: VoucherLog = {
-      id: `TX-UK-${Math.floor(1000 + Math.random() * 9000)}`,
-      provider: 'Premium High-Street Beverage Token',
+      id: `${prefix}${Math.floor(1000 + Math.random() * 9000)}`,
+      provider: voucherTitle,
       value: '£5.00',
-      sku: 'KTX-NERO-UK',
+      sku: sku,
       state: 'Settled',
       timestamp: 'Just Now'
     };
@@ -670,9 +703,9 @@ export default function App() {
     setTotalVoucherPoints(newPts);
     localStorage.setItem('kinetix_voucher_points', newPts.toString());
     setLastLastRedemptionTime(Date.now());
-    setMotivationMessage("☕ £5.00 Premium High-Street Beverage Voucher settled successfully!");
+    setMotivationMessage(`☕ £5.00 Voucher settled via ${rewardGateway === 'direct' ? 'Direct API Gateway' : 'Local B2B Claim'}!`);
     setTimeout(() => setMotivationMessage(null), 6000);
-    alert("☕ Kinetix Rewards Vault: £5.00 Premium Voucher settled, signed, and deposited cleanly into your wallet.");
+    alert(alertMsg);
   };
 
   const handleSendContact = (e: React.FormEvent) => {
@@ -1334,6 +1367,33 @@ export default function App() {
             <div className="tab-fade-in vitals-dashboard-grid">
               <div className="vitals-left-panel">
 
+              {/* Athletic Level & XP Progress Cockpit */}
+              <div className="athlete-level-gauge-card">
+                <div className="level-gauge-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="athlete-avatar-badge">LVL {level}</div>
+                    <div>
+                      <h4 className="athlete-title">JN Global Athlete: {profile.name || 'PILOT_SANDBOX'}</h4>
+                      <span className="athlete-subtext">Biometric Status: <strong style={{ color: '#00ff88' }}>Peak Athlete Floor</strong></span>
+                    </div>
+                  </div>
+                  <div className="streak-badge">
+                    🔥 5-DAY ACTIVE STREAK
+                  </div>
+                </div>
+
+                {/* Dynamic XP Progress Bar */}
+                <div className="xp-progress-bar-container">
+                  <div className="xp-bar-header">
+                    <span>Performance Experience Progress</span>
+                    <strong>{xp} / {level * 500} XP</strong>
+                  </div>
+                  <div className="xp-bar-track">
+                    <div className="xp-bar-fill" style={{ width: `${Math.min(100, (xp / (level * 500)) * 100)}%` }}></div>
+                  </div>
+                </div>
+              </div>
+
               {/* Oura & Apple Health Goal Rings */}
               <div className="vitals-hero-card">
                 <div style={{ flex: 1.2 }}>
@@ -1377,6 +1437,45 @@ export default function App() {
                     <span className="live-pulse-dot"></span>
                     LIVE SIGNAL
                   </div>
+                </div>
+
+                {/* Athletic Multi-Sport Workload Control Deck */}
+                <div className="sport-workload-bar">
+                  {[
+                    { id: 'rest', label: '🧘 Rest Recovery', wave: 'slow_sinusoidal', bpm: 62, hrv: 85, color: '#00ff88' },
+                    { id: 'run', label: '🏃 Cardio Run', wave: 'ecg', bpm: 145, hrv: 45, color: '#ff3b30' },
+                    { id: 'cycle', label: '🚴 Cycle Sprint', wave: 'mitochondrial', bpm: 155, hrv: 35, color: '#00bfff' },
+                    { id: 'swim', label: '🏊 Swim Laps', wave: 'delta', bpm: 130, hrv: 55, color: '#a855f7' }
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => {
+                        setActiveSportMode(mode.id as any);
+                        setLiveBpm(mode.bpm);
+                        setLiveHrv(mode.hrv);
+                        setMotivationMessage(`⚡ WORKLOAD DIVERTER: Synced metrics to ${mode.label}!`);
+                        setTimeout(() => setMotivationMessage(null), 4000);
+
+                        // Dynamically alter selected metric details
+                        setBiometrics(prev => prev.map(item => {
+                          if (item.id === 'BIO-2') {
+                            return {
+                              ...item,
+                              reading: `${mode.bpm} BPM / ${mode.hrv} ms HRV`,
+                              status: mode.bpm > 100 ? 'Critical' : 'Optimal',
+                              waveType: mode.wave as any,
+                              behavior: mode.bpm > 130 ? 'Peak Athletic VO2 Threshold' : 'High Vagal Tone Detected'
+                            };
+                          }
+                          return item;
+                        }));
+                      }}
+                      className={`sport-mode-btn ${activeSportMode === mode.id ? 'active-sport-btn' : ''}`}
+                      style={{ borderColor: activeSportMode === mode.id ? mode.color : '#1f2937' }}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Tactical Holographic Wave Oscilloscope */}
@@ -1682,8 +1781,44 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Branded Reward Settlements Vault (No Tango Leak) */}
+              {/* Branded Reward Settlements Vault (Fully White-Labeled) */}
               <div className="rewards-redemption-card">
+
+                {/* Interactive Reward Payout Gateway Selector */}
+                <div className="gateway-selector-container" style={{ marginBottom: '20px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '15px', borderRadius: '12px' }}>
+                  <span style={{ fontSize: '9px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>
+                    Select Reward Disbursement Gateway Protocol
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    {[
+                      { id: 'primary', label: 'KTX Global Gateway', sub: 'Review Pending', color: '#ff9500' },
+                      { id: 'direct', label: 'Direct API Gateway', sub: 'Active Fallback', color: '#00bfff' },
+                      { id: 'local', label: 'Local B2B Claim', sub: 'Active Instant', color: '#00ff88' }
+                    ].map(gateway => (
+                      <div
+                        key={gateway.id}
+                        onClick={() => {
+                          setRewardGateway(gateway.id as any);
+                          setMotivationMessage(`📡 GATEWAY REDIRECTED: Set active settlement protocol to ${gateway.label}.`);
+                          setTimeout(() => setMotivationMessage(null), 4000);
+                        }}
+                        style={{
+                          backgroundColor: '#0b0f19',
+                          border: `1px solid ${rewardGateway === gateway.id ? gateway.color : '#111827'}`,
+                          borderRadius: '8px',
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <span style={{ fontSize: '10.5px', color: '#ffffff', fontWeight: 'bold', display: 'block' }}>{gateway.label}</span>
+                        <span style={{ fontSize: '8px', color: gateway.color }}>{gateway.sub}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="rewards-redemption-header">
                   <h3 className="redemption-title">Kinetix Rewards Vault</h3>
                   <button onClick={triggerRewardVaultSettlement} className="redeem-rewards-btn">
@@ -1903,6 +2038,38 @@ export default function App() {
 
       </div>
 
+      {/* --- SPECTACULAR NEON LEVEL UP CELEBRATION MODAL --- */}
+      {showLevelUpModal && (
+        <div className="portal-overlay-modal" style={{ zIndex: 15000 }}>
+          <div className="modal-content-card" style={{ border: '2px solid #00ff88', textAlign: 'center' }}>
+            <span style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
+            <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '20px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+              ATHLETIC LEVEL UP!
+            </h2>
+            <p className="modal-desc" style={{ color: '#ffffff', fontSize: '11.5px', marginTop: '10px', lineHeight: '1.5' }}>
+              Congratulations! Your verified physical and biometric efforts have promoted your telemetry status to:
+              <br/>
+              <strong style={{ color: '#00bfff', display: 'block', margin: '10px 0', fontSize: '15px' }}>
+                LEVEL {level + 1} PEAK CONDITIONING ATHLETE
+              </strong>
+              Your B2B clearinghouse pass quotas and points limits have been upgraded successfully.
+            </p>
+            <button
+              onClick={() => {
+                setShowLevelUpModal(false);
+                setTotalVoucherPoints(prev => prev + 500); // 500 point bonus!
+                setMotivationMessage("🎁 Level up bonus! +500 points credited to your rewards wallet.");
+                setTimeout(() => setMotivationMessage(null), 5000);
+              }}
+              className="primary-btn"
+              style={{ width: '100%', marginTop: '15px', padding: '12px 20px' }}
+            >
+              Claim Level-Up Bonus (+500 pts)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- SMART SENSOR SYNC MODAL --- */}
       {showDeviceSyncModal && (
         <div className="portal-overlay-modal">
@@ -2000,7 +2167,7 @@ export default function App() {
             linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px) !important;
           background-size: 30px 30px !important;
           color: #ffffff !important;
-          min-height: 100vh !important;
+          min-height: 100dvh !important; height: -webkit-fill-available !important;
           font-family: monospace !important;
           display: flex !important;
           justify-content: center !important;
@@ -2015,7 +2182,7 @@ export default function App() {
         .app-viewport-container {
           width: 100vw !important;
           max-width: 1440px !important;
-          height: 100vh !important;
+          height: 100dvh !important; height: -webkit-fill-available !important;
           background-color: rgba(3, 7, 18, 0.95) !important;
           backdrop-filter: blur(10px) !important;
           border: none !important;
@@ -2140,6 +2307,109 @@ export default function App() {
           display: flex !important;
           flex-direction: column !important;
           gap: 25px !important;
+        }
+
+        /* Athletic Progress Cockpit Styling */
+        .athlete-level-gauge-card {
+          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
+          border: 1px solid #1f2937 !important;
+          border-radius: 16px !important;
+          padding: 20px !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+        }
+        .level-gauge-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          margin-bottom: 15px !important;
+        }
+        .athlete-avatar-badge {
+          background: radial-gradient(circle, #00ff88 0%, #00bfff 100%) !important;
+          color: #030712 !important;
+          font-weight: 900 !important;
+          font-size: 13px !important;
+          width: 52px !important;
+          height: 52px !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
+        }
+        .athlete-title {
+          font-size: 13.5px !important;
+          color: #ffffff !important;
+          margin: 0 0 2px 0 !important;
+        }
+        .athlete-subtext {
+          font-size: 9.5px !important;
+          color: #9ca3af !important;
+        }
+        .streak-badge {
+          background-color: rgba(255, 149, 0, 0.08) !important;
+          border: 1px solid #ff9500 !important;
+          color: #ff9500 !important;
+          font-size: 9.5px !important;
+          font-weight: bold !important;
+          padding: 5px 12px !important;
+          border-radius: 12px !important;
+          letter-spacing: 0.5px !important;
+        }
+        .xp-progress-bar-container {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 6px !important;
+        }
+        .xp-bar-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          font-size: 9px !important;
+          color: #6b7280 !important;
+          text-transform: uppercase !important;
+        }
+        .xp-bar-track {
+          width: 100% !important;
+          height: 8px !important;
+          background-color: #030712 !important;
+          border-radius: 4px !important;
+          overflow: hidden !important;
+          border: 1px solid #1f2937 !important;
+        }
+        .xp-bar-fill {
+          height: 100% !important;
+          background: linear-gradient(90deg, #00ff88 0%, #00bfff 100%) !important;
+          border-radius: 4px !important;
+          box-shadow: 0 0 8px rgba(0, 255, 136, 0.5) !important;
+        }
+
+        /* Athletic Sport Selector Styling */
+        .sport-workload-bar {
+          display: grid !important;
+          grid-template-columns: repeat(4, 1fr) !important;
+          gap: 8px !important;
+          margin-bottom: 12px !important;
+        }
+        .sport-mode-btn {
+          background-color: #030712 !important;
+          border: 1px solid #1f2937 !important;
+          color: #9ca3af !important;
+          padding: 8px !important;
+          font-family: monospace !important;
+          font-size: 9px !important;
+          font-weight: bold !important;
+          cursor: pointer !important;
+          border-radius: 6px !important;
+          transition: all 0.25s !important;
+          text-align: center !important;
+        }
+        .sport-mode-btn:hover {
+          color: #ffffff !important;
+          background-color: #0b0f19 !important;
+        }
+        .active-sport-btn {
+          background-color: rgba(0, 255, 136, 0.05) !important;
+          color: #ffffff !important;
+          box-shadow: 0 0 10px rgba(0, 255, 136, 0.15) !important;
         }
 
         /* Hero vitals layout */
@@ -3104,15 +3374,15 @@ export default function App() {
         /* Sticky Phone Navigation panel - redesigned as floating glass tab bar */
         .phone-bottom-nav {
           position: fixed !important;
-          bottom: 25px !important;
+          bottom: 15px !important;
           left: 50% !important;
           transform: translateX(-50%) !important;
-          width: 90% !important;
-          max-width: 500px !important;
+          width: 92% !important;
+          max-width: 480px !important;
           height: 65px !important;
-          background-color: rgba(11, 15, 25, 0.85) !important;
-          backdrop-filter: blur(15px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          background-color: rgba(11, 15, 25, 0.9) !important;
+          backdrop-filter: blur(20px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
           border-radius: 40px !important;
           display: flex !important;
           justify-content: space-around !important;
@@ -3344,7 +3614,7 @@ export default function App() {
 
         @media (max-width: 768px) {
           .app-scroll-body {
-            padding: 15px 15px 100px 15px !important;
+            padding: 15px 15px 120px 15px !important;
           }
           .core-biometrics-grid {
             grid-template-columns: 1fr !important;
