@@ -73,9 +73,40 @@ export default function App() {
   const [otpInput, setOtpInput] = useState<string>('');
   const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
 
-  // --- 2. ACTIVE NAVIGATION TAB ---
-  // "vitals" (Today), "nourish" (Ingest Scanner), "rewards" (Quests & Kinetix Rewards), "profile" (Profile & Allergens), "hub" (Corporate Hub & Pass Allocations)
-  const [activeTab, setActiveTab] = useState<string>('vitals');
+  // --- 2. ACTIVE NAVIGATION TAB (Sync with URL Hash to support Browser Back Button) ---
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const hash = window.location.hash.replace('#', '');
+    return ['vitals', 'nourish', 'profile', 'hub'].includes(hash) ? hash : 'vitals';
+  });
+
+  // Force correct viewport meta for mobile layout scaling (no tiny letters/stretching)
+  useEffect(() => {
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement('meta');
+      metaViewport.setAttribute('name', 'viewport');
+      document.head.appendChild(metaViewport);
+    }
+    metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+  }, []);
+
+  // Listen to browser Back / Forward navigation events (prevents exiting link)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (['vitals', 'nourish', 'profile', 'hub'].includes(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Set URL hash when tab is switched via clicking bottoms navigation icons
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    window.location.hash = tabId;
+  };
 
   // --- 3. SELECTED METRIC FOR DETAILED TRIPLE-TIER DRILLDOWN ---
   const [selectedMetricId, setSelectedMetricId] = useState<string | null>('BIO-2'); // Defaults to Heart Health (BIO-2)
@@ -2155,7 +2186,7 @@ export default function App() {
         {/* --- FLOATING HOLLYWOOD QUICK ACCESS CAMERA BUTTON (FAB) --- */}
         <button
           onClick={() => {
-            setActiveTab('nourish');
+            handleTabChange('nourish');
             setShowCameraModal(true);
           }}
           className="floating-hud-camera-fab"
@@ -2213,7 +2244,7 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => {
-                  setActiveTab(tab.id);
+                  handleTabChange(tab.id);
                 }}
                 className={`nav-item-btn ${active ? 'nav-item-active' : ''}`}
                 style={{ position: 'relative', overflow: 'hidden' }}
@@ -2441,6 +2472,7 @@ export default function App() {
         .app-scroll-body {
           flex: 1 !important;
           overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch !important;
           padding: 25px 30px 100px 30px !important;
           display: flex !important;
           flex-direction: column !important;
