@@ -2470,14 +2470,20 @@ export default function App() {
 
         /* Scrollable body of app - restructured as a gorgeous dashboard grid on desktop */
         .app-scroll-body {
-          flex: 1 !important;
+          position: absolute !important;
+          top: 0 !important; /* Header scrolls as the first item inside this container, not fixed above it */
+          bottom: 95px !important; /* Height of bottom nav + spacing */
+          left: 0 !important;
+          right: 0 !important;
           overflow-y: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-          padding: 25px 30px 100px 30px !important;
+          overflow-x: hidden !important;
+          padding: 20px !important;
           display: flex !important;
           flex-direction: column !important;
           gap: 25px !important;
           box-sizing: border-box !important;
+          -webkit-overflow-scrolling: touch !important; /* iOS momentum scroll */
+          touch-action: pan-y !important; /* Force touch gesture scrolling */
         }
         /* Thin beautiful custom scrollbars */
         .app-scroll-body::-webkit-scrollbar {
@@ -3887,9 +3893,6 @@ export default function App() {
         }
 
         @media (max-width: 768px) {
-          .app-scroll-body {
-            padding: 15px 15px 120px 15px !important;
-          }
           .core-biometrics-grid {
             grid-template-columns: 1fr !important;
           }
