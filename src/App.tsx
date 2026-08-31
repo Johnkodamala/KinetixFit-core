@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { Purchases, type CustomerInfo } from '@revenuecat/purchases-capacitor';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -32,6 +35,104 @@ interface UserProfile {
   personalAllergens: string[];
   workoutsLogged: string[];
   smartDeviceConnected: string | null;
+  sex: 'male' | 'female' | null;
+  age: number;
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  lastPeriodStartDate: string | null;
+  averageCycleLength: number;
+}
+
+const SLEEP_QUALITY_PERCENT = 84;
+
+// Standard-length cycle phase breakdown, scaled to the user's own average cycle length.
+function computeCyclePhase(lastPeriodStartDate: string, averageCycleLength: number): { phase: string; dayOfCycle: number } {
+  const start = new Date(lastPeriodStartDate);
+  const daysSince = Math.floor((Date.now() - start.getTime()) / 86400000);
+  const dayOfCycle = ((daysSince % averageCycleLength) + averageCycleLength) % averageCycleLength + 1;
+  const ovulationDay = Math.round(averageCycleLength / 2);
+
+  let phase: string;
+  if (dayOfCycle <= 5) phase = 'Menstrual Phase';
+  else if (dayOfCycle < ovulationDay - 1) phase = 'Follicular Phase';
+  else if (dayOfCycle <= ovulationDay + 1) phase = 'Ovulation Window';
+  else phase = 'Luteal Phase';
+
+  return { phase, dayOfCycle };
+}
+
+const DEFAULT_PROFILE: UserProfile = {
+  name: '',
+  email: '',
+  height: 180,
+  weight: 75.0,
+  target: 'Autonomic Recovery',
+  personalAllergens: [],
+  workoutsLogged: ['Morning Walk (30m)'],
+  smartDeviceConnected: null,
+  sex: null,
+  age: 30,
+  activityLevel: 'moderate',
+  lastPeriodStartDate: null,
+  averageCycleLength: 28
+};
+
+const ACTIVITY_MULTIPLIERS: Record<UserProfile['activityLevel'], number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  very_active: 1.9
+};
+
+const GOAL_CALORIE_ADJUSTMENT: Record<UserProfile['target'], number> = {
+  'Weight Loss': -500,
+  'Weight Gain': 300,
+  'Cardio Endurance': 0,
+  'Autonomic Recovery': 0
+};
+
+const GOAL_PROTEIN_PER_KG: Record<UserProfile['target'], number> = {
+  'Weight Loss': 2.0,
+  'Weight Gain': 1.8,
+  'Cardio Endurance': 1.4,
+  'Autonomic Recovery': 1.6
+};
+
+// Mifflin-St Jeor equation. Falls back to the midpoint of the male/female offset when sex is unset.
+function calculateBmr(p: UserProfile): number {
+  const base = 10 * p.weight + 6.25 * p.height - 5 * p.age;
+  if (p.sex === 'male') return base + 5;
+  if (p.sex === 'female') return base - 161;
+  return base - 78;
+}
+
+function getTasksForTarget(target: UserProfile['target']): Task[] {
+  if (target === 'Weight Loss') {
+    return [
+      { id: 'TOD-1', text: 'Hit your calorie deficit goal today 🔥', completed: false, xpValue: 150, pointsValue: 220 },
+      { id: 'TOD-2', text: 'Fuel up with 10g+ fiber in one meal 🌾', completed: false, xpValue: 100, pointsValue: 150 },
+      { id: 'TOD-3', text: 'Log a 45-min cardio session 🏃‍♂️', completed: false, xpValue: 120, pointsValue: 180 }
+    ];
+  }
+  if (target === 'Weight Gain') {
+    return [
+      { id: 'TOD-1', text: 'Smash your 150g protein target 💪', completed: false, xpValue: 150, pointsValue: 220 },
+      { id: 'TOD-2', text: 'Log your carb intake for the day 🍚', completed: false, xpValue: 100, pointsValue: 150 },
+      { id: 'TOD-3', text: 'Get a strength session in 🏋️', completed: false, xpValue: 120, pointsValue: 180 }
+    ];
+  }
+  if (target === 'Cardio Endurance') {
+    return [
+      { id: 'TOD-1', text: 'Nail your step intervals today 🏃', completed: false, xpValue: 150, pointsValue: 220 },
+      { id: 'TOD-2', text: 'Push your heart rate into peak zone 📈', completed: false, xpValue: 100, pointsValue: 150 },
+      { id: 'TOD-3', text: 'Hit 2.5L of water today 💧', completed: false, xpValue: 120, pointsValue: 180 }
+    ];
+  }
+  return [
+    { id: 'TOD-1', text: 'Complete a 15-minute breathing session 🌬️', completed: false, xpValue: 150, pointsValue: 220 },
+    { id: 'TOD-2', text: 'Check your sleep quality score 😴', completed: false, xpValue: 100, pointsValue: 150 },
+    { id: 'TOD-3', text: 'Keep your stress load low today 🧘‍♂️', completed: false, xpValue: 120, pointsValue: 180 }
+  ];
 }
 
 interface MealScanResult {
@@ -42,6 +143,8 @@ interface MealScanResult {
   allergensFlagged: string[];
   complianceStatus: 'CLEARED' | 'HAZARD_DETECTED';
   dietaryRecommendation: string;
+  estimated?: boolean;
+  estimatedPortionGrams?: number;
 }
 
 interface VoucherLog {
@@ -116,24 +219,15 @@ export default function App() {
     const saved = localStorage.getItem('kinetix_profile');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        return { ...DEFAULT_PROFILE, ...JSON.parse(saved) };
       } catch (e) {
         console.error("Failed to parse saved profile data.", e);
       }
     }
-    return {
-      name: '',
-      email: '',
-      height: 180,
-      weight: 75.0,
-      target: 'Autonomic Recovery',
-      personalAllergens: [],
-      workoutsLogged: ['Morning Walk (30m)'],
-      smartDeviceConnected: null
-    };
+    return DEFAULT_PROFILE;
   });
 
-  const [rewardGateway, setRewardGateway] = useState<'primary' | 'direct' | 'local'>('local'); // Default to local for fast launch
+  const [rewardGateway] = useState<'primary' | 'direct' | 'local'>('local'); // Gateway selector disabled until live provider approval; defaults to local
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [activeSportMode, setActiveSportMode] = useState<'rest' | 'run' | 'cycle' | 'swim'>('rest');
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
@@ -238,7 +332,7 @@ export default function App() {
       id: 'BIO-4',
       metric: 'Sleep and Rest',
       system: 'Contextual Sleep Telemetry',
-      reading: '84% Quality',
+      reading: `${SLEEP_QUALITY_PERCENT}% Quality`,
       status: 'Optimal',
       behavior: 'Deep/REM Stages Synchronized',
       waveType: 'delta',
@@ -246,7 +340,7 @@ export default function App() {
         title: 'Circadian Sleep Architecture',
         description: 'Decomposes sleep cycles, synchronizing deep sleep and rapid eye movement (REM) phases with stress recovery ceilings.',
         subMetrics: [
-          { label: 'Overall Sleep Quality', value: '84%', color: '#00ff88' },
+          { label: 'Overall Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' },
           { label: 'Deep Regeneration Phase', value: '2h 15m', color: '#00bfff' },
           { label: 'REM Restorative Sleep', value: '1h 52m', color: '#a855f7' }
         ]
@@ -270,127 +364,172 @@ export default function App() {
         ]
       }
     },
-    {
-      id: 'BIO-6',
-      metric: 'Women\'s Health',
-      system: 'Dynamic Biological Rhythm Sync',
-      reading: 'Phase 2 Follicular',
-      status: 'Calibrating',
-      behavior: 'Basal Trend Optimization Active',
-      waveType: 'slow_sinusoidal',
-      details: {
-        title: 'Biological Rhythm Alignment',
-        description: 'Integrates natural biological cycle tracking to schedule active stress thresholds and resting basals cleanly.',
-        subMetrics: [
-          { label: 'Rhythm Sync Cycle', value: 'Phase 2 Follicular', color: '#ec4899' },
-          { label: 'Basal Temp Baseline', value: '36.6 °C', color: '#00bfff' },
-          { label: 'Hormonal Energy Floor', value: 'High Performance', color: '#00ff88' }
-        ]
-      }
-    },
   ]);
 
-  // Sync heart biometrics with live ticker values
-  useEffect(() => {
-    setBiometrics(prev => prev.map(item => {
-      if (item.id === 'BIO-2') {
+  // Sex-specific 6th telemetry card — computed live, never hardcoded. Hidden entirely until
+  // profile.sex is set; shape depends on which sex is selected.
+  const sexCard: TelemetryStream | null = useMemo(() => {
+    if (profile.sex === 'female') {
+      if (!profile.lastPeriodStartDate) {
         return {
-          ...item,
-          reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
-          status: liveBpm > 100 ? 'Critical' : 'Optimal',
-          behavior: liveBpm > 100 ? 'Elevated Cardiac Response' : 'High Vagal Tone Detected',
+          id: 'BIO-6',
+          metric: 'Women\'s Health',
+          system: 'Cycle Tracking',
+          reading: 'Awaiting Cycle Data',
+          status: 'Calibrating',
+          behavior: 'Set your last period start date in Profile to activate',
+          waveType: 'slow_sinusoidal',
           details: {
-            ...item.details,
-            subMetrics: [
-              { label: 'Live Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-              { label: 'Autonomic HRV Variance', value: `${liveHrv} ms`, color: '#00bfff' },
-              { label: 'Vagal Stability Index', value: liveBpm > 100 ? 'Caution Threshold' : 'Optimal Floor', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
-            ]
+            title: 'Biological Rhythm Alignment',
+            description: 'Add your last period start date and average cycle length in your Profile to activate real cycle phase tracking.',
+            subMetrics: []
           }
         };
       }
-      return item;
-    }));
-  }, [liveBpm, liveHrv]);
+      const { phase, dayOfCycle } = computeCyclePhase(profile.lastPeriodStartDate, profile.averageCycleLength);
+      return {
+        id: 'BIO-6',
+        metric: 'Women\'s Health',
+        system: 'Dynamic Biological Rhythm Sync',
+        reading: phase,
+        status: 'Optimal',
+        behavior: `Day ${dayOfCycle} of ${profile.averageCycleLength}-day cycle`,
+        waveType: 'slow_sinusoidal',
+        details: {
+          title: 'Biological Rhythm Alignment',
+          description: 'Calculated from your logged last period start date and average cycle length — not a fixed value.',
+          subMetrics: [
+            { label: 'Current Phase', value: phase, color: '#ec4899' },
+            { label: 'Cycle Day', value: `Day ${dayOfCycle} of ${profile.averageCycleLength}`, color: '#00bfff' }
+          ]
+        }
+      };
+    }
+
+    if (profile.sex === 'male') {
+      const recoveryLabel = liveHrv > 60 && liveBpm < 80 ? 'High Recovery' : liveHrv > 45 ? 'Moderate Recovery' : 'Low Recovery — Prioritize Rest';
+      return {
+        id: 'BIO-6',
+        metric: 'Recovery & Hormonal Balance',
+        system: 'Autonomic Recovery Index',
+        reading: recoveryLabel,
+        status: liveHrv > 45 ? 'Optimal' : 'Critical',
+        behavior: 'Derived from HRV, resting heart rate & sleep quality',
+        waveType: 'slow_sinusoidal',
+        details: {
+          title: 'Recovery & Stress Load',
+          description: 'This app has no way to directly measure hormone levels — this card is a recovery/stress-load estimate built from your existing HRV, heart rate and sleep data instead.',
+          subMetrics: [
+            { label: 'HRV', value: `${liveHrv} ms`, color: '#00bfff' },
+            { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
+            { label: 'Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' }
+          ]
+        }
+      };
+    }
+
+    return null;
+  }, [profile.sex, profile.lastPeriodStartDate, profile.averageCycleLength, liveHrv, liveBpm]);
+
+  // Heart-rate/HRV display is derived live from the ticker values rather than synced via an
+  // effect, so BIO-2 never lags a render behind liveBpm/liveHrv.
+  const allBiometrics = useMemo(() => {
+    const withLiveHeart = biometrics.map(item => {
+      if (item.id !== 'BIO-2') return item;
+      return {
+        ...item,
+        reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
+        status: liveBpm > 100 ? 'Critical' as const : 'Optimal' as const,
+        behavior: liveBpm > 100 ? 'Elevated Cardiac Response' : 'High Vagal Tone Detected',
+        details: {
+          ...item.details,
+          subMetrics: [
+            { label: 'Live Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
+            { label: 'Autonomic HRV Variance', value: `${liveHrv} ms`, color: '#00bfff' },
+            { label: 'Vagal Stability Index', value: liveBpm > 100 ? 'Caution Threshold' : 'Optimal Floor', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
+          ]
+        }
+      };
+    });
+    return sexCard ? [...withLiveHeart, sexCard] : withLiveHeart;
+  }, [biometrics, liveBpm, liveHrv, sexCard]);
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
   const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '420'));
   const [level] = useState<number>(() => parseInt(localStorage.getItem('kinetix_level') || '3'));
   const [totalVoucherPoints, setTotalVoucherPoints] = useState<number>(() => parseInt(localStorage.getItem('kinetix_voucher_points') || '1250'));
+  const [streak, setStreak] = useState<number>(() => parseInt(localStorage.getItem('kinetix_streak') || '0'));
 
-  const [todayTasks, setTodayTasks] = useState<Task[]>([
-    { id: 'TOD-1', text: 'Maintain a step cadence below 350 SPM velocity ceiling', completed: false, xpValue: 150, pointsValue: 200 },
-    { id: 'TOD-2', text: 'Complete your customized macro/micro targets (Check Scanner)', completed: false, xpValue: 100, pointsValue: 150 },
-    { id: 'TOD-3', text: 'Engage Autonomic Restoration cycle (HRV breathing)', completed: false, xpValue: 120, pointsValue: 180 }
-  ]);
+  const [todayTasks, setTodayTasks] = useState<Task[]>(() => getTasksForTarget(profile.target));
 
   const toggleTask = (id: string) => {
-    setTodayTasks(prev => prev.map(t => {
-      if (t.id === id) {
-        const nextCompleted = !t.completed;
-        let xpDiff = t.xpValue * (nextCompleted ? 1 : -1);
-        let ptDiff = t.pointsValue * (nextCompleted ? 1 : -1);
+    const nextTasks = todayTasks.map(t => {
+      if (t.id !== id) return t;
 
-        const newXp = Math.max(0, xp + xpDiff);
-        const newPts = Math.max(0, totalVoucherPoints + ptDiff);
+      const nextCompleted = !t.completed;
+      const xpDiff = t.xpValue * (nextCompleted ? 1 : -1);
+      const ptDiff = t.pointsValue * (nextCompleted ? 1 : -1);
 
-        // Dynamic Athlete Level Up Check (Level Up occurs at multiples of 500 XP)
-        const targetXpThreshold = level * 500;
-        if (nextCompleted && newXp >= targetXpThreshold) {
-          localStorage.setItem('kinetix_level', (level + 1).toString());
-          setTimeout(() => {
-            setShowLevelUpModal(true);
-          }, 350);
-        }
+      const newXp = Math.max(0, xp + xpDiff);
+      const newPts = Math.max(0, totalVoucherPoints + ptDiff);
 
-        setXp(newXp);
-        setTotalVoucherPoints(newPts);
-        localStorage.setItem('kinetix_xp', newXp.toString());
-        localStorage.setItem('kinetix_voucher_points', newPts.toString());
-
-        if (nextCompleted) {
-          setTasksCompletedTodayCount(prev => prev + 1);
-          setMotivationMessage(`🔥 Quest Completed: "${t.text}" (+${t.pointsValue} Points!)`);
-          setTimeout(() => setMotivationMessage(null), 5000);
-        } else {
-          setTasksCompletedTodayCount(prev => Math.max(0, prev - 1));
-        }
-
-        return { ...t, completed: nextCompleted };
+      // Dynamic Athlete Level Up Check (Level Up occurs at multiples of 500 XP)
+      const targetXpThreshold = level * 500;
+      if (nextCompleted && newXp >= targetXpThreshold) {
+        localStorage.setItem('kinetix_level', (level + 1).toString());
+        setTimeout(() => {
+          setShowLevelUpModal(true);
+        }, 350);
       }
-      return t;
-    }));
+
+      setXp(newXp);
+      setTotalVoucherPoints(newPts);
+      localStorage.setItem('kinetix_xp', newXp.toString());
+      localStorage.setItem('kinetix_voucher_points', newPts.toString());
+
+      if (nextCompleted) {
+        setTasksCompletedTodayCount(prev => prev + 1);
+        setMotivationMessage(`🔥 Quest Completed: "${t.text}" (+${t.pointsValue} Points!)`);
+        setTimeout(() => setMotivationMessage(null), 5000);
+      } else {
+        setTasksCompletedTodayCount(prev => Math.max(0, prev - 1));
+      }
+
+      return { ...t, completed: nextCompleted };
+    });
+
+    setTodayTasks(nextTasks);
+
+    // Daily streak tracking: increments once per calendar day when all quests are completed
+    if (nextTasks.length > 0 && nextTasks.every(t => t.completed)) {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const lastCompletedKey = localStorage.getItem('kinetix_streak_last_date');
+      if (lastCompletedKey !== todayKey) {
+        const yesterdayKey = new Date(new Date().getTime() - 86400000).toISOString().slice(0, 10);
+        const nextStreak = lastCompletedKey === yesterdayKey ? streak + 1 : 1;
+        setStreak(nextStreak);
+        localStorage.setItem('kinetix_streak', nextStreak.toString());
+        localStorage.setItem('kinetix_streak_last_date', todayKey);
+      }
+    }
   };
 
-  useEffect(() => {
-    let specificTasks: Task[] = [];
-    if (profile.target === 'Weight Loss') {
-      specificTasks = [
-        { id: 'TOD-1', text: 'Enforce 400 kcal caloric deficit target', completed: false, xpValue: 150, pointsValue: 220 },
-        { id: 'TOD-2', text: 'Log high-fiber formulation target (>10g fiber in single meal)', completed: false, xpValue: 100, pointsValue: 150 },
-        { id: 'TOD-3', text: 'Log 45-min Zone 3 aerobic cardio workload', completed: false, xpValue: 120, pointsValue: 180 }
-      ];
-    } else if (profile.target === 'Weight Gain') {
-      specificTasks = [
-        { id: 'TOD-1', text: 'Achieve 150g protein intake floor', completed: false, xpValue: 150, pointsValue: 220 },
-        { id: 'TOD-2', text: 'Log surplus carbohydrate tracking metrics', completed: false, xpValue: 100, pointsValue: 150 },
-        { id: 'TOD-3', text: 'Complete localized skeletal muscular resistance loading', completed: false, xpValue: 120, pointsValue: 180 }
-      ];
-    } else if (profile.target === 'Cardio Endurance') {
-      specificTasks = [
-        { id: 'TOD-1', text: 'Complete step intervals below 350 SPM velocity ceiling', completed: false, xpValue: 150, pointsValue: 220 },
-        { id: 'TOD-2', text: 'Log real-time cardiac output peak threshold metrics', completed: false, xpValue: 100, pointsValue: 150 },
-        { id: 'TOD-3', text: 'Satisfy 2.5L cellular hydration target', completed: false, xpValue: 120, pointsValue: 180 }
-      ];
-    } else {
-      specificTasks = [
-        { id: 'TOD-1', text: 'Engage 15-minute high vagal tone breathing series', completed: false, xpValue: 150, pointsValue: 220 },
-        { id: 'TOD-2', text: 'Verify deep sleep stages in the telemetry console', completed: false, xpValue: 100, pointsValue: 150 },
-        { id: 'TOD-3', text: 'Ensure low autonomic neurological stress load', completed: false, xpValue: 120, pointsValue: 180 }
-      ];
-    }
-    setTodayTasks(specificTasks);
-  }, [profile.target]);
+  const getStreakFlameDisplay = (s: number): { emoji: string; tierClass: string } => {
+    if (s >= 14) return { emoji: '🔥🔥🔥', tierClass: 'streak-tier-4' };
+    if (s >= 7) return { emoji: '🔥🔥🔥', tierClass: 'streak-tier-3' };
+    if (s >= 3) return { emoji: '🔥🔥', tierClass: 'streak-tier-2' };
+    if (s >= 1) return { emoji: '🔥', tierClass: 'streak-tier-1' };
+    return { emoji: '💤', tierClass: 'streak-tier-0' };
+  };
+
+  // Regenerate today's quest set whenever the user's fitness target changes. Adjusted directly
+  // during render (React's documented pattern for this) rather than in an effect, since an
+  // effect here would cause an extra, avoidable render pass.
+  const [tasksTargetSnapshot, setTasksTargetSnapshot] = useState(profile.target);
+  if (profile.target !== tasksTargetSnapshot) {
+    setTasksTargetSnapshot(profile.target);
+    setTodayTasks(getTasksForTarget(profile.target));
+  }
 
   // --- 9. LIVE Energy Balance & NHS Dietary Metrics ---
   const [dailyConsumables, setDailyConsumables] = useState({
@@ -401,12 +540,16 @@ export default function App() {
   });
   const [caloriesBurned, setCaloriesBurned] = useState<number>(450);
 
-  const nhsTargets = {
-    calories: profile.target === 'Weight Loss' ? 1800 : profile.target === 'Weight Gain' ? 2800 : 2200,
-    carbs: profile.target === 'Weight Loss' ? 200 : profile.target === 'Weight Gain' ? 350 : 260,
-    protein: Math.round(profile.weight * 1.2),
-    fiber: 30
-  };
+  const nhsTargets = useMemo(() => {
+    const bmr = calculateBmr(profile);
+    const tdee = bmr * ACTIVITY_MULTIPLIERS[profile.activityLevel];
+    const calories = Math.round(tdee + GOAL_CALORIE_ADJUSTMENT[profile.target]);
+    const protein = Math.round(profile.weight * GOAL_PROTEIN_PER_KG[profile.target]);
+    const fat = Math.round((calories * 0.27) / 9);
+    const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
+    const fiber = Math.round((calories / 1000) * 14);
+    return { calories, carbs, protein, fiber };
+  }, [profile.weight, profile.height, profile.age, profile.sex, profile.activityLevel, profile.target]);
 
   const caloriesRemaining = nhsTargets.calories - dailyConsumables.calories + caloriesBurned;
 
@@ -415,6 +558,8 @@ export default function App() {
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
   const [isCameraScanning, setIsCameraScanning] = useState<boolean>(false);
+  const [isScanLoading, setIsScanLoading] = useState<boolean>(false);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
 
   const the14Allergens = [
     'peanuts', 'nuts', 'milk', 'eggs', 'fish', 'crustaceans', 'molluscs',
@@ -428,6 +573,7 @@ export default function App() {
 
   // --- CSR CHARITY DONATIONS REGISTRY ---
   const [charityDonations, setCharityDonations] = useState<number>(() => parseInt(localStorage.getItem('kinetix_charity_donations') || '0'));
+  const [isDonating, setIsDonating] = useState<boolean>(false);
 
   const ukCharities = [
     { id: 'CHAR-NHS', name: 'NHS Charities Together', mission: 'Supporting frontline health staff, clinical equipment, and patient recovery schemes.', desc: 'Strengthen local health ecosystems.' },
@@ -435,7 +581,7 @@ export default function App() {
     { id: 'CHAR-TRUSSELL', name: 'The Trussell Trust', mission: 'Stopping hunger and supporting local food banks to end poverty in the UK.', desc: 'Direct societal food security relief.' }
   ];
 
-  const handleDonateToCharity = (charityName: string) => {
+  const handleDonateToCharity = async (charityId: string, charityName: string) => {
     const requiredPoints = visaDemoMode ? 0 : 1000;
 
     if (!visaDemoMode && totalVoucherPoints < requiredPoints) {
@@ -443,34 +589,128 @@ export default function App() {
       return;
     }
 
-    const newTx: VoucherLog = {
-      id: `TX-DON-${Math.floor(1000 + Math.random() * 9000)}`,
-      provider: charityName,
-      value: '£2.50 Donation',
-      sku: 'CSR-CHARITY-DIRECT',
-      state: 'Donated',
-      timestamp: 'Just Now'
-    };
+    setIsDonating(true);
+    try {
+      const response = await fetch('/api/donate-charity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ charityId, charityName, pointsValue: requiredPoints, appUserId: profile.email })
+      });
+      const data = await response.json();
 
-    const pointsDeducted = visaDemoMode ? 0 : 1000;
-    const newPts = totalVoucherPoints - pointsDeducted;
-    setTotalVoucherPoints(newPts);
-    localStorage.setItem('kinetix_voucher_points', newPts.toString());
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || 'Donation could not be logged. Please try again.'}`);
+        setTimeout(() => setMotivationMessage(null), 7000);
+        return;
+      }
 
-    const updatedDonationsTotal = charityDonations + 1;
-    setCharityDonations(updatedDonationsTotal);
-    localStorage.setItem('kinetix_charity_donations', updatedDonationsTotal.toString());
+      const newTx: VoucherLog = {
+        id: `TX-DON-${new Date().getTime()}`,
+        provider: charityName,
+        value: '£2.50 Donation',
+        sku: 'CSR-CHARITY-DIRECT',
+        state: 'Donated',
+        timestamp: 'Just Now'
+      };
 
-    setVouchers([newTx, ...vouchers]);
-    setMotivationMessage(`🎗️ SOCIAL VALUE LOGGED: Programmatic matching donation matched successfully.`);
-    setTimeout(() => setMotivationMessage(null), 7000);
-    alert(`🎗️ Kinetix Social Value Handshake Complete! Your donation to ${charityName} has been recorded.`);
+      const pointsDeducted = visaDemoMode ? 0 : 1000;
+      const newPts = totalVoucherPoints - pointsDeducted;
+      setTotalVoucherPoints(newPts);
+      localStorage.setItem('kinetix_voucher_points', newPts.toString());
+
+      const updatedDonationsTotal = charityDonations + 1;
+      setCharityDonations(updatedDonationsTotal);
+      localStorage.setItem('kinetix_charity_donations', updatedDonationsTotal.toString());
+
+      setVouchers([newTx, ...vouchers]);
+      setMotivationMessage(`🎗️ SOCIAL VALUE LOGGED: Donation pledge to ${charityName} recorded successfully.`);
+      setTimeout(() => setMotivationMessage(null), 7000);
+    } catch {
+      setMotivationMessage('⚠️ Could not reach the donation server. Please try again.');
+      setTimeout(() => setMotivationMessage(null), 7000);
+    } finally {
+      setIsDonating(false);
+    }
   };
 
   // --- SUBSCRIPTIONS & ADMIN MANAGED PROMOS ---
   const [promoCodeInput, setPromoCodeInput] = useState<string>('');
   const [promoMessage, setPromoMessage] = useState<string>('');
+  const [isRedeemingPromo, setIsRedeemingPromo] = useState<boolean>(false);
   const [revenueCatStatus, setRevenueCatStatus] = useState<string>('7-Day Free Trial Active');
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
+
+  // Identify this customer to RevenueCat by email (a stable ID) instead of the SDK's default
+  // anonymous per-device ID, so promo grants and entitlement checks target the right person
+  // regardless of whether they redeemed on web or in the app.
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5 || !profile.email) return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    (async () => {
+      try {
+        const { isConfigured } = await Purchases.isConfigured();
+        if (!isConfigured) return;
+        await Purchases.logIn({ appUserID: profile.email });
+      } catch (err) {
+        console.warn('RevenueCat logIn unavailable:', err);
+      }
+    })();
+  }, [isLoggedIn, onboardingStep, profile.email]);
+
+  const refreshRevenueCatStatus = async () => {
+    try {
+      const { isConfigured } = await Purchases.isConfigured();
+      if (!isConfigured) return;
+
+      const { customerInfo: info } = await Purchases.getCustomerInfo();
+      setCustomerInfo(info);
+      const entitlement = info.entitlements.active['KinetixFit Pro'];
+      if (entitlement) {
+        const expiry = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
+        setRevenueCatStatus(`Active${expiry ? ` (renews ${expiry.toLocaleDateString('en-GB')})` : ' (Lifetime)'}`);
+      } else {
+        setRevenueCatStatus('No Active Subscription');
+      }
+    } catch (err) {
+      console.warn('RevenueCat getCustomerInfo unavailable:', err);
+    }
+  };
+
+  // Pull real subscription status from RevenueCat (native platforms only). Falls back to the
+  // existing demo-mode revenueCatStatus text (e.g. from a promo code) when unavailable.
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5) return;
+    if (!Capacitor.isNativePlatform()) return;
+    (async () => {
+      await refreshRevenueCatStatus();
+    })();
+  }, [isLoggedIn, onboardingStep]);
+
+  const handleManageSubscription = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setMotivationMessage('📱 Subscriptions are managed through your App Store or Google Play account. Open KinetixFit on your mobile device to manage your subscription.');
+      setTimeout(() => setMotivationMessage(null), 7000);
+      return;
+    }
+
+    try {
+      const platform = Capacitor.getPlatform(); // 'ios' | 'android'
+      let manageUrl = customerInfo?.managementURL || null;
+
+      if (!manageUrl) {
+        manageUrl = platform === 'ios'
+          ? 'https://apps.apple.com/account/subscriptions'
+          : 'https://play.google.com/store/account/subscriptions?package=com.jnglobalventures.kinetixfit';
+      }
+
+      await Browser.open({ url: manageUrl });
+    } catch (err) {
+      console.warn('Unable to open subscription management screen:', err);
+      setMotivationMessage('⚠️ Could not open subscription management. Please try again from your device settings.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    }
+  };
 
   // --- CONTACT FORM STATE ---
   const [contactName, setContactName] = useState<string>('');
@@ -544,112 +784,165 @@ export default function App() {
     setTimeout(() => setMotivationMessage(null), 5000);
   };
 
-  const handleMealScan = (inputStr?: string) => {
-    const activeInput = inputStr || mealInput;
-    const userInput = activeInput.toLowerCase().trim();
-    if (!userInput) return;
-
+  // Applies existing personalization (allergen flagging + target-based recommendation) to a
+  // real nutrition result from /api/scan-meal, regardless of whether it came from photo or text.
+  const finalizeScanResult = (
+    foodName: string,
+    calories: number,
+    macros: { carbs: number; protein: number; fat: number; fiber: number },
+    micros: { sodium: string; potassium: string; iron: string; calcium: string },
+    estimated: boolean,
+    estimatedPortionGrams: number
+  ) => {
+    const lowerFoodName = foodName.toLowerCase();
     const personalChecks = profile.personalAllergens.length > 0 ? profile.personalAllergens : the14Allergens;
-    const flagged = personalChecks.filter(allergen => userInput.includes(allergen));
-    const isHazard = flagged.length > 0;
+    const flagged = personalChecks.filter(allergen => lowerFoodName.includes(allergen));
 
-    let calories = 380;
-    let carbs = 45;
-    let protein = 18;
-    let fat = 11;
-    let fiber = 8;
-    let recommendation = '';
-
-    // Generic, highly-premium, white-labeled formulation references:
-    if (userInput.includes('tomato pasta') || userInput.includes('organic tomato pasta')) {
-      calories = 380;
-      carbs = 65;
-      protein = 12;
-      fat = 8;
-      fiber = 2;
-    } else if (userInput.includes('sweet potato') || userInput.includes('sweet potato bhaji')) {
-      calories = 420;
-      carbs = 58;
-      protein = 8;
-      fat = 12;
-      fiber = 9;
-    } else if (userInput.includes('nut bar') || userInput.includes('protein nut bar')) {
-      calories = 290;
-      carbs = 22;
-      protein = 11;
-      fat = 16;
-      fiber = 3;
-    } else if (userInput.includes('chicken') || userInput.includes('salmon')) {
-      calories = 480;
-      protein = 42;
-      carbs = 8;
-      fat = 14;
-      fiber = 4;
-    } else if (userInput.includes('pasta') || userInput.includes('bread') || userInput.includes('oats')) {
-      calories = 540;
-      carbs = 82;
-      protein = 14;
-      fat = 7;
-      fiber = 11;
-    }
-
-    // Advanced dynamic bio-telemetry diet recommendations based on selected profiles & biometrics:
-    if (isHazard || userInput.includes('nut bar')) {
-      const hazardAllergens = userInput.includes('nut') ? ['peanuts', 'nuts'] : flagged;
-      recommendation = `❌ DIETARY EXCLUSION INGESTION TRIGGERED: Your personal food hazard list flagged (${hazardAllergens.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic plant-protein alternative formulation containing 12g fiber to satisfy your ${profile.target} target.`;
+    if (flagged.length > 0) {
+      const recommendation = `❌ DIETARY EXCLUSION INGESTION TRIGGERED: Your personal food hazard list flagged (${flagged.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic plant-protein alternative formulation containing 12g fiber to satisfy your ${profile.target} target.`;
       setMotivationMessage(`⚠️ INGESTION WARNING: Personal allergen hazard detected in your scan!`);
       setTimeout(() => setMotivationMessage(null), 6000);
 
       setScanResult({
-        foodName: activeInput,
-        calories: userInput.includes('nut') ? 290 : calories,
-        macros: { carbs: userInput.includes('nut') ? 22 : carbs, protein: userInput.includes('nut') ? 11 : protein, fat: userInput.includes('nut') ? 16 : fat, fiber: userInput.includes('nut') ? 3 : fiber },
-        micros: { sodium: '110mg', potassium: '380mg', iron: '2.8mg', calcium: '55mg' },
-        allergensFlagged: hazardAllergens,
+        foodName, calories, macros, micros,
+        allergensFlagged: flagged,
         complianceStatus: 'HAZARD_DETECTED',
-        dietaryRecommendation: recommendation
+        dietaryRecommendation: recommendation,
+        estimated, estimatedPortionGrams
       });
-    } else {
-      setDailyConsumables(prev => ({
-        calories: prev.calories + calories,
-        carbs: prev.carbs + carbs,
-        protein: prev.protein + protein,
-        fiber: prev.fiber + fiber
-      }));
+      return;
+    }
 
-      // Highly customized, advanced medical-grade nutritional compliance suggestions
-      if (profile.target === 'Weight Loss') {
-        recommendation = `📉 METABOLIC CALIBRATION MATRIX APPROVED. High-fiber indices confirmed. Consuming this meal requires +22g of clean, lean protein substrates in your next training block to defend skeletal muscle fibers from caloric deficit exhaustion. Ingest +500ml of hydration to optimize metabolic transport and satisfy your strict daily NHS fiber guidelines.`;
-      } else if (profile.target === 'Weight Gain') {
-        recommendation = `📈 HYPER-TROPHIC ANABOLIC CALIBRATION APPROVED. Mass accumulation threshold logged. Carbohydrate metrics cleared. Recommending an immediate secondary baseline boost of +35g carbohydrates and +15g amino acid substrates to satisfy continuous metabolic tissue restoration. Ensure continuous hydration syncing.`;
-      } else if (profile.target === 'Cardio Endurance') {
-        recommendation = `⚡ CARDIOVASCULAR OXIDATION CALIBRATION APPROVED. Glycogen reserves successfully replenished. Estimated metabolic oxidation coefficient verified at optimal efficiency. Ensure a high-density hydration protocol of +750ml containing essential mineral matrices to support cardiovascular pulse load and low autonomic stress during high-workload locomotion.`;
-      } else { // Autonomic Recovery
-        recommendation = `🌱 AUTONOMIC RESTORATION MATRIX APPROVED. Low glycemic response confirmed. To help schedule active stress thresholds and keep resting cardiovascular heart rate low, supplement this formulation with +12g of essential healthy lipids and drink +450ml of alkaline hydration to speed vagal tone restoration.`;
+    setDailyConsumables(prev => ({
+      calories: prev.calories + calories,
+      carbs: prev.carbs + macros.carbs,
+      protein: prev.protein + macros.protein,
+      fiber: prev.fiber + macros.fiber
+    }));
+
+    let recommendation: string;
+    if (profile.target === 'Weight Loss') {
+      recommendation = `📉 METABOLIC CALIBRATION MATRIX APPROVED. High-fiber indices confirmed. Consuming this meal requires +22g of clean, lean protein substrates in your next training block to defend skeletal muscle fibers from caloric deficit exhaustion. Ingest +500ml of hydration to optimize metabolic transport and satisfy your strict daily NHS fiber guidelines.`;
+    } else if (profile.target === 'Weight Gain') {
+      recommendation = `📈 HYPER-TROPHIC ANABOLIC CALIBRATION APPROVED. Mass accumulation threshold logged. Carbohydrate metrics cleared. Recommending an immediate secondary baseline boost of +35g carbohydrates and +15g amino acid substrates to satisfy continuous metabolic tissue restoration. Ensure continuous hydration syncing.`;
+    } else if (profile.target === 'Cardio Endurance') {
+      recommendation = `⚡ CARDIOVASCULAR OXIDATION CALIBRATION APPROVED. Glycogen reserves successfully replenished. Estimated metabolic oxidation coefficient verified at optimal efficiency. Ensure a high-density hydration protocol of +750ml containing essential mineral matrices to support cardiovascular pulse load and low autonomic stress during high-workload locomotion.`;
+    } else { // Autonomic Recovery
+      recommendation = `🌱 AUTONOMIC RESTORATION MATRIX APPROVED. Low glycemic response confirmed. To help schedule active stress thresholds and keep resting cardiovascular heart rate low, supplement this formulation with +12g of essential healthy lipids and drink +450ml of alkaline hydration to speed vagal tone restoration.`;
+    }
+    setMotivationMessage(`✅ Scan approved! +${macros.fiber}g dietary fiber logged toward your NHS Goal!`);
+    setTimeout(() => setMotivationMessage(null), 5000);
+
+    setScanResult({
+      foodName, calories, macros, micros,
+      allergensFlagged: [],
+      complianceStatus: 'CLEARED',
+      dietaryRecommendation: recommendation,
+      estimated, estimatedPortionGrams
+    });
+  };
+
+  const handleMealScan = async (inputStr?: string) => {
+    const activeInput = inputStr || mealInput;
+    const userInput = activeInput.trim();
+    if (!userInput) return;
+
+    setIsScanLoading(true);
+    try {
+      const response = await fetch('/api/scan-meal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ foodText: userInput })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || 'Could not scan that item. Please try again.'}`);
+        setTimeout(() => setMotivationMessage(null), 6000);
+        return;
       }
-      setMotivationMessage(`✅ Scan approved! +${fiber}g dietary fiber logged toward your NHS Goal!`);
-      setTimeout(() => setMotivationMessage(null), 5000);
 
-      setScanResult({
-        foodName: activeInput,
-        calories,
-        macros: { carbs, protein, fat, fiber },
-        micros: { sodium: '110mg', potassium: '380mg', iron: '2.8mg', calcium: '55mg' },
-        allergensFlagged: [],
-        complianceStatus: 'CLEARED',
-        dietaryRecommendation: recommendation
+      finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
+    } catch {
+      setMotivationMessage('⚠️ Scan failed — check your connection and try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setIsScanLoading(false);
+    }
+  };
+
+  const handleMealScanFromPhoto = async (base64Image: string, mimeType: string) => {
+    setIsCameraScanning(true);
+    try {
+      const response = await fetch('/api/scan-meal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image, mimeType })
       });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || 'Could not identify that photo. Please try again or enter it manually.'}`);
+        setTimeout(() => setMotivationMessage(null), 6000);
+        return;
+      }
+
+      setShowCameraModal(false);
+      setMealInput(data.foodName);
+      finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
+    } catch {
+      setMotivationMessage('⚠️ Photo scan failed — check your connection and try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setIsCameraScanning(false);
+    }
+  };
+
+  // Downscales a captured photo client-side (max 1024px edge, JPEG ~0.8 quality) before upload,
+  // to keep the request small and fast for both the vision call and Vercel's body size limit.
+  const resizeImageToBase64 = (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Could not read the selected photo.'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Could not process the selected photo.'));
+        img.onload = () => {
+          const maxEdge = 1024;
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return reject(new Error('Canvas not supported.'));
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handlePhotoFileSelected = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const { base64, mimeType } = await resizeImageToBase64(file);
+      await handleMealScanFromPhoto(base64, mimeType);
+    } catch {
+      setMotivationMessage('⚠️ Could not process that photo. Please try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
     }
   };
 
   const triggerCameraScan = (item: string) => {
     setIsCameraScanning(true);
-    setTimeout(() => {
+    setMealInput(item);
+    handleMealScan(item).finally(() => {
       setIsCameraScanning(false);
       setShowCameraModal(false);
-      setMealInput(item);
-      handleMealScan(item);
-    }, 1800);
+    });
   };
 
   const handleInitiateDeviceConnection = (device: string) => {
@@ -663,17 +956,32 @@ export default function App() {
     }, 2000);
   };
 
-  const applyPromoCode = () => {
-    const code = promoCodeInput.trim().toUpperCase();
+  const applyPromoCode = async () => {
+    const code = promoCodeInput.trim();
+    if (!code || !profile.email) return;
 
-    if (code === 'KINETIX-CORP-LIFETIME' || code === 'KINETIX-PROMO-100') {
-      setRevenueCatStatus('Active (Lifetime Corporate License Verified)');
-      setPromoMessage('💚 Premium Lifetime Corporate License Activated successfully!');
-    } else if (code === 'KINETIX-VIP-B2B') {
-      setRevenueCatStatus('Active (VIP Enterprise Pass - 30 Days)');
-      setPromoMessage('💎 VIP Enterprise Pass Activated successfully!');
-    } else {
-      setPromoMessage('❌ Invalid Promo or Coupon Code. Please verify with KinetixFit Systems Administrator.');
+    setIsRedeemingPromo(true);
+    try {
+      const response = await fetch('/api/redeem-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, appUserId: profile.email })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPromoMessage(`❌ ${data.error || 'Invalid Promo or Coupon Code.'}`);
+        return;
+      }
+
+      setPromoMessage(data.tier === 'lifetime'
+        ? '💚 Lifetime access activated successfully!'
+        : '💎 30-day promotional access activated successfully!');
+      await refreshRevenueCatStatus();
+    } catch {
+      setPromoMessage('❌ Could not reach the licensing server. Please try again.');
+    } finally {
+      setIsRedeemingPromo(false);
     }
   };
 
@@ -699,13 +1007,13 @@ export default function App() {
     }
 
     // Handle Active Payout Gateway
-    let prefix = 'TX-UK-';
-    let voucherTitle = 'Premium High-Street Beverage Token';
-    let sku = 'KTX-NERO-UK';
-    let alertMsg = '';
+    let prefix: string;
+    let voucherTitle: string;
+    let sku: string;
+    let alertMsg: string;
 
     if (rewardGateway === 'primary') {
-      alert("⚠️ GATEWAY PENDING: KTX Global Gateway B2B compliance review is currently in progress for JN Global Ventures LTD (1-3 days). To bypass this delay, please toggle the Gateway Selector to 'Direct API Gateway' or 'Local B2B Claim' to redeem immediately!");
+      alert("Rewards are temporarily unavailable, please check back soon.");
       return;
     } else if (rewardGateway === 'direct') {
       prefix = 'TX-API-';
@@ -771,7 +1079,7 @@ export default function App() {
   };
 
   // --- TRIPLE-TIER DRILLDOWN SELECTION ---
-  const selectedMetric = biometrics.find(b => b.id === selectedMetricId) || biometrics[1];
+  const selectedMetric = allBiometrics.find(b => b.id === selectedMetricId) || allBiometrics[1];
 
   // --- RENDERING ROUTER ---
 
@@ -1211,8 +1519,37 @@ export default function App() {
                 <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Weight (kg)
                   <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
                 </label>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Age
+                  <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="auth-input" />
+                </label>
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Biological Sex
+                  <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="auth-input-select">
+                    <option value="">Prefer not to say</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </label>
+                {profile.sex === 'female' && (
+                  <>
+                    <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Last Period Start Date
+                      <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="auth-input" />
+                    </label>
+                    <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Average Cycle Length (days)
+                      <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="auth-input" />
+                    </label>
+                  </>
+                )}
+                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Activity Level
+                  <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="auth-input-select">
+                    <option value="sedentary">Sedentary (little to no exercise)</option>
+                    <option value="light">Light (exercise 1-3x/week)</option>
+                    <option value="moderate">Moderate (exercise 3-5x/week)</option>
+                    <option value="active">Active (exercise 6-7x/week)</option>
+                    <option value="very_active">Very Active (hard exercise/physical job)</option>
+                  </select>
+                </label>
                 <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Primary Fitness Target
-                  <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="auth-input-select">
+                  <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="auth-input-select">
                     <option value="Autonomic Recovery">Autonomic Recovery</option>
                     <option value="Weight Loss">Weight Loss</option>
                     <option value="Weight Gain">Weight Gain</option>
@@ -1404,12 +1741,12 @@ export default function App() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div className="athlete-avatar-badge">LVL {level}</div>
                     <div>
-                      <h4 className="athlete-title">JN Global Athlete: {profile.name || 'PILOT_SANDBOX'}</h4>
+                      <h4 className="athlete-title">{profile.name ? `Welcome back, ${profile.name}` : 'Welcome back'}</h4>
                       <span className="athlete-subtext">Biometric Status: <strong style={{ color: '#00ff88' }}>Peak Athlete Floor</strong></span>
                     </div>
                   </div>
-                  <div className="streak-badge">
-                    🔥 5-DAY ACTIVE STREAK
+                  <div className={`streak-badge ${getStreakFlameDisplay(streak).tierClass}`}>
+                    {getStreakFlameDisplay(streak).emoji} {streak}-DAY STREAK
                   </div>
                 </div>
 
@@ -1481,7 +1818,7 @@ export default function App() {
                     <button
                       key={mode.id}
                       onClick={() => {
-                        setActiveSportMode(mode.id as any);
+                        setActiveSportMode(mode.id as 'rest' | 'run' | 'cycle' | 'swim');
                         setLiveBpm(mode.bpm);
                         setLiveHrv(mode.hrv);
                         setMotivationMessage(`⚡ WORKLOAD DIVERTER: Synced metrics to ${mode.label}!`);
@@ -1494,7 +1831,7 @@ export default function App() {
                               ...item,
                               reading: `${mode.bpm} BPM / ${mode.hrv} ms HRV`,
                               status: mode.bpm > 100 ? 'Critical' : 'Optimal',
-                              waveType: mode.wave as any,
+                              waveType: mode.wave as TelemetryStream['waveType'],
                               behavior: mode.bpm > 130 ? 'Peak Athletic VO2 Threshold' : 'High Vagal Tone Detected'
                             };
                           }
@@ -1578,7 +1915,7 @@ export default function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h3 className="section-header">6-Core Health Telemetry Sync</h3>
                 <div className="core-biometrics-grid">
-                  {biometrics.map(bio => {
+                  {allBiometrics.map(bio => {
                     const active = selectedMetricId === bio.id;
                     return (
                       <div
@@ -1629,7 +1966,7 @@ export default function App() {
                       <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" />
                     </label>
                     <label className="drawer-label">Primary Fitness Target
-                      <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="drawer-select">
+                      <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select">
                         <option value="Autonomic Recovery">Autonomic Recovery</option>
                         <option value="Weight Loss">Weight Loss</option>
                         <option value="Weight Gain">Weight Gain</option>
@@ -1700,8 +2037,8 @@ export default function App() {
                   <button onClick={() => setShowCameraModal(true)} className="scanner-camera-trigger" title="Simulate Camera OCR Scan">
                     📷
                   </button>
-                  <button onClick={() => handleMealScan()} className="scanner-submit-btn">
-                    Scan
+                  <button onClick={() => handleMealScan()} disabled={isScanLoading} className="scanner-submit-btn">
+                    {isScanLoading ? 'Scanning…' : 'Scan'}
                   </button>
                 </div>
 
@@ -1714,6 +2051,11 @@ export default function App() {
                         {scanResult.complianceStatus}
                       </span>
                     </div>
+                    {scanResult.estimated && (
+                      <span className="estimated-portion-badge">
+                        ~{scanResult.estimatedPortionGrams}g (estimated)
+                      </span>
+                    )}
 
                     <div className="scan-macros-micros-grid">
                       <div>
@@ -1761,7 +2103,7 @@ export default function App() {
                         {profile.name || 'ANONYMOUS ATHLETE'}
                       </h2>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-                        <span className="bio-status-badge status-optimal" style={{ fontSize: '8px', padding: '2px 8px' }}>STREAK: 🔥 5-Day Active</span>
+                        <span className="bio-status-badge status-optimal" style={{ fontSize: '8px', padding: '2px 8px' }}>STREAK: {getStreakFlameDisplay(streak).emoji} {streak}-Day</span>
                         <span className="bio-status-badge status-syncing" style={{ fontSize: '8px', padding: '2px 8px' }}>CONDITION: PEAK ATHLETE</span>
                       </div>
                     </div>
@@ -1825,8 +2167,37 @@ export default function App() {
                       <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Weight (kg)
                         <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Age
+                        <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Biological Sex
+                        <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          <option value="">Prefer not to say</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                        </select>
+                      </label>
+                      {profile.sex === 'female' && (
+                        <>
+                          <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Last Period Start Date
+                            <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </label>
+                          <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Average Cycle Length (days)
+                            <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </label>
+                        </>
+                      )}
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Activity Level
+                        <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          <option value="sedentary">Sedentary</option>
+                          <option value="light">Light</option>
+                          <option value="moderate">Moderate</option>
+                          <option value="active">Active</option>
+                          <option value="very_active">Very Active</option>
+                        </select>
+                      </label>
                       <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Fitness Target
-                        <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as any})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="Autonomic Recovery">Autonomic Recovery</option>
                           <option value="Weight Loss">Weight Loss</option>
                           <option value="Weight Gain">Weight Gain</option>
@@ -1908,6 +2279,29 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Achievements / Badges Gallery — computed live from existing tracked data */}
+                  <div className="quests-card">
+                    <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
+                      <h3 className="quests-title" style={{ fontSize: '12px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🏅 Achievements</h3>
+                    </div>
+                    <div className="badges-gallery-grid">
+                      {[
+                        { id: 'first-steps', label: 'First Steps', icon: '👣', unlocked: profile.workoutsLogged.length >= 1 },
+                        { id: 'dedicated', label: 'Dedicated Athlete', icon: '💪', unlocked: profile.workoutsLogged.length >= 5 },
+                        { id: 'streak-3', label: '3-Day Streak', icon: '🔥', unlocked: streak >= 3 },
+                        { id: 'streak-7', label: '7-Day Streak', icon: '🔥🔥', unlocked: streak >= 7 },
+                        { id: 'level-3', label: 'Level 3 Reached', icon: '🥈', unlocked: level >= 3 },
+                        { id: 'level-5', label: 'Level 5 Reached', icon: '🏆', unlocked: level >= 5 },
+                      ].map(badge => (
+                        <div key={badge.id} className={`badge-tile ${badge.unlocked ? 'badge-unlocked' : 'badge-locked'}`}>
+                          <span className="badge-icon">{badge.icon}</span>
+                          <span className="badge-label">{badge.label}</span>
+                          {!badge.unlocked && <span className="badge-lock-overlay">🔒</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Accrued Point Validator Accelerometer controls */}
                   <div className="biopoint-validator-card">
                     <span className="validator-label" style={{ fontSize: '8.5px', letterSpacing: '1.5px' }}>⚡ BIOMECHANICAL STEP VELOCIMETER</span>
@@ -1936,77 +2330,66 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Integrated Gateway Selector */}
+                    {/* Integrated Gateway Selector (disabled until live provider approval is confirmed) */}
                     <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
                       <span style={{ fontSize: '8px', color: '#6b7280', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Select Rewards Settlement Gateway:</span>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                         <button
-                          onClick={() => {
-                            setRewardGateway('primary');
-                            setMotivationMessage('📡 Primary Gateway: KTX Global Gateway selected. Awaiting B2B account validation.');
-                            setTimeout(() => setMotivationMessage(null), 5000);
-                          }}
+                          disabled
                           style={{
-                            backgroundColor: rewardGateway === 'primary' ? 'rgba(0, 255, 136, 0.08)' : '#0b0f19',
-                            border: `1px solid ${rewardGateway === 'primary' ? '#00ff88' : '#1f2937'}`,
-                            color: rewardGateway === 'primary' ? '#00ff88' : '#9ca3af',
+                            backgroundColor: '#0b0f19',
+                            border: '1px solid #1f2937',
+                            color: '#4b5563',
                             fontSize: '9px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: rewardGateway === 'primary' ? 'bold' : 'normal'
+                            cursor: 'not-allowed',
+                            fontWeight: 'normal',
+                            opacity: 0.5
                           }}
                         >
                           KTX Global
                         </button>
                         <button
-                          onClick={() => {
-                            setRewardGateway('direct');
-                            setMotivationMessage('⚡ Backup Gateway: Direct API Gateway selected. Sandbox tokens enabled.');
-                            setTimeout(() => setMotivationMessage(null), 5000);
-                          }}
+                          disabled
                           style={{
-                            backgroundColor: rewardGateway === 'direct' ? 'rgba(0, 191, 255, 0.08)' : '#0b0f19',
-                            border: `1px solid ${rewardGateway === 'direct' ? '#00bfff' : '#1f2937'}`,
-                            color: rewardGateway === 'direct' ? '#00bfff' : '#9ca3af',
+                            backgroundColor: '#0b0f19',
+                            border: '1px solid #1f2937',
+                            color: '#4b5563',
                             fontSize: '9px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: rewardGateway === 'direct' ? 'bold' : 'normal'
+                            cursor: 'not-allowed',
+                            fontWeight: 'normal',
+                            opacity: 0.5
                           }}
                         >
                           Direct API
                         </button>
                         <button
-                          onClick={() => {
-                            setRewardGateway('local');
-                            setMotivationMessage('🏆 Instant Gateway: Local B2B Claim selected. Generate claim codes directly.');
-                            setTimeout(() => setMotivationMessage(null), 5000);
-                          }}
+                          disabled
                           style={{
-                            backgroundColor: rewardGateway === 'local' ? 'rgba(255, 149, 0, 0.08)' : '#0b0f19',
-                            border: `1px solid ${rewardGateway === 'local' ? '#ff9500' : '#1f2937'}`,
-                            color: rewardGateway === 'local' ? '#ff9500' : '#9ca3af',
+                            backgroundColor: '#0b0f19',
+                            border: '1px solid #1f2937',
+                            color: '#4b5563',
                             fontSize: '9px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: rewardGateway === 'local' ? 'bold' : 'normal'
+                            cursor: 'not-allowed',
+                            fontWeight: 'normal',
+                            opacity: 0.5
                           }}
                         >
                           Local B2B
                         </button>
                       </div>
 
-                      {/* Sub-text diagnostic status checks based on selected gate */}
+                      {/* Honest status message shown regardless of gateway state */}
                       <span style={{ fontSize: '8px', color: '#9ca3af', marginTop: '8px', display: 'block', lineHeight: '1.3' }}>
-                        {rewardGateway === 'primary' && "ℹ️ Primary Merchant Review in progress (Company: JN Global Ventures LTD). Response: 1-3 business days."}
-                        {rewardGateway === 'direct' && "⚡ Direct API Gateway: Active Sandbox connected. Gift cards & prepaid allocations ready for instantaneous issuance."}
-                        {rewardGateway === 'local' && "🏆 Local B2B Claim: Highly recommended for early pilots! Issues local claim verification IDs reconciled monthly directly with your B2B clients."}
+                        Rewards redemption is launching soon — check back shortly.
                       </span>
                     </div>
 
@@ -2057,8 +2440,8 @@ export default function App() {
                             <h4 className="charity-item-name" style={{ fontSize: '11px', color: '#ffffff', margin: '2px 0' }}>{charity.name}</h4>
                             <p className="charity-item-mission" style={{ fontSize: '9px', color: '#9ca3af', lineHeight: '1.3', margin: 0 }}>{charity.mission}</p>
                           </div>
-                          <button onClick={() => handleDonateToCharity(charity.name)} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '9.5px' }}>
-                            🎗️ Donate 1,000 Pts (£2.50)
+                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '9.5px' }}>
+                            {isDonating ? 'Processing…' : '🎗️ Donate 1,000 Pts (£2.50)'}
                           </button>
                         </div>
                       ))}
@@ -2085,6 +2468,13 @@ export default function App() {
                 <p className="billing-disclaimer">
                   KinetixFit endpoints are configured as premium accounts matching <strong style={{ color: '#00ff88' }}>£14.99 per subscriber per month</strong>. All newly initialized corporate endpoints begin with an introductory <strong style={{ color: '#00ff88' }}>7-Day Free Trial</strong> prior to transaction settlement steps.
                 </p>
+                <button
+                  onClick={handleManageSubscription}
+                  className="edit-bio-btn"
+                  style={{ width: '100%', marginBottom: '12px' }}
+                >
+                  🔧 Manage Subscription
+                </button>
 
                 {/* Allocations columns */}
                 <div className="billing-stats-row">
@@ -2112,7 +2502,9 @@ export default function App() {
                       onChange={(e) => setPromoCodeInput(e.target.value)}
                       className="promo-text-input"
                     />
-                    <button onClick={applyPromoCode} className="promo-submit-btn">Activate</button>
+                    <button onClick={applyPromoCode} disabled={isRedeemingPromo || !promoCodeInput.trim()} className="promo-submit-btn">
+                      {isRedeemingPromo ? 'Activating…' : 'Activate'}
+                    </button>
                   </div>
                   {promoMessage && (
                     <p className={`promo-response-msg ${promoMessage.includes('❌') ? 'response-error' : 'response-success'}`}>
@@ -2266,8 +2658,11 @@ export default function App() {
       {/* --- SPECTACULAR NEON LEVEL UP CELEBRATION MODAL --- */}
       {showLevelUpModal && (
         <div className="portal-overlay-modal" style={{ zIndex: 15000 }}>
-          <div className="modal-content-card" style={{ border: '2px solid #00ff88', textAlign: 'center' }}>
-            <span style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
+          <div className="modal-content-card levelup-celebration-card" style={{ border: '2px solid #00ff88', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+            <span className="levelup-sparkle levelup-sparkle-1">✨</span>
+            <span className="levelup-sparkle levelup-sparkle-2">✨</span>
+            <span className="levelup-sparkle levelup-sparkle-3">✨</span>
+            <span className="levelup-trophy-icon" style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
             <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '20px', letterSpacing: '2px', textTransform: 'uppercase' }}>
               ATHLETIC LEVEL UP!
             </h2>
@@ -2355,8 +2750,28 @@ export default function App() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <p className="modal-desc">
-                  Select a preloaded UK retail formulation below to simulate a high-speed camera barcode snap and molecular allergen interrogation.
+                  Snap or upload a photo for AI-powered food identification and portion estimation, or pick a quick option below.
                 </p>
+
+                {/* Real photo capture */}
+                <input
+                  ref={photoFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    handlePhotoFileSelected(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  onClick={() => photoFileInputRef.current?.click()}
+                  className="primary-btn"
+                  style={{ width: '100%', padding: '12px' }}
+                >
+                  📷 Take / Upload Photo
+                </button>
 
                 {/* Preloaded database list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
@@ -2634,6 +3049,53 @@ export default function App() {
           padding: 5px 12px !important;
           border-radius: 12px !important;
           letter-spacing: 0.5px !important;
+          transition: box-shadow 0.5s ease, border-color 0.5s ease !important;
+        }
+        .streak-tier-0 { opacity: 0.6 !important; }
+        .streak-tier-2 { box-shadow: 0 0 8px rgba(255, 149, 0, 0.35) !important; }
+        .streak-tier-3 { box-shadow: 0 0 12px rgba(255, 149, 0, 0.5) !important; border-color: #ffb347 !important; }
+        .streak-tier-4 { box-shadow: 0 0 18px rgba(255, 149, 0, 0.7) !important; border-color: #ffcc80 !important; animation: streakGlowPulse 1.8s ease-in-out infinite !important; }
+        @keyframes streakGlowPulse {
+          0%, 100% { box-shadow: 0 0 12px rgba(255, 149, 0, 0.5); }
+          50% { box-shadow: 0 0 22px rgba(255, 149, 0, 0.85); }
+        }
+        .badges-gallery-grid {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 10px !important;
+        }
+        .badge-tile {
+          position: relative !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          padding: 12px 6px !important;
+          border-radius: 10px !important;
+          text-align: center !important;
+          transition: all 0.3s ease !important;
+        }
+        .badge-icon { font-size: 22px !important; }
+        .badge-label { font-size: 8px !important; text-transform: uppercase; letter-spacing: 0.3px !important; line-height: 1.3 !important; }
+        .badge-unlocked {
+          background-color: rgba(0, 255, 136, 0.06) !important;
+          border: 1px solid #00ff88 !important;
+          box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
+        }
+        .badge-unlocked .badge-label { color: #00ff88 !important; }
+        .badge-locked {
+          background-color: #030712 !important;
+          border: 1px solid #1f2937 !important;
+          filter: grayscale(1) !important;
+          opacity: 0.45 !important;
+        }
+        .badge-locked .badge-label { color: #6b7280 !important; }
+        .badge-lock-overlay {
+          position: absolute !important;
+          top: 4px !important;
+          right: 6px !important;
+          font-size: 9px !important;
         }
         .xp-progress-bar-container {
           display: flex !important;
@@ -2660,6 +3122,12 @@ export default function App() {
           background: linear-gradient(90deg, #00ff88 0%, #00bfff 100%) !important;
           border-radius: 4px !important;
           box-shadow: 0 0 8px rgba(0, 255, 136, 0.5) !important;
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          animation: xpBarBreathe 2.4s ease-in-out infinite !important;
+        }
+        @keyframes xpBarBreathe {
+          0%, 100% { box-shadow: 0 0 8px rgba(0, 255, 136, 0.5); }
+          50% { box-shadow: 0 0 14px rgba(0, 191, 255, 0.6); }
         }
 
         /* Athletic Sport Selector Styling */
@@ -3072,6 +3540,7 @@ export default function App() {
         }
         .progress-fill {
           height: 100% !important;
+          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .green-fill { background-color: #00ff88 !important; }
         .blue-fill { background-color: #00bfff !important; }
@@ -3171,6 +3640,16 @@ export default function App() {
         }
         .badge-cleared { background-color: rgba(0, 255, 136, 0.1) !important; color: #00ff88 !important; }
         .badge-hazard_detected { background-color: rgba(255, 59, 48, 0.1) !important; color: #ff3b30 !important; }
+        .estimated-portion-badge {
+          display: inline-block !important;
+          font-size: 8.5px !important;
+          color: #9ca3af !important;
+          background-color: #030712 !important;
+          border: 1px solid #1f2937 !important;
+          padding: 2px 8px !important;
+          border-radius: 10px !important;
+          margin-bottom: 12px !important;
+        }
         .scan-macros-micros-grid {
           display: grid !important;
           grid-template-columns: 1.1fr 0.9fr !important;
@@ -3743,6 +4222,50 @@ export default function App() {
           border-radius: 20px !important;
           padding: 25px !important;
           box-shadow: 0 15px 40px rgba(0, 255, 136, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
+        }
+        .levelup-celebration-card {
+          animation: levelUpEntrance 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+        .levelup-celebration-card::before {
+          content: '' !important;
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          width: 140% !important;
+          height: 140% !important;
+          transform: translate(-50%, -50%) !important;
+          background: radial-gradient(circle, rgba(0, 255, 136, 0.18) 0%, rgba(0, 255, 136, 0) 65%) !important;
+          animation: levelUpGlowPulse 2.2s ease-in-out infinite !important;
+          pointer-events: none !important;
+        }
+        @keyframes levelUpEntrance {
+          0% { opacity: 0; transform: scale(0.8) translateY(12px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes levelUpGlowPulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        .levelup-trophy-icon {
+          animation: levelUpTrophyPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both !important;
+        }
+        @keyframes levelUpTrophyPop {
+          0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+          100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .levelup-sparkle {
+          position: absolute !important;
+          font-size: 16px !important;
+          opacity: 0 !important;
+          animation: levelUpSparkleTwinkle 2.4s ease-in-out infinite !important;
+          pointer-events: none !important;
+        }
+        .levelup-sparkle-1 { top: 12% !important; left: 15% !important; animation-delay: 0s !important; }
+        .levelup-sparkle-2 { top: 20% !important; right: 12% !important; animation-delay: 0.7s !important; font-size: 12px !important; }
+        .levelup-sparkle-3 { bottom: 18% !important; left: 22% !important; animation-delay: 1.3s !important; font-size: 13px !important; }
+        @keyframes levelUpSparkleTwinkle {
+          0%, 100% { opacity: 0; transform: scale(0.6); }
+          50% { opacity: 1; transform: scale(1.1); }
         }
         .modal-title {
           font-size: 14px !important;
