@@ -1,6 +1,11 @@
 // Private serverless endpoint: identifies a food item (from a photo or free text) and returns
-// real nutrition data. Stateless — no user profile data is sent here or stored; personalization
-// (allergens, dietary recommendations) stays entirely client-side in src/App.tsx.
+// real nutrition data. Personalization (allergens, dietary recommendations) still stays entirely
+// client-side in src/App.tsx — the only per-user state here is a Redis flag tracking whether the
+// once-per-day meal-scan point award has already been given, keyed by appUserId (profile.email).
+import { getRewardConfig } from './_lib/rewardConfig.js';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 const NUTRIENT_IDS = {
   calories: 1008,
@@ -114,7 +119,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { image, mimeType, foodText } = req.body;
+  const { image, mimeType, foodText, appUserId } = req.body;
 
   try {
     let foodName;
@@ -137,6 +142,21 @@ export default async function handler(req, res) {
     }
 
     const result = buildResult(foodName, estimatedGrams, nutrition.nutrientValues, nutrition.basisGrams);
+
+    // Award meal-scan points once per calendar day, regardless of how many scans happen —
+    // dedup enforced server-side (a resettable localStorage flag could be gamed by re-scanning).
+    result.pointsAwarded = 0;
+    if (appUserId) {
+      const today = new Date().toISOString().slice(0, 10);
+      const awardKey = `meal_scan_points_awarded:${appUserId}:${today}`;
+      const alreadyAwarded = await redis.get(awardKey);
+      if (!alreadyAwarded) {
+        const config = await getRewardConfig();
+        result.pointsAwarded = config.mealScanPointsAward;
+        await redis.set(awardKey, '1', { ex: 60 * 60 * 24 * 2 });
+      }
+    }
+
     return res.status(200).json(result);
   } catch (error) {
     return res.status(500).json({ error: 'Meal scan failed', details: error.message });

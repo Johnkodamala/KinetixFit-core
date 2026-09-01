@@ -1,10 +1,24 @@
-// Private serverless endpoint to process verified reward redemptions
+// Private serverless endpoint to process verified reward redemptions.
+//
+// IMPORTANT LIMITATION: pointBalance/todayQuestsCompleted/simulatedCadence below are still
+// client-submitted, not verified against a server-side ledger — that requires a full
+// quest-completion-vs-real-device-data pipeline that doesn't exist yet (no server ever receives
+// HealthKit/Health Connect/Oura data today). What IS server-enforced here, independent of that:
+// the monthly £ redemption cap (see api/_lib/rewardConfig.js) and no-double-redeem via the cap
+// counter, since both only depend on tracking successful redemptions, not on point legitimacy.
+import { getRewardConfig, checkMonthlyRedemptionCap, recordRedemption } from './_lib/rewardConfig.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const { email, userName, pointBalance, simulatedCadence, todayQuestsCompleted } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'email is required.' });
+  }
+
+  const config = await getRewardConfig();
 
   // 1. Stage 1 Anti-Cheat: Validate raw mechanical inputs on the server
   if (simulatedCadence > 350) {
@@ -22,11 +36,17 @@ export default async function handler(req, res) {
     });
   }
 
-  if (pointBalance < 2500) {
+  if (pointBalance < config.voucherPointsCost) {
     return res.status(400).json({
       error: 'INSUFFICIENT BALANCE',
-      details: 'A minimum of 2,500 points is required to cash out a £5.00 voucher.'
+      details: `A minimum of ${config.voucherPointsCost} points is required to cash out a £${config.voucherValueGBP.toFixed(2)} voucher.`
     });
+  }
+
+  // 3. Monthly redemption cap — real, server-enforced, independent of point legitimacy.
+  const capCheck = await checkMonthlyRedemptionCap(email, config.voucherValueGBP, config);
+  if (!capCheck.allowed) {
+    return res.status(429).json({ error: capCheck.message });
   }
 
   const TREMENDOUS_API_KEY = process.env.TREMENDOUS_API_KEY;
@@ -35,7 +55,11 @@ export default async function handler(req, res) {
   const baseURL = isSandbox ? 'https://testflight.tremendous.com' : 'https://api.tremendous.com';
 
   try {
-    // 3. Programmatic API Order Payload to reward clearinghouse
+    // 4. Programmatic API Order Payload to reward clearinghouse
+    // NOTE: `products` intentionally omitted (was hardcoded to real UK coffee brand codes,
+    // a white-label violation) — Tremendous uses the account's default campaign/catalog
+    // instead. Confirm the real generic product code for your Tremendous account if you want
+    // to restrict this to a specific category.
     const response = await fetch(`${baseURL}/api/v2/orders`, {
       method: 'POST',
       headers: {
@@ -48,18 +72,16 @@ export default async function handler(req, res) {
         },
         reward: {
           value: {
-            denomination: 5.00,
+            denomination: config.voucherValueGBP,
             currency_code: 'GBP'
           },
           recipient: {
             name: userName || 'KinetixFit Athlete',
             email: email
           },
-          // Restricts payouts specifically to UK high-street coffee brands (Costa, Caffè Nero)
           delivery: {
             method: 'EMAIL'
-          },
-          products: ['KTX-COSTA-UK', 'KTX-NERO-UK']
+          }
         }
       })
     });
@@ -70,11 +92,14 @@ export default async function handler(req, res) {
       throw new Error(orderData.errors?.[0]?.message || 'Reward provider error');
     }
 
+    await recordRedemption(email, config.voucherValueGBP);
+
     return res.status(200).json({
       status: 'Settled',
       transactionId: `TX-TRE-${Math.floor(1000 + Math.random() * 9000)}`,
       recipient: email,
-      message: '£5.00 Coffee Voucher programmatically ordered and queued for email delivery!',
+      valueGBP: config.voucherValueGBP,
+      message: `£${config.voucherValueGBP.toFixed(2)} Coffee Voucher programmatically ordered and queued for email delivery!`,
       data: orderData.order
     });
   } catch (error) {

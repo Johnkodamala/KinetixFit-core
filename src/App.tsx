@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { Purchases, type CustomerInfo } from '@revenuecat/purchases-capacitor';
+import { Health } from '@capgo/capacitor-health';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -232,7 +234,32 @@ export default function App() {
   const [activeSportMode, setActiveSportMode] = useState<'rest' | 'run' | 'cycle' | 'swim'>('rest');
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
-  const [syncingDeviceType, setSyncingDeviceType] = useState<string | null>(null);
+  const [isConnectingHealth, setIsConnectingHealth] = useState<boolean>(false);
+  const [liveSteps, setLiveSteps] = useState<number | null>(null);
+  const [liveSleepQualityPercent, setLiveSleepQualityPercent] = useState<number | null>(null);
+  const isLiveHealthData = Capacitor.isNativePlatform() && profile.smartDeviceConnected !== null;
+
+  // --- LOCAL PUSH NOTIFICATIONS (hydration, activity, nutrition) ---
+  const [hydrationRemindersEnabled, setHydrationRemindersEnabled] = useState<boolean>(() => localStorage.getItem('kinetix_hydration_enabled') !== 'false');
+  const [hydrationIntervalHours, setHydrationIntervalHours] = useState<number>(() => parseInt(localStorage.getItem('kinetix_hydration_interval') || '2'));
+  const [shiftStartHour, setShiftStartHour] = useState<number>(() => parseInt(localStorage.getItem('kinetix_shift_start') || '9'));
+  const [shiftEndHour, setShiftEndHour] = useState<number>(() => parseInt(localStorage.getItem('kinetix_shift_end') || '17'));
+  const [lastWorkoutLoggedDate, setLastWorkoutLoggedDate] = useState<string | null>(() => localStorage.getItem('kinetix_last_workout_date'));
+
+  // Requests notification permission only the first time it's actually needed (lazily, from
+  // whichever of the three notification features fires first), never proactively on app open.
+  const ensureNotificationPermission = async (): Promise<boolean> => {
+    if (!Capacitor.isNativePlatform()) return false;
+    try {
+      const current = await LocalNotifications.checkPermissions();
+      if (current.display === 'granted') return true;
+      const requested = await LocalNotifications.requestPermissions();
+      return requested.display === 'granted';
+    } catch (err) {
+      console.warn('Notification permission check failed:', err);
+      return false;
+    }
+  };
 
   // Save profile helper
   const saveProfileToStorage = (updatedProfile: UserProfile) => {
@@ -255,8 +282,12 @@ export default function App() {
   const [liveHrv, setLiveHrv] = useState<number>(68);
   const [pulseHistory, setPulseHistory] = useState<number[]>([72, 74, 71, 70, 75, 78, 73, 71, 72, 75, 79, 73, 70, 72, 74, 71]);
 
+  // When no real device is connected, keep the dashboard visually alive with clearly-labeled
+  // demo data (see the "DEMO DATA" badge on the telemetry panel) rather than freezing it.
   useEffect(() => {
     if (!isLoggedIn || onboardingStep < 5) return;
+    if (isLiveHealthData) return;
+
     const interval = setInterval(() => {
       setLiveBpm(prev => {
         const delta = (Math.random() - 0.5) * 6;
@@ -270,7 +301,107 @@ export default function App() {
       });
     }, 2500);
     return () => clearInterval(interval);
-  }, [isLoggedIn, onboardingStep]);
+  }, [isLoggedIn, onboardingStep, isLiveHealthData]);
+
+  // Real periodic reads from HealthKit/Health Connect once a device is actually connected.
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5 || !isLiveHealthData) return;
+
+    const readLiveHealthData = async () => {
+      try {
+        const now = new Date();
+        const recentWindowStart = new Date(now.getTime() - 10 * 60000).toISOString();
+        const dayWindowStart = new Date(now.getTime() - 24 * 60 * 60000).toISOString();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const nowIso = now.toISOString();
+
+        const [hrResult, hrvResult, stepsResult, sleepResult] = await Promise.all([
+          Health.readSamples({ dataType: 'heartRate', startDate: recentWindowStart, endDate: nowIso, limit: 1, ascending: false }),
+          Health.readSamples({ dataType: 'heartRateVariability', startDate: dayWindowStart, endDate: nowIso, limit: 1, ascending: false }),
+          Health.queryAggregated({ dataType: 'steps', startDate: startOfToday, endDate: nowIso, bucket: 'day', aggregation: 'sum' }),
+          Health.readSamples({ dataType: 'sleep', startDate: dayWindowStart, endDate: nowIso, limit: 50 })
+        ]);
+
+        if (hrResult.samples.length > 0) {
+          const bpm = Math.round(hrResult.samples[0].value);
+          setLiveBpm(bpm);
+          setPulseHistory(h => [...h.slice(1), bpm]);
+        }
+        if (hrvResult.samples.length > 0) {
+          setLiveHrv(Math.round(hrvResult.samples[0].value));
+        }
+        if (stepsResult.samples.length > 0) {
+          setLiveSteps(Math.round(stepsResult.samples[0].value));
+        }
+        if (sleepResult.samples.length > 0) {
+          const totalMinutes = sleepResult.samples.reduce((sum, s) => {
+            return sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
+          }, 0);
+          setLiveSleepQualityPercent(Math.min(100, Math.round((totalMinutes / (8 * 60)) * 100)));
+        }
+      } catch (err) {
+        console.warn('Health data read failed:', err);
+      }
+    };
+
+    readLiveHealthData();
+    const interval = setInterval(readLiveHealthData, 30000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, onboardingStep, isLiveHealthData]);
+
+  // Hydration reminders: repeating daily local notifications at fixed times across the
+  // configured shift window. Rescheduled (old ones cancelled first) whenever settings change.
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5 || !hydrationRemindersEnabled) return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    (async () => {
+      const hydrationNotificationIds = Array.from({ length: 24 }, (_, i) => ({ id: 9000 + i }));
+      await LocalNotifications.cancel({ notifications: hydrationNotificationIds }).catch(() => {});
+
+      const granted = await ensureNotificationPermission();
+      if (!granted) return;
+
+      const times: number[] = [];
+      for (let h = shiftStartHour; h <= shiftEndHour; h += Math.max(1, hydrationIntervalHours)) times.push(h);
+      if (times.length === 0) return;
+
+      await LocalNotifications.schedule({
+        notifications: times.map((hour, idx) => ({
+          id: 9000 + idx,
+          title: '💧 Hydration Check-In',
+          body: 'Time for a water break — staying hydrated keeps your energy and focus up.',
+          schedule: { on: { hour, minute: 0 }, repeats: true }
+        }))
+      }).catch(err => console.warn('Hydration reminder scheduling failed:', err));
+    })();
+  }, [isLoggedIn, onboardingStep, hydrationRemindersEnabled, hydrationIntervalHours, shiftStartHour, shiftEndHour]);
+
+  // Activity alert: if the connected device shows meaningful step activity today but nothing's
+  // been logged in-app yet, nudge once (max once per day).
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5 || !isLiveHealthData || liveSteps === null) return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (lastWorkoutLoggedDate === todayKey) return;
+    if (localStorage.getItem('kinetix_activity_alert_date') === todayKey) return;
+    if (liveSteps < 3000) return;
+
+    (async () => {
+      const granted = await ensureNotificationPermission();
+      if (!granted) return;
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: 9100,
+          title: '🏃 Log Your Activity',
+          body: `Your connected device shows ${liveSteps} steps today — log your workout to earn XP!`,
+          schedule: { at: new Date(Date.now() + 1000) }
+        }]
+      }).catch(err => console.warn('Activity alert scheduling failed:', err));
+      localStorage.setItem('kinetix_activity_alert_date', todayKey);
+    })();
+  }, [isLoggedIn, onboardingStep, isLiveHealthData, liveSteps, lastWorkoutLoggedDate]);
 
   // --- 7. ADVANCED 6-CORE TELEMETRY ARRAY ---
   const [biometrics, setBiometrics] = useState<TelemetryStream[]>([
@@ -434,25 +565,41 @@ export default function App() {
   // Heart-rate/HRV display is derived live from the ticker values rather than synced via an
   // effect, so BIO-2 never lags a render behind liveBpm/liveHrv.
   const allBiometrics = useMemo(() => {
-    const withLiveHeart = biometrics.map(item => {
-      if (item.id !== 'BIO-2') return item;
-      return {
-        ...item,
-        reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
-        status: liveBpm > 100 ? 'Critical' as const : 'Optimal' as const,
-        behavior: liveBpm > 100 ? 'Elevated Cardiac Response' : 'High Vagal Tone Detected',
-        details: {
-          ...item.details,
-          subMetrics: [
-            { label: 'Live Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-            { label: 'Autonomic HRV Variance', value: `${liveHrv} ms`, color: '#00bfff' },
-            { label: 'Vagal Stability Index', value: liveBpm > 100 ? 'Caution Threshold' : 'Optimal Floor', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
-          ]
-        }
-      };
+    const withLiveData = biometrics.map(item => {
+      if (item.id === 'BIO-1' && isLiveHealthData && liveSteps !== null) {
+        return {
+          ...item,
+          reading: `${liveSteps} steps today`,
+          details: { ...item.details, subMetrics: [{ label: 'Steps Today (Live)', value: `${liveSteps}`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+        };
+      }
+      if (item.id === 'BIO-2') {
+        return {
+          ...item,
+          reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
+          status: liveBpm > 100 ? 'Critical' as const : 'Optimal' as const,
+          behavior: liveBpm > 100 ? 'Elevated Cardiac Response' : 'High Vagal Tone Detected',
+          details: {
+            ...item.details,
+            subMetrics: [
+              { label: 'Live Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
+              { label: 'Autonomic HRV Variance', value: `${liveHrv} ms`, color: '#00bfff' },
+              { label: 'Vagal Stability Index', value: liveBpm > 100 ? 'Caution Threshold' : 'Optimal Floor', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
+            ]
+          }
+        };
+      }
+      if (item.id === 'BIO-4' && isLiveHealthData && liveSleepQualityPercent !== null) {
+        return {
+          ...item,
+          reading: `${liveSleepQualityPercent}% Quality`,
+          details: { ...item.details, subMetrics: [{ label: 'Overall Sleep Quality (Live)', value: `${liveSleepQualityPercent}%`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+        };
+      }
+      return item;
     });
-    return sexCard ? [...withLiveHeart, sexCard] : withLiveHeart;
-  }, [biometrics, liveBpm, liveHrv, sexCard]);
+    return sexCard ? [...withLiveData, sexCard] : withLiveData;
+  }, [biometrics, liveBpm, liveHrv, liveSteps, liveSleepQualityPercent, isLiveHealthData, sexCard]);
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
   const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '420'));
@@ -553,6 +700,88 @@ export default function App() {
 
   const caloriesRemaining = nhsTargets.calories - dailyConsumables.calories + caloriesBurned;
 
+  // Calorie/macro progress alerts: fires once per threshold (90%/100%) per metric per day.
+  useEffect(() => {
+    if (!isLoggedIn || onboardingStep < 5) return;
+    if (!Capacitor.isNativePlatform()) return;
+
+    (async () => {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      let firedToday: string[] = [];
+      const savedRaw = localStorage.getItem('kinetix_nutrition_alerts_fired');
+      if (savedRaw) {
+        try {
+          const parsed = JSON.parse(savedRaw);
+          if (parsed.date === todayKey) firedToday = parsed.keys;
+        } catch { /* ignore malformed cache */ }
+      }
+
+      const metrics: { key: string; label: string; current: number; target: number; unit: string }[] = [
+        { key: 'calories', label: 'calorie', current: dailyConsumables.calories, target: nhsTargets.calories, unit: 'kcal' },
+        { key: 'protein', label: 'protein', current: dailyConsumables.protein, target: nhsTargets.protein, unit: 'g' },
+        { key: 'fiber', label: 'fiber', current: dailyConsumables.fiber, target: nhsTargets.fiber, unit: 'g' }
+      ];
+
+      const toFire: { alertKey: string; title: string; body: string }[] = [];
+      for (const m of metrics) {
+        if (m.target <= 0) continue;
+        const pct = (m.current / m.target) * 100;
+        const remaining = Math.max(0, Math.round(m.target - m.current));
+        if (pct >= 100 && !firedToday.includes(`${m.key}-100`)) {
+          toFire.push({ alertKey: `${m.key}-100`, title: `🎯 ${m.label} goal hit!`, body: `You've reached your daily ${m.label} target.` });
+        } else if (pct >= 90 && !firedToday.includes(`${m.key}-90`)) {
+          toFire.push({ alertKey: `${m.key}-90`, title: 'Almost there', body: `${remaining}${m.unit} of ${m.label} left to hit today's target.` });
+        }
+      }
+
+      if (toFire.length === 0) return;
+      const granted = await ensureNotificationPermission();
+      if (!granted) return;
+
+      await LocalNotifications.schedule({
+        notifications: toFire.map((f, idx) => ({
+          id: 9200 + idx,
+          title: f.title,
+          body: f.body,
+          schedule: { at: new Date(Date.now() + 1000) }
+        }))
+      }).catch(err => console.warn('Nutrition alert scheduling failed:', err));
+
+      localStorage.setItem('kinetix_nutrition_alerts_fired', JSON.stringify({ date: todayKey, keys: [...firedToday, ...toFire.map(f => f.alertKey)] }));
+    })();
+  }, [isLoggedIn, onboardingStep, dailyConsumables.calories, dailyConsumables.protein, dailyConsumables.fiber, nhsTargets.calories, nhsTargets.protein, nhsTargets.fiber]);
+
+  // Diet suggestions: generic (non-branded) meal ideas that fit what's actually left today,
+  // filtered against real allergens. Recomputed live as intake changes.
+  const mealSuggestions = useMemo(() => {
+    const remainingCalories = Math.max(0, nhsTargets.calories - dailyConsumables.calories);
+    const remainingProtein = Math.max(0, nhsTargets.protein - dailyConsumables.protein);
+    const remainingFiber = Math.max(0, nhsTargets.fiber - dailyConsumables.fiber);
+
+    const candidates: { text: string; calories: number; protein: number; fiber: number; allergens: string[] }[] = [
+      { text: 'Grilled chicken breast with rice and steamed broccoli', calories: 450, protein: 40, fiber: 4, allergens: [] },
+      { text: 'Baked salmon with new potatoes and green beans', calories: 480, protein: 35, fiber: 5, allergens: ['fish'] },
+      { text: 'Lentil and vegetable curry with brown rice', calories: 420, protein: 18, fiber: 12, allergens: [] },
+      { text: 'Greek yogurt with mixed berries and a handful of oats', calories: 250, protein: 18, fiber: 6, allergens: ['milk'] },
+      { text: 'Tofu and vegetable stir-fry with noodles', calories: 400, protein: 22, fiber: 6, allergens: ['soya', 'wheat'] },
+      { text: 'Turkey chilli with kidney beans over rice', calories: 460, protein: 38, fiber: 10, allergens: [] },
+      { text: 'Omelette with spinach and wholemeal toast', calories: 320, protein: 22, fiber: 5, allergens: ['eggs', 'wheat'] },
+      { text: 'Hummus, carrot sticks and wholemeal pitta', calories: 280, protein: 10, fiber: 8, allergens: ['sesame', 'wheat'] },
+      { text: 'Cottage cheese with pineapple and a rye cracker', calories: 220, protein: 20, fiber: 3, allergens: ['milk'] },
+      { text: 'Mixed bean and quinoa salad with olive oil dressing', calories: 380, protein: 16, fiber: 11, allergens: [] }
+    ];
+
+    const safeCandidates = candidates.filter(c =>
+      !c.allergens.some(a => profile.personalAllergens.includes(a)) &&
+      c.calories <= remainingCalories + 150
+    );
+
+    return safeCandidates
+      .map(c => ({ ...c, fitScore: Math.abs(c.protein - remainingProtein) + Math.abs(c.fiber - remainingFiber) + Math.abs(c.calories - remainingCalories) * 0.05 }))
+      .sort((a, b) => a.fitScore - b.fitScore)
+      .slice(0, 3);
+  }, [nhsTargets, dailyConsumables, profile.personalAllergens]);
+
   // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
@@ -574,6 +803,7 @@ export default function App() {
   // --- CSR CHARITY DONATIONS REGISTRY ---
   const [charityDonations, setCharityDonations] = useState<number>(() => parseInt(localStorage.getItem('kinetix_charity_donations') || '0'));
   const [isDonating, setIsDonating] = useState<boolean>(false);
+  const [isRedeemingVoucher, setIsRedeemingVoucher] = useState<boolean>(false);
 
   const ukCharities = [
     { id: 'CHAR-NHS', name: 'NHS Charities Together', mission: 'Supporting frontline health staff, clinical equipment, and patient recovery schemes.', desc: 'Strengthen local health ecosystems.' },
@@ -754,6 +984,20 @@ export default function App() {
     setTimeout(() => setMotivationMessage(null), 7000);
   };
 
+  const handleLogWorkout = () => {
+    const label = { rest: 'Rest & Recovery', run: 'Cardio Run', cycle: 'Cycle Sprint', swim: 'Swim Laps' }[activeSportMode];
+    const timestamp = new Date();
+    const entry = `${label} (${timestamp.toLocaleDateString('en-GB')})`;
+    saveProfileToStorage({ ...profile, workoutsLogged: [...profile.workoutsLogged, entry] });
+
+    const todayKey = timestamp.toISOString().slice(0, 10);
+    setLastWorkoutLoggedDate(todayKey);
+    localStorage.setItem('kinetix_last_workout_date', todayKey);
+
+    setMotivationMessage(`✅ Logged: ${entry}`);
+    setTimeout(() => setMotivationMessage(null), 5000);
+  };
+
   const handleTogglePersonalAllergen = (allergen: string) => {
     const updated = profile.personalAllergens.includes(allergen)
       ? profile.personalAllergens.filter(a => a !== allergen)
@@ -842,6 +1086,19 @@ export default function App() {
     });
   };
 
+  // Applies a server-confirmed points award (e.g. the once-per-day meal-scan bonus) to the
+  // client's running total. A no-op when 0 (award already claimed today).
+  const applyPointsAwarded = (amount: number | undefined) => {
+    if (!amount) return;
+    setTotalVoucherPoints(prev => {
+      const next = prev + amount;
+      localStorage.setItem('kinetix_voucher_points', next.toString());
+      return next;
+    });
+    setMotivationMessage(`🍽️ +${amount} points for today's first scan!`);
+    setTimeout(() => setMotivationMessage(null), 5000);
+  };
+
   const handleMealScan = async (inputStr?: string) => {
     const activeInput = inputStr || mealInput;
     const userInput = activeInput.trim();
@@ -852,7 +1109,7 @@ export default function App() {
       const response = await fetch('/api/scan-meal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ foodText: userInput })
+        body: JSON.stringify({ foodText: userInput, appUserId: profile.email })
       });
       const data = await response.json();
 
@@ -863,6 +1120,7 @@ export default function App() {
       }
 
       finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
+      applyPointsAwarded(data.pointsAwarded);
     } catch {
       setMotivationMessage('⚠️ Scan failed — check your connection and try again.');
       setTimeout(() => setMotivationMessage(null), 6000);
@@ -877,7 +1135,7 @@ export default function App() {
       const response = await fetch('/api/scan-meal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image, mimeType })
+        body: JSON.stringify({ image: base64Image, mimeType, appUserId: profile.email })
       });
       const data = await response.json();
 
@@ -890,6 +1148,7 @@ export default function App() {
       setShowCameraModal(false);
       setMealInput(data.foodName);
       finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
+      applyPointsAwarded(data.pointsAwarded);
     } catch {
       setMotivationMessage('⚠️ Photo scan failed — check your connection and try again.');
       setTimeout(() => setMotivationMessage(null), 6000);
@@ -945,15 +1204,44 @@ export default function App() {
     });
   };
 
-  const handleInitiateDeviceConnection = (device: string) => {
-    setSyncingDeviceType(device);
-    setTimeout(() => {
-      saveProfileToStorage({ ...profile, smartDeviceConnected: device });
-      setSyncingDeviceType(null);
+  const handleConnectHealthSource = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setMotivationMessage('📱 Live biometric sync requires the iOS or Android app. Open KinetixFit on your phone to connect Apple Health or Health Connect.');
+      setTimeout(() => setMotivationMessage(null), 7000);
+      return;
+    }
+
+    setIsConnectingHealth(true);
+    try {
+      const { available } = await Health.isAvailable();
+      if (!available) {
+        setMotivationMessage("⚠️ Health data isn't available on this device. Make sure Health Connect is installed (Android) or you're on a supported iOS version.");
+        setTimeout(() => setMotivationMessage(null), 7000);
+        return;
+      }
+
+      const status = await Health.requestAuthorization({
+        read: ['heartRate', 'heartRateVariability', 'restingHeartRate', 'sleep', 'steps']
+      });
+
+      if (status.readAuthorized.length === 0) {
+        setMotivationMessage("🔒 Health data access wasn't granted. You can enable it later from your device's Health settings.");
+        setTimeout(() => setMotivationMessage(null), 7000);
+        return;
+      }
+
+      const sourceName = Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect';
+      saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
       setShowDeviceSyncModal(false);
-      setMotivationMessage(`🔋 Live telemetry feed established with your ${device}! Continuous streams now updating.`);
-      setTimeout(() => setMotivationMessage(null), 5000);
-    }, 2000);
+      setMotivationMessage(`🔋 Connected to ${sourceName}! Live telemetry syncing now — this can take a moment to appear.`);
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } catch (err) {
+      console.warn('Health connection failed:', err);
+      setMotivationMessage('⚠️ Could not connect to health data. Please try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setIsConnectingHealth(false);
+    }
   };
 
   const applyPromoCode = async () => {
@@ -985,7 +1273,7 @@ export default function App() {
     }
   };
 
-  const triggerRewardVaultSettlement = () => {
+  const triggerRewardVaultSettlement = async () => {
     if (!visaDemoMode) {
       if (tasksCompletedTodayCount < requiredTaskCountForRedeem) {
         alert(`⚠️ REWARDS LOCK: You have only completed ${tasksCompletedTodayCount}/${requiredTaskCountForRedeem} today's target tasks. Physical effort required.`);
@@ -1010,41 +1298,64 @@ export default function App() {
     let prefix: string;
     let voucherTitle: string;
     let sku: string;
-    let alertMsg: string;
 
     if (rewardGateway === 'primary') {
       alert("Rewards are temporarily unavailable, please check back soon.");
       return;
     } else if (rewardGateway === 'direct') {
       prefix = 'TX-API-';
-      voucherTitle = 'Direct API Payout: £5.00 Coffee Voucher';
+      voucherTitle = 'Direct API Payout: Coffee Voucher';
       sku = 'KTX-DIRECT-UK';
-      alertMsg = "🎟️ Direct API Gateway: Payout settled! Your £5.00 Premium High-Street Beverage e-gift code (KTX-COFFEE-8821) has been generated and queued for delivery to your inbox!";
     } else {
       prefix = 'TX-LOC-';
-      voucherTitle = 'Local Claim: £5.00 Corporate Coffee Voucher';
+      voucherTitle = 'Local Claim: Corporate Coffee Voucher';
       sku = 'JN-LOCAL-CLAIM';
-      alertMsg = "🎁 Local Corporate Claim Succeeded! Your claim reference code (JN-LOCAL-COFFEE-9921) has been settled. Please show this reference to your corporate office or HR administrator to receive your physical high-street voucher directly!";
     }
 
-    const newTx: VoucherLog = {
-      id: `${prefix}${Math.floor(1000 + Math.random() * 9000)}`,
-      provider: voucherTitle,
-      value: '£5.00',
-      sku: sku,
-      state: 'Settled',
-      timestamp: 'Just Now'
-    };
+    setIsRedeemingVoucher(true);
+    try {
+      const response = await fetch('/api/redeem-voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: profile.email,
+          userName: profile.name,
+          pointBalance: totalVoucherPoints,
+          simulatedCadence: 0,
+          todayQuestsCompleted: tasksCompletedTodayCount
+        })
+      });
+      const data = await response.json();
 
-    const pointDeduction = visaDemoMode ? 0 : 2500;
-    const newPts = totalVoucherPoints - pointDeduction;
-    setVouchers([newTx, ...vouchers]);
-    setTotalVoucherPoints(newPts);
-    localStorage.setItem('kinetix_voucher_points', newPts.toString());
-    setLastLastRedemptionTime(Date.now());
-    setMotivationMessage(`☕ £5.00 Voucher settled via ${rewardGateway === 'direct' ? 'Direct API Gateway' : 'Local B2B Claim'}!`);
-    setTimeout(() => setMotivationMessage(null), 6000);
-    alert(alertMsg);
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || data.details || 'Redemption failed. Please try again.'}`);
+        setTimeout(() => setMotivationMessage(null), 7000);
+        return;
+      }
+
+      const newTx: VoucherLog = {
+        id: `${prefix}${Math.floor(1000 + Math.random() * 9000)}`,
+        provider: voucherTitle,
+        value: `£${(data.valueGBP ?? 5).toFixed(2)}`,
+        sku,
+        state: 'Settled',
+        timestamp: 'Just Now'
+      };
+
+      const pointDeduction = visaDemoMode ? 0 : 2500;
+      const newPts = totalVoucherPoints - pointDeduction;
+      setVouchers([newTx, ...vouchers]);
+      setTotalVoucherPoints(newPts);
+      localStorage.setItem('kinetix_voucher_points', newPts.toString());
+      setLastLastRedemptionTime(Date.now());
+      setMotivationMessage(`☕ ${data.message || 'Voucher settled!'}`);
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } catch {
+      setMotivationMessage('⚠️ Could not reach the redemption server. Please try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setIsRedeemingVoucher(false);
+    }
   };
 
   const handleSendContact = (e: React.FormEvent) => {
@@ -1654,32 +1965,34 @@ export default function App() {
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
-                {['Continuous Wrist Sensor', 'Biometric Ring Stream', 'Heart Strap Sync', 'Rest Sleep Sensor'].map(device => (
-                  <button
-                    key={device}
-                    onClick={() => handleInitiateDeviceConnection(device)}
-                    disabled={syncingDeviceType !== null}
-                    style={{
-                      backgroundColor: '#030712',
-                      border: '1px solid #1f2937',
-                      color: '#ffffff',
-                      padding: '10px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '10.5px',
-                      textAlign: 'left',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontFamily: 'monospace'
-                    }}
-                  >
-                    <span>⚡ {device}</span>
-                    <span style={{ color: '#00ff88', fontWeight: 'bold' }}>
-                      {syncingDeviceType === device ? 'Syncing...' : 'Link Sensor'}
-                    </span>
-                  </button>
-                ))}
+                <button
+                  onClick={handleConnectHealthSource}
+                  disabled={isConnectingHealth}
+                  style={{
+                    backgroundColor: '#030712',
+                    border: '1px solid #1f2937',
+                    color: '#ffffff',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '10.5px',
+                    textAlign: 'left',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontFamily: 'monospace'
+                  }}
+                >
+                  <span>⚡ {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
+                  <span style={{ color: '#00ff88', fontWeight: 'bold' }}>
+                    {isConnectingHealth ? 'Connecting...' : 'Link Sensor'}
+                  </span>
+                </button>
+                {!Capacitor.isNativePlatform() && (
+                  <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0 }}>
+                    📱 Live sync requires the iOS or Android app — you can skip this on web.
+                  </p>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -1845,6 +2158,12 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                <p style={{ fontSize: '8.5px', color: '#6b7280', margin: '6px 0 0 0' }}>
+                  The buttons above preview each mode's telemetry pattern for demo purposes — they don't log a workout.
+                </p>
+                <button onClick={handleLogWorkout} className="primary-btn" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
+                  ✅ Log This Workout
+                </button>
 
                 {/* Tactical Holographic Wave Oscilloscope */}
                 <div className="ecg-oscilloscope-viewport">
@@ -1913,7 +2232,17 @@ export default function App() {
               <div className="vitals-right-panel">
                 {/* Advanced 6-Core Interactive Grid */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <h3 className="section-header">6-Core Health Telemetry Sync</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="section-header" style={{ margin: 0 }}>6-Core Health Telemetry Sync</h3>
+                  <span style={{
+                    fontSize: '8px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '10px', letterSpacing: '0.5px',
+                    color: isLiveHealthData ? '#00ff88' : '#ff9500',
+                    backgroundColor: isLiveHealthData ? 'rgba(0, 255, 136, 0.08)' : 'rgba(255, 149, 0, 0.08)',
+                    border: `1px solid ${isLiveHealthData ? '#00ff88' : '#ff9500'}`
+                  }}>
+                    {isLiveHealthData ? `🟢 LIVE — ${profile.smartDeviceConnected}` : '⚠️ DEMO DATA'}
+                  </span>
+                </div>
                 <div className="core-biometrics-grid">
                   {allBiometrics.map(bio => {
                     const active = selectedMetricId === bio.id;
@@ -2017,6 +2346,26 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              {/* Suggested Next Meal — generic food ideas fitted to what's actually left today */}
+              {mealSuggestions.length > 0 && (
+                <div className="scanner-module-card">
+                  <h3 className="card-header-title">🍽️ Suggested Next Meal</h3>
+                  <p className="card-header-desc">
+                    Based on what you have left today, filtered against your personal allergens.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                    {mealSuggestions.map((s, idx) => (
+                      <div key={idx} style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px 12px', fontSize: '10.5px', color: '#ffffff', lineHeight: '1.4' }}>
+                        {s.text}
+                        <span style={{ display: 'block', fontSize: '8.5px', color: '#9ca3af', marginTop: '4px' }}>
+                          ~{s.calories} kcal · {s.protein}g protein · {s.fiber}g fiber
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 1-Tap Natasha's Law Scanner */}
               <div className="scanner-module-card">
@@ -2239,6 +2588,44 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Notification Settings */}
+                  <div className="hub-support-card">
+                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>🔔 NOTIFICATION SETTINGS</span>
+                    <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', color: '#ffffff', cursor: 'pointer', marginBottom: '10px' }}>
+                      <input
+                        type="checkbox"
+                        checked={hydrationRemindersEnabled}
+                        onChange={(e) => {
+                          setHydrationRemindersEnabled(e.target.checked);
+                          localStorage.setItem('kinetix_hydration_enabled', e.target.checked.toString());
+                        }}
+                        className="demo-toggle-checkbox"
+                        style={{ accentColor: '#00ff88', width: '13px', height: '13px' }}
+                      />
+                      💧 Hydration reminders during my shift
+                    </label>
+                    <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Shift Start
+                        <select value={shiftStartHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
+                        </select>
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Shift End
+                        <select value={shiftEndHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
+                        </select>
+                      </label>
+                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Every
+                        <select value={hydrationIntervalHours} onChange={(e) => { const v = parseInt(e.target.value); setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
+                          {[1, 2, 3, 4].map(h => <option key={h} value={h}>{h}h</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    <p style={{ fontSize: '8.5px', color: '#6b7280', margin: '10px 0 0 0', lineHeight: '1.4' }}>
+                      Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
+                    </p>
+                  </div>
+
                 </div>
 
                 {/* RIGHT ACTIVE REWARDS PANEL */}
@@ -2325,8 +2712,8 @@ export default function App() {
                         <h3 className="redemption-title" style={{ fontSize: '12.5px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Kinetix Rewards Vault</h3>
                         <span style={{ fontSize: '8px', color: '#6b7280' }}>ACTIVE CLEARINGHOUSE ROUTER</span>
                       </div>
-                      <button onClick={triggerRewardVaultSettlement} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '10.5px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                        🎟️ Cash Out Voucher {visaDemoMode ? '(0 Pts)' : '(2,500 Pts)'}
+                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '10.5px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        {isRedeemingVoucher ? 'Processing…' : `🎟️ Cash Out Voucher ${visaDemoMode ? '(0 Pts)' : '(2,500 Pts)'}`}
                       </button>
                     </div>
 
@@ -2699,18 +3086,20 @@ export default function App() {
               Synchronize raw continuous telemetry datasets cleanly with our active clearinghouse pipelines.
             </p>
             <div className="modal-options-stack">
-              {['Cardiovascular Sensor Sync', 'Circadian Ring Sensor Sync', 'Skeletal Locomotion Sync', 'Autonomic Band Sync'].map(dev => (
-                <button
-                  key={dev}
-                  onClick={() => handleInitiateDeviceConnection(dev)}
-                  disabled={syncingDeviceType !== null}
-                  className="modal-sync-option-btn"
-                >
-                  <span>⚡ {dev}</span>
-                  <span style={{ color: '#00ff88' }}>{syncingDeviceType === dev ? 'Connecting...' : 'Link Sensor'}</span>
-                </button>
-              ))}
+              <button
+                onClick={handleConnectHealthSource}
+                disabled={isConnectingHealth}
+                className="modal-sync-option-btn"
+              >
+                <span>⚡ {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
+                <span style={{ color: '#00ff88' }}>{isConnectingHealth ? 'Connecting...' : 'Link Sensor'}</span>
+              </button>
             </div>
+            {!Capacitor.isNativePlatform() && (
+              <p style={{ fontSize: '9px', color: '#9ca3af', marginTop: '10px' }}>
+                📱 Live sync requires the iOS or Android app — desktop/web can't connect Apple Health or Health Connect.
+              </p>
+            )}
 
             {/* Real-time Syncing Educational Diagnostics Panel */}
             <div className="sync-diagnostics-card" style={{ marginTop: '15px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '12px', borderRadius: '8px', fontSize: '9.5px', color: '#9ca3af', textAlign: 'left', lineHeight: '1.4' }}>
