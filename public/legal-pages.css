@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  --ink: #1a1d24;
+  --ink-soft: #4b5261;
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --accent: #059669;
+  --accent-soft: #ecfdf5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+}
+
+.legal-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.legal-header-inner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legal-header-inner a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.legal-header-inner svg { flex-shrink: 0; }
+
+.legal-doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.legal-doc h1 {
+  font-size: 30px;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.legal-updated {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin: 0 0 32px 0;
+}
+
+.legal-intro {
+  background: var(--accent-soft);
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-size: 15px;
+  margin-bottom: 36px;
+}
+
+.legal-doc h2 {
+  font-size: 19px;
+  margin: 40px 0 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.legal-doc h2:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.legal-doc p, .legal-doc li {
+  font-size: 15.5px;
+  color: #2a2e37;
+}
+
+.legal-doc ul {
+  padding-left: 22px;
+}
+
+.legal-doc li { margin-bottom: 6px; }
+
+.legal-doc a { color: var(--accent); }
+
+.legal-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14.5px;
+}
+
+.legal-doc th, .legal-doc td {
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal-doc th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.legal-footer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 24px 60px;
+}
+
+.legal-footer a {
+  color: var(--ink-soft);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.legal-footer a:hover { text-decoration: underline; }

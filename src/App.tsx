@@ -1472,6 +1472,11 @@ export default function App() {
             <div className="landing-footer-block">
               <p>OPERATIONAL INTEGRITY HANDSHAKE COMPLIANT</p>
               <p style={{ opacity: 0.5, fontSize: '8px', marginTop: '4px' }}>In complete alignment with UK GDPR & Data Protection Act 2018 guidelines.</p>
+              <p style={{ marginTop: '10px' }}>
+                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88', textDecoration: 'none', letterSpacing: '1px' }}>PRIVACY POLICY</a>
+                <span style={{ margin: '0 10px', opacity: 0.4 }}>·</span>
+                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88', textDecoration: 'none', letterSpacing: '1px' }}>TERMS OF SERVICE</a>
+              </p>
             </div>
           </div>
         </div>
@@ -1709,6 +1714,12 @@ export default function App() {
                       Request Token
                     </button>
                   </div>
+                  <p style={{ fontSize: '9px', color: '#6b7280', textAlign: 'center', lineHeight: '1.4', margin: '4px 0 0 0' }}>
+                    By requesting access, you agree to our{' '}
+                    <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88' }}>Privacy Policy</a>
+                    {' '}and{' '}
+                    <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88' }}>Terms of Service</a>.
+                  </p>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
