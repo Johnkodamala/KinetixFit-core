@@ -4,4 +4,7 @@
     <string name="title_activity_main">KinetixFit</string>
     <string name="package_name">com.jnglobalventures.kinetixfit</string>
     <string name="custom_url_scheme">com.jnglobalventures.kinetixfit</string>
+    <!-- Shown when a user taps "Privacy policy" in the Health Connect permissions dialog
+         (required by Health Connect — see @capgo/capacitor-health's README). -->
+    <string name="health_connect_privacy_policy_url">https://kinetixfit.co.uk/privacy-policy</string>
 </resources>

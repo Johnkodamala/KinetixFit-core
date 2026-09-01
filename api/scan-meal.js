@@ -3,6 +3,7 @@
 // client-side in src/App.tsx — the only per-user state here is a Redis flag tracking whether the
 // once-per-day meal-scan point award has already been given, keyed by appUserId (profile.email).
 import { getRewardConfig } from './_lib/rewardConfig.js';
+import { logAuditEvent } from './_lib/auditLog.js';
 import { Redis } from '@upstash/redis';
 
 const redis = Redis.fromEnv();
@@ -154,6 +155,13 @@ export default async function handler(req, res) {
         const config = await getRewardConfig();
         result.pointsAwarded = config.mealScanPointsAward;
         await redis.set(awardKey, '1', { ex: 60 * 60 * 24 * 2 });
+        await logAuditEvent(appUserId, {
+          type: 'earn',
+          category: 'meal_scan',
+          verified: true,
+          verificationNote: 'Real Claude vision/USDA scan completed.',
+          points: result.pointsAwarded
+        });
       }
     }
 

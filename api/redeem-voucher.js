@@ -1,12 +1,13 @@
 // Private serverless endpoint to process verified reward redemptions.
 //
-// IMPORTANT LIMITATION: pointBalance/todayQuestsCompleted/simulatedCadence below are still
-// client-submitted, not verified against a server-side ledger — that requires a full
-// quest-completion-vs-real-device-data pipeline that doesn't exist yet (no server ever receives
-// HealthKit/Health Connect/Oura data today). What IS server-enforced here, independent of that:
+// IMPORTANT LIMITATION: pointBalance below is still client-submitted, not checked against a
+// server-side point ledger — quest completions are now verified server-side (see
+// api/complete-quest.js) and every earn/spend event is audit-logged, but the running point
+// *balance* itself still lives client-side. What IS server-enforced here, independent of that:
 // the monthly £ redemption cap (see api/_lib/rewardConfig.js) and no-double-redeem via the cap
 // counter, since both only depend on tracking successful redemptions, not on point legitimacy.
 import { getRewardConfig, checkMonthlyRedemptionCap, recordRedemption } from './_lib/rewardConfig.js';
+import { logAuditEvent } from './_lib/auditLog.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -93,6 +94,14 @@ export default async function handler(req, res) {
     }
 
     await recordRedemption(email, config.voucherValueGBP);
+    await logAuditEvent(email, {
+      type: 'spend',
+      category: 'voucher_redemption',
+      verified: true,
+      verificationNote: 'Real Tremendous order placed.',
+      valueGBP: config.voucherValueGBP,
+      pointsDeducted: config.voucherPointsCost
+    });
 
     return res.status(200).json({
       status: 'Settled',

@@ -32,4 +32,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Lets scheduled hydration reminders fire at their exact configured time rather than
+         an approximate one (Android 12+ batches inexact alarms by default). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 </manifest>

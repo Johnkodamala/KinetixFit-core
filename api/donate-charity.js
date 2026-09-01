@@ -6,6 +6,7 @@
 // the shared monthly £ redemption cap (see api/_lib/rewardConfig.js).
 import { Redis } from '@upstash/redis';
 import { getRewardConfig, checkMonthlyRedemptionCap, recordRedemption } from './_lib/rewardConfig.js';
+import { logAuditEvent } from './_lib/auditLog.js';
 
 const redis = Redis.fromEnv();
 const MAX_DONATIONS_PER_DAY = 3;
@@ -41,6 +42,14 @@ export default async function handler(req, res) {
     }));
     await redis.set(countKey, countToday + 1, { ex: 60 * 60 * 24 });
     await recordRedemption(appUserId, config.donationValueGBP);
+    await logAuditEvent(appUserId, {
+      type: 'spend',
+      category: 'donation',
+      verified: true,
+      verificationNote: 'Donation pledge logged.',
+      valueGBP: config.donationValueGBP,
+      charityId
+    });
 
     return res.status(200).json({ success: true, valueGBP: config.donationValueGBP });
   } catch (error) {

@@ -111,29 +111,29 @@ function calculateBmr(p: UserProfile): number {
 function getTasksForTarget(target: UserProfile['target']): Task[] {
   if (target === 'Weight Loss') {
     return [
-      { id: 'TOD-1', text: 'Hit your calorie deficit goal today 🔥', completed: false, xpValue: 150, pointsValue: 220 },
-      { id: 'TOD-2', text: 'Fuel up with 10g+ fiber in one meal 🌾', completed: false, xpValue: 100, pointsValue: 150 },
-      { id: 'TOD-3', text: 'Log a 45-min cardio session 🏃‍♂️', completed: false, xpValue: 120, pointsValue: 180 }
+      { id: 'TOD-1', text: 'Hit your calorie deficit goal today 🔥', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
+      { id: 'TOD-2', text: 'Fuel up with 10g+ fiber in one meal 🌾', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
+      { id: 'TOD-3', text: 'Log a 45-min cardio session 🏃‍♂️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
     ];
   }
   if (target === 'Weight Gain') {
     return [
-      { id: 'TOD-1', text: 'Smash your 150g protein target 💪', completed: false, xpValue: 150, pointsValue: 220 },
-      { id: 'TOD-2', text: 'Log your carb intake for the day 🍚', completed: false, xpValue: 100, pointsValue: 150 },
-      { id: 'TOD-3', text: 'Get a strength session in 🏋️', completed: false, xpValue: 120, pointsValue: 180 }
+      { id: 'TOD-1', text: 'Smash your 150g protein target 💪', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
+      { id: 'TOD-2', text: 'Log your carb intake for the day 🍚', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
+      { id: 'TOD-3', text: 'Get a strength session in 🏋️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
     ];
   }
   if (target === 'Cardio Endurance') {
     return [
-      { id: 'TOD-1', text: 'Nail your step intervals today 🏃', completed: false, xpValue: 150, pointsValue: 220 },
-      { id: 'TOD-2', text: 'Push your heart rate into peak zone 📈', completed: false, xpValue: 100, pointsValue: 150 },
-      { id: 'TOD-3', text: 'Hit 2.5L of water today 💧', completed: false, xpValue: 120, pointsValue: 180 }
+      { id: 'TOD-1', text: 'Nail your step intervals today 🏃', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'activity' },
+      { id: 'TOD-2', text: 'Push your heart rate into peak zone 📈', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'activity' },
+      { id: 'TOD-3', text: 'Hit 2.5L of water today 💧', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'unverifiable_by_design' }
     ];
   }
   return [
-    { id: 'TOD-1', text: 'Complete a 15-minute breathing session 🌬️', completed: false, xpValue: 150, pointsValue: 220 },
-    { id: 'TOD-2', text: 'Check your sleep quality score 😴', completed: false, xpValue: 100, pointsValue: 150 },
-    { id: 'TOD-3', text: 'Keep your stress load low today 🧘‍♂️', completed: false, xpValue: 120, pointsValue: 180 }
+    { id: 'TOD-1', text: 'Complete a 15-minute breathing session 🌬️', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'recovery' },
+    { id: 'TOD-2', text: 'Check your sleep quality score 😴', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'recovery' },
+    { id: 'TOD-3', text: 'Keep your stress load low today 🧘‍♂️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'recovery' }
   ];
 }
 
@@ -164,6 +164,10 @@ interface Task {
   completed: boolean;
   xpValue: number;
   pointsValue: number;
+  // How this quest can be checked against real data server-side (see api/complete-quest.js).
+  // 'unverifiable_by_design' means no data source exists for it and never will (e.g. hydration) —
+  // distinct from an 'activity'/'recovery'/'nutrition' quest simply not having synced data *yet*.
+  verificationType: 'activity' | 'recovery' | 'nutrition' | 'unverifiable_by_design';
 }
 
 export default function App() {
@@ -322,23 +326,45 @@ export default function App() {
           Health.readSamples({ dataType: 'sleep', startDate: dayWindowStart, endDate: nowIso, limit: 50 })
         ]);
 
+        let syncedBpm: number | null = null;
+        let syncedHrv: number | null = null;
+        let syncedSteps: number | null = null;
+        let syncedSleepQuality: number | null = null;
+
         if (hrResult.samples.length > 0) {
-          const bpm = Math.round(hrResult.samples[0].value);
-          setLiveBpm(bpm);
-          setPulseHistory(h => [...h.slice(1), bpm]);
+          syncedBpm = Math.round(hrResult.samples[0].value);
+          setLiveBpm(syncedBpm);
+          setPulseHistory(h => [...h.slice(1), syncedBpm as number]);
         }
         if (hrvResult.samples.length > 0) {
-          setLiveHrv(Math.round(hrvResult.samples[0].value));
+          syncedHrv = Math.round(hrvResult.samples[0].value);
+          setLiveHrv(syncedHrv);
         }
         if (stepsResult.samples.length > 0) {
-          setLiveSteps(Math.round(stepsResult.samples[0].value));
+          syncedSteps = Math.round(stepsResult.samples[0].value);
+          setLiveSteps(syncedSteps);
         }
         if (sleepResult.samples.length > 0) {
           const totalMinutes = sleepResult.samples.reduce((sum, s) => {
             return sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
           }, 0);
-          setLiveSleepQualityPercent(Math.min(100, Math.round((totalMinutes / (8 * 60)) * 100)));
+          syncedSleepQuality = Math.min(100, Math.round((totalMinutes / (8 * 60)) * 100));
+          setLiveSleepQualityPercent(syncedSleepQuality);
         }
+
+        // Push this reading to the server so quest completion can be verified against it —
+        // previously this data never left the device at all.
+        fetch('/api/sync-health-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            appUserId: profile.email,
+            steps: syncedSteps,
+            liveBpm: syncedBpm,
+            liveHrv: syncedHrv,
+            sleepQualityPercent: syncedSleepQuality
+          })
+        }).catch(err => console.warn('Health data sync failed:', err));
       } catch (err) {
         console.warn('Health data read failed:', err);
       }
@@ -347,7 +373,7 @@ export default function App() {
     readLiveHealthData();
     const interval = setInterval(readLiveHealthData, 30000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, onboardingStep, isLiveHealthData]);
+  }, [isLoggedIn, onboardingStep, isLiveHealthData, profile.email]);
 
   // Hydration reminders: repeating daily local notifications at fixed times across the
   // configured shift window. Rescheduled (old ones cancelled first) whenever settings change.
@@ -608,25 +634,45 @@ export default function App() {
   const [streak, setStreak] = useState<number>(() => parseInt(localStorage.getItem('kinetix_streak') || '0'));
 
   const [todayTasks, setTodayTasks] = useState<Task[]>(() => getTasksForTarget(profile.target));
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
 
-  const toggleTask = (id: string) => {
-    const nextTasks = todayTasks.map(t => {
-      if (t.id !== id) return t;
+  // Quest completion is now server-verified (see api/complete-quest.js) and, once awarded, is a
+  // one-way action for the day — the server's dedup lock means a client-side "un-complete" would
+  // just desync from a server that still considers it claimed. No optimistic local completion.
+  const toggleTask = async (id: string) => {
+    const task = todayTasks.find(t => t.id === id);
+    if (!task || task.completed || completingTaskId) return;
 
-      const nextCompleted = !t.completed;
-      const xpDiff = t.xpValue * (nextCompleted ? 1 : -1);
-      const ptDiff = t.pointsValue * (nextCompleted ? 1 : -1);
+    setCompletingTaskId(id);
+    try {
+      const response = await fetch('/api/complete-quest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appUserId: profile.email,
+          taskId: id,
+          verificationType: task.verificationType,
+          xpValue: task.xpValue,
+          pointsValue: task.pointsValue,
+          completed: true
+        })
+      });
+      const data = await response.json();
 
-      const newXp = Math.max(0, xp + xpDiff);
-      const newPts = Math.max(0, totalVoucherPoints + ptDiff);
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || 'Could not complete this quest. Please try again.'}`);
+        setTimeout(() => setMotivationMessage(null), 6000);
+        return;
+      }
+
+      const newXp = Math.max(0, xp + data.xpAwarded);
+      const newPts = Math.max(0, totalVoucherPoints + data.pointsAwarded);
 
       // Dynamic Athlete Level Up Check (Level Up occurs at multiples of 500 XP)
       const targetXpThreshold = level * 500;
-      if (nextCompleted && newXp >= targetXpThreshold) {
+      if (newXp >= targetXpThreshold) {
         localStorage.setItem('kinetix_level', (level + 1).toString());
-        setTimeout(() => {
-          setShowLevelUpModal(true);
-        }, 350);
+        setTimeout(() => setShowLevelUpModal(true), 350);
       }
 
       setXp(newXp);
@@ -634,30 +680,32 @@ export default function App() {
       localStorage.setItem('kinetix_xp', newXp.toString());
       localStorage.setItem('kinetix_voucher_points', newPts.toString());
 
-      if (nextCompleted) {
-        setTasksCompletedTodayCount(prev => prev + 1);
-        setMotivationMessage(`🔥 Quest Completed: "${t.text}" (+${t.pointsValue} Points!)`);
-        setTimeout(() => setMotivationMessage(null), 5000);
-      } else {
-        setTasksCompletedTodayCount(prev => Math.max(0, prev - 1));
+      const nextTasks = todayTasks.map(t => t.id === id ? { ...t, completed: true } : t);
+      setTodayTasks(nextTasks);
+      setTasksCompletedTodayCount(prev => prev + 1);
+
+      setMotivationMessage(data.verified
+        ? `✅ Quest verified via synced device data: "${task.text}" (+${data.pointsAwarded} Points!)`
+        : `🔥 Quest logged: "${task.text}" (+${data.pointsAwarded} Points!) — ${data.verificationNote}`);
+      setTimeout(() => setMotivationMessage(null), 6000);
+
+      // Daily streak tracking: increments once per calendar day when all quests are completed
+      if (nextTasks.length > 0 && nextTasks.every(t => t.completed)) {
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const lastCompletedKey = localStorage.getItem('kinetix_streak_last_date');
+        if (lastCompletedKey !== todayKey) {
+          const yesterdayKey = new Date(new Date().getTime() - 86400000).toISOString().slice(0, 10);
+          const nextStreak = lastCompletedKey === yesterdayKey ? streak + 1 : 1;
+          setStreak(nextStreak);
+          localStorage.setItem('kinetix_streak', nextStreak.toString());
+          localStorage.setItem('kinetix_streak_last_date', todayKey);
+        }
       }
-
-      return { ...t, completed: nextCompleted };
-    });
-
-    setTodayTasks(nextTasks);
-
-    // Daily streak tracking: increments once per calendar day when all quests are completed
-    if (nextTasks.length > 0 && nextTasks.every(t => t.completed)) {
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const lastCompletedKey = localStorage.getItem('kinetix_streak_last_date');
-      if (lastCompletedKey !== todayKey) {
-        const yesterdayKey = new Date(new Date().getTime() - 86400000).toISOString().slice(0, 10);
-        const nextStreak = lastCompletedKey === yesterdayKey ? streak + 1 : 1;
-        setStreak(nextStreak);
-        localStorage.setItem('kinetix_streak', nextStreak.toString());
-        localStorage.setItem('kinetix_streak_last_date', todayKey);
-      }
+    } catch {
+      setMotivationMessage('⚠️ Could not reach the server to verify this quest. Please try again.');
+      setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setCompletingTaskId(null);
     }
   };
 
@@ -669,12 +717,17 @@ export default function App() {
     return { emoji: '💤', tierClass: 'streak-tier-0' };
   };
 
-  // Regenerate today's quest set whenever the user's fitness target changes. Adjusted directly
-  // during render (React's documented pattern for this) rather than in an effect, since an
-  // effect here would cause an extra, avoidable render pass.
+  // Regenerate today's quest set whenever the user's fitness target changes, OR a new calendar
+  // day begins — quests previously never reset daily at all, only on a target change, meaning a
+  // completed quest stayed "completed" forever. Adjusted directly during render (React's
+  // documented pattern for this) rather than in an effect, since an effect here would cause an
+  // extra, avoidable render pass.
+  const todayDateKey = new Date().toISOString().slice(0, 10);
   const [tasksTargetSnapshot, setTasksTargetSnapshot] = useState(profile.target);
-  if (profile.target !== tasksTargetSnapshot) {
+  const [tasksDateSnapshot, setTasksDateSnapshot] = useState(todayDateKey);
+  if (profile.target !== tasksTargetSnapshot || todayDateKey !== tasksDateSnapshot) {
     setTasksTargetSnapshot(profile.target);
+    setTasksDateSnapshot(todayDateKey);
     setTodayTasks(getTasksForTarget(profile.target));
   }
 
@@ -2649,31 +2702,37 @@ export default function App() {
                       <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold' }}>{tasksCompletedTodayCount} Completed</span>
                     </div>
                     <div className="quests-list-stack" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {todayTasks.map(t => (
-                        <div
-                          key={t.id}
-                          onClick={() => toggleTask(t.id)}
-                          className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
-                          style={{
-                            background: t.completed ? 'rgba(0, 255, 136, 0.03)' : '#030712',
-                            border: `1px solid ${t.completed ? '#00ff88' : '#1f2937'}`,
-                            padding: '12px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '10px',
-                            transition: 'all 0.25s'
-                          }}
-                        >
-                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                            <span style={{ color: t.completed ? '#00ff88' : '#6b7280' }}>{t.completed ? '●' : '○'}</span>
-                            <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.3' }}>{t.text}</span>
+                      {todayTasks.map(t => {
+                        const isVerifying = completingTaskId === t.id;
+                        return (
+                          <div
+                            key={t.id}
+                            onClick={() => toggleTask(t.id)}
+                            className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
+                            style={{
+                              background: t.completed ? 'rgba(0, 255, 136, 0.03)' : '#030712',
+                              border: `1px solid ${t.completed ? '#00ff88' : '#1f2937'}`,
+                              padding: '12px',
+                              borderRadius: '8px',
+                              cursor: t.completed || isVerifying ? 'default' : 'pointer',
+                              opacity: isVerifying ? 0.6 : 1,
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '10px',
+                              transition: 'all 0.25s'
+                            }}
+                          >
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                              <span style={{ color: t.completed ? '#00ff88' : '#6b7280' }}>{t.completed ? '●' : '○'}</span>
+                              <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.3' }}>
+                                {isVerifying ? 'Verifying…' : t.text}
+                              </span>
+                            </div>
+                            <strong style={{ color: t.completed ? '#00ff88' : '#9ca3af', minWidth: '55px', textAlign: 'right' }}>+{t.pointsValue} pts</strong>
                           </div>
-                          <strong style={{ color: t.completed ? '#00ff88' : '#9ca3af', minWidth: '55px', textAlign: 'right' }}>+{t.pointsValue} pts</strong>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
