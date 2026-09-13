@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>KinetixFit reads your heart rate, HRV, sleep, and step data to personalise your fitness targets and verify your daily activity.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>KinetixFit uses your camera to scan food barcodes and photos for nutrition information.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>KinetixFit does not currently write data to Apple Health.</string>
 	<key>LSRequiresIPhoneOS</key>

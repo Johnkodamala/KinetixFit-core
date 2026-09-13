@@ -108,6 +108,57 @@ function calculateBmr(p: UserProfile): number {
   return base - 78;
 }
 
+const DAILY_QUOTES = [
+  "Every step counts — you're doing better than you think.",
+  "Progress isn't always visible, but it's always real.",
+  "Today's a good day to be a little stronger than yesterday.",
+  "You don't have to be perfect, just consistent.",
+  "Small wins add up to big changes.",
+  "Rest is part of the plan, not a break from it.",
+  "You showed up — that's the hard part done.",
+  "Your only competition is who you were yesterday.",
+  "One good choice at a time. That's all it takes.",
+  "Strength grows in the moments you almost gave up.",
+  "You're allowed to go at your own pace.",
+  "Consistency beats intensity, every time.",
+  "Take care of your body — it's the only one you get.",
+  "A little progress each day adds up to big results.",
+  "You're closer than you were this morning.",
+  "Some days are about pushing hard. Today can be about showing up.",
+  "Every healthy choice is a vote for the person you're becoming.",
+  "You don't need to feel motivated to take one small step.",
+  "Recovery is where the real progress happens.",
+  "Be proud of showing up, not just the results.",
+  "The best workout is the one you actually do.",
+  "Your body hears everything your mind says — be kind to it.",
+  "Discipline is just remembering what you actually want.",
+  "You're allowed to start small. Starting is what matters.",
+  "Good habits compound quietly, then all at once.",
+  "There's no finish line — just today's next good decision.",
+  "You've survived 100% of your hardest days so far.",
+  "Energy comes from moving, even when you don't feel like it.",
+  "Celebrate the small stuff — it's not actually small.",
+  "You're building something today that future-you will thank you for.",
+  "Not every day has to be your best — just your honest one.",
+  "Sleep, food, movement — small care adds up to a lot.",
+  "You're not behind. You're exactly where you need to start from.",
+  "Momentum starts with one step you almost skipped.",
+  "Your effort counts even on the days it doesn't show.",
+  "Be the reason today was a little better than yesterday.",
+  "Growth is quiet most days — trust the process.",
+  "You get to decide what today looks like. Make it count.",
+  "It's okay to go slow — you're still moving forward.",
+  "The version of you a year from now is built today."
+];
+
+function getDailyQuote(): string {
+  // Deterministic on the calendar date — no storage needed, same quote all day for everyone,
+  // changes automatically at midnight without any caching logic to get stale.
+  const today = new Date();
+  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+}
+
 function getTasksForTarget(target: UserProfile['target']): Task[] {
   if (target === 'Weight Loss') {
     return [
@@ -272,14 +323,11 @@ export default function App() {
   };
 
   // --- 5. DYNAMIC MOTIVATION POPUPS & REVENUE DEFENSE CONTROLS ---
-  const [motivationMessage, setMotivationMessage] = useState<string | null>('KinetixFit Active Telemetry Pipeline Initialized.');
+  const [motivationMessage, setMotivationMessage] = useState<string | null>('Welcome back!');
 
   const [lastRedemptionTime, setLastLastRedemptionTime] = useState<number>(0);
   const [requiredTaskCountForRedeem] = useState<number>(2); // Multi-step validation defense
   const [tasksCompletedTodayCount, setTasksCompletedTodayCount] = useState<number>(0);
-
-  // --- 🛠️ Pitch Presentation Bypass Mode ---
-  const [visaDemoMode, setVisaDemoMode] = useState<boolean>(false);
 
   // --- 6. REAL-TIME LIVE PULSE WAVE OSCILLATION MODULE ---
   const [liveBpm, setLiveBpm] = useState<number>(72);
@@ -429,95 +477,77 @@ export default function App() {
     })();
   }, [isLoggedIn, onboardingStep, isLiveHealthData, liveSteps, lastWorkoutLoggedDate]);
 
-  // --- 7. ADVANCED 6-CORE TELEMETRY ARRAY ---
+  // --- 7. CORE HEALTH TELEMETRY ARRAY ---
   const [biometrics, setBiometrics] = useState<TelemetryStream[]>([
     {
       id: 'BIO-1',
       metric: 'Activity and Movement',
-      system: 'Kinetic Step Velocity Layer',
+      system: 'Steps',
       reading: '110 SPM',
       status: 'Optimal',
-      behavior: 'Verified Biomechanical Load',
+      behavior: 'Good pace today',
       waveType: 'sinusoidal',
       details: {
-        title: 'Locomotive Cadence & Step Vectors',
-        description: 'Analyzes locomotive movement frequencies to filter out synthetic hardware shakers and mechanical oscillators.',
+        title: 'Step Details',
+        description: 'Tracks your daily steps and filters out fake step-counting from shaking your phone.',
         subMetrics: [
-          { label: 'Active Step Cadence', value: '110 SPM', color: '#00ff88' },
-          { label: 'Human Velocity Ceiling', value: 'Max 350 SPM', color: '#ff9500' },
-          { label: 'Biomechanical Symmetry', value: '98.4% Optimal', color: '#00bfff' }
+          { label: 'Steps', value: '110 SPM', color: '#00ff88' },
+          { label: 'Max Speed Limit', value: '350 SPM', color: '#ff9500' },
+          { label: 'Step Consistency', value: '98.4%', color: '#00bfff' }
         ]
       }
     },
     {
       id: 'BIO-2',
       metric: 'Heart Health',
-      system: 'Precision Cardiovascular Array',
+      system: 'Heart Rate',
       reading: '72 BPM / 68 ms HRV',
       status: 'Optimal',
-      behavior: 'High Vagal Tone Detected',
+      behavior: 'Healthy recovery signs',
       waveType: 'ecg',
       details: {
-        title: 'Cardiovascular Autonomic Stability',
-        description: 'Measures high-frequency heart rate fluctuations and vagal tone pathways to evaluate nervous system recharge rates.',
+        title: 'Heart Rate Details',
+        description: 'Tracks your heart rate and HRV (a marker of recovery) throughout the day.',
         subMetrics: [
-          { label: 'Live Resting Heart Rate', value: '72 BPM', color: '#ff3b30' },
-          { label: 'Autonomic HRV Variance', value: '68 ms', color: '#00bfff' },
-          { label: 'Vagal Stability Index', value: 'Optimal Floor', color: '#00ff88' }
-        ]
-      }
-    },
-    {
-      id: 'BIO-3',
-      metric: 'Metabolic Health',
-      system: 'Metabolic Velocity Index',
-      reading: '1.2 Metabolic Coeff',
-      status: 'Syncing',
-      behavior: 'Substrate Oxidation Balanced',
-      waveType: 'mitochondrial',
-      details: {
-        title: 'Mitochondrial Energy Balance',
-        description: 'Evaluates dynamic carbohydrate and lipid oxidation ratios calculated in real-time from active respiratory rates.',
-        subMetrics: [
-          { label: 'Metabolic Coefficient', value: '1.2 Index', color: '#ff9500' },
-          { label: 'Mitochondrial Efficiency', value: '89.4% Verified', color: '#00ff88' },
-          { label: 'Substrate Oxidation Floor', value: 'Glucose Balanced', color: '#00bfff' }
+          { label: 'Resting Heart Rate', value: '72 BPM', color: '#ff3b30' },
+          { label: 'HRV', value: '68 ms', color: '#00bfff' },
+          { label: 'Recovery Level', value: 'Good', color: '#00ff88' }
         ]
       }
     },
     {
       id: 'BIO-4',
       metric: 'Sleep and Rest',
-      system: 'Contextual Sleep Telemetry',
+      system: 'Sleep',
       reading: `${SLEEP_QUALITY_PERCENT}% Quality`,
       status: 'Optimal',
-      behavior: 'Deep/REM Stages Synchronized',
+      behavior: 'Good sleep quality',
       waveType: 'delta',
       details: {
-        title: 'Circadian Sleep Architecture',
-        description: 'Decomposes sleep cycles, synchronizing deep sleep and rapid eye movement (REM) phases with stress recovery ceilings.',
+        title: 'Sleep Details',
+        description: 'Tracks your sleep quality, including deep sleep and REM sleep.',
         subMetrics: [
-          { label: 'Overall Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' },
-          { label: 'Deep Regeneration Phase', value: '2h 15m', color: '#00bfff' },
-          { label: 'REM Restorative Sleep', value: '1h 52m', color: '#a855f7' }
+          { label: 'Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' },
+          { label: 'Deep Sleep', value: '2h 15m', color: '#00bfff' },
+          { label: 'REM Sleep', value: '1h 52m', color: '#a855f7' }
         ]
       }
     },
     {
       id: 'BIO-5',
       metric: 'Stress',
-      system: 'Autonomic Load Tracker',
-      reading: 'Low Autonomic Stress',
+      system: 'Stress',
+      reading: 'Low Stress',
       status: 'Optimal',
-      behavior: 'Neurological Exhaustion Ceilings Safe',
+      behavior: 'Stress levels look fine',
       waveType: 'erratic_spikes',
       details: {
-        title: 'Neurological Exhaustion Thresholds',
-        description: 'Monitors peripheral continuous autonomic sensory signals to compute mental fatigue indexes and autonomic boundaries.',
+        title: 'Stress Details',
+        description: 'Estimates your stress and recovery from your heart rate and HRV data.',
         subMetrics: [
-          { label: 'Neurological Load', value: 'Low Autonomic', color: '#00ff88' },
-          { label: 'Stress Recovery Rate', value: '1.8x Baseline', color: '#00bfff' },
-          { label: 'Mental Fatigue Ceiling', value: 'Safe Boundary', color: '#ff9500' }
+          { label: 'Stress Level', value: 'Low', color: '#00ff88' },
+          { label: 'Recovery Rate', value: '1.8x Baseline', color: '#00bfff' },
+          { label: 'Fatigue Risk', value: 'Low', color: '#ff9500' }
         ]
       }
     },
@@ -865,9 +895,9 @@ export default function App() {
   ];
 
   const handleDonateToCharity = async (charityId: string, charityName: string) => {
-    const requiredPoints = visaDemoMode ? 0 : 1000;
+    const requiredPoints = 1000;
 
-    if (!visaDemoMode && totalVoucherPoints < requiredPoints) {
+    if (totalVoucherPoints < requiredPoints) {
       alert(`⚠️ INSUFFICIENT BALANCE: Point donation threshold is ${requiredPoints} points. Continue completing active quests to accumulate balance!`);
       return;
     }
@@ -896,8 +926,7 @@ export default function App() {
         timestamp: 'Just Now'
       };
 
-      const pointsDeducted = visaDemoMode ? 0 : 1000;
-      const newPts = totalVoucherPoints - pointsDeducted;
+      const newPts = totalVoucherPoints - requiredPoints;
       setTotalVoucherPoints(newPts);
       localStorage.setItem('kinetix_voucher_points', newPts.toString());
 
@@ -1007,7 +1036,7 @@ export default function App() {
   const handleRequestOtp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput.includes('@') || !emailInput.includes('.')) {
-      alert("Please enter a valid B2B or corporate email address.");
+      alert("Please enter a valid email address.");
       return;
     }
     setIsOtpSent(true);
@@ -1033,7 +1062,7 @@ export default function App() {
     setIsLogged(true);
     localStorage.setItem('kinetix_logged_in', 'true');
     setOnboardingStep(5); // Launch main platform portal
-    setMotivationMessage('🏆 Access Handshake Operational. Welcome to KinetixFit!');
+    setMotivationMessage('🏆 Welcome to KinetixFit!');
     setTimeout(() => setMotivationMessage(null), 7000);
   };
 
@@ -1089,11 +1118,15 @@ export default function App() {
     macros: { carbs: number; protein: number; fat: number; fiber: number },
     micros: { sodium: string; potassium: string; iron: string; calcium: string },
     estimated: boolean,
-    estimatedPortionGrams: number
+    estimatedPortionGrams: number,
+    realAllergens?: string[]
   ) => {
-    const lowerFoodName = foodName.toLowerCase();
     const personalChecks = profile.personalAllergens.length > 0 ? profile.personalAllergens : the14Allergens;
-    const flagged = personalChecks.filter(allergen => lowerFoodName.includes(allergen));
+    // Barcode lookups carry real structured allergen data — cross-reference that directly rather
+    // than the weaker substring-match-on-food-name heuristic used when no such data exists (photo/text scans).
+    const flagged = realAllergens
+      ? personalChecks.filter(allergen => realAllergens.includes(allergen))
+      : personalChecks.filter(allergen => foodName.toLowerCase().includes(allergen));
 
     if (flagged.length > 0) {
       const recommendation = `❌ DIETARY EXCLUSION INGESTION TRIGGERED: Your personal food hazard list flagged (${flagged.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic plant-protein alternative formulation containing 12g fiber to satisfy your ${profile.target} target.`;
@@ -1205,6 +1238,43 @@ export default function App() {
     } catch {
       setMotivationMessage('⚠️ Photo scan failed — check your connection and try again.');
       setTimeout(() => setMotivationMessage(null), 6000);
+    } finally {
+      setIsCameraScanning(false);
+    }
+  };
+
+  const handleBarcodeScan = async () => {
+    try {
+      // Lazy-loaded: this plugin bundles html5-qrcode for its web fallback, which is too heavy
+      // to include in the main bundle for a feature most page loads never touch.
+      const { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } = await import('@capacitor/barcode-scanner');
+      const { ScanResult: barcode } = await CapacitorBarcodeScanner.scanBarcode({ hint: CapacitorBarcodeScannerTypeHint.ALL });
+      if (!barcode) return;
+
+      setIsCameraScanning(true);
+      const response = await fetch('/api/lookup-barcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barcode })
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMotivationMessage(`⚠️ ${data.error || 'Product not found — try manual entry.'}`);
+        setTimeout(() => setMotivationMessage(null), 6000);
+        return;
+      }
+
+      setShowCameraModal(false);
+      setMealInput(data.foodName);
+      finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams, data.allergens);
+    } catch (err) {
+      // The plugin rejects the promise on user-cancelled scans too — only surface real failures.
+      const message = err instanceof Error ? err.message.toLowerCase() : '';
+      if (!message.includes('cancel')) {
+        setMotivationMessage('⚠️ Barcode scan failed. Please try again or enter manually.');
+        setTimeout(() => setMotivationMessage(null), 6000);
+      }
     } finally {
       setIsCameraScanning(false);
     }
@@ -1327,24 +1397,22 @@ export default function App() {
   };
 
   const triggerRewardVaultSettlement = async () => {
-    if (!visaDemoMode) {
-      if (tasksCompletedTodayCount < requiredTaskCountForRedeem) {
-        alert(`⚠️ REWARDS LOCK: You have only completed ${tasksCompletedTodayCount}/${requiredTaskCountForRedeem} today's target tasks. Physical effort required.`);
-        setMotivationMessage("🔒 SECURITY LOCK: Complete at least 2 active quests today to authorize points redemption!");
-        setTimeout(() => setMotivationMessage(null), 6000);
-        return;
-      }
+    if (tasksCompletedTodayCount < requiredTaskCountForRedeem) {
+      alert(`⚠️ REWARDS LOCK: You have only completed ${tasksCompletedTodayCount}/${requiredTaskCountForRedeem} today's target tasks. Physical effort required.`);
+      setMotivationMessage("🔒 SECURITY LOCK: Complete at least 2 active quests today to authorize points redemption!");
+      setTimeout(() => setMotivationMessage(null), 6000);
+      return;
+    }
 
-      if (totalVoucherPoints < 2500) {
-        alert("⚠️ INSUFFICIENT BALANCE: The wholesale rewards voucher tier floor is 2,500 points. Keep crushin' your goals to cash out!");
-        return;
-      }
+    if (totalVoucherPoints < 2500) {
+      alert("⚠️ INSUFFICIENT BALANCE: You need at least 2,500 points to redeem a voucher. Keep completing quests to earn more!");
+      return;
+    }
 
-      const currentTime = Date.now();
-      if (currentTime - lastRedemptionTime < 86400000) {
-        alert("🔒 COOL-DOWN LIMIT: You are limited to 1 reward settlement per 24 hours to protect corporate reserves.");
-        return;
-      }
+    const currentTime = Date.now();
+    if (currentTime - lastRedemptionTime < 86400000) {
+      alert("🔒 COOL-DOWN LIMIT: You can only redeem 1 reward every 24 hours.");
+      return;
     }
 
     // Handle Active Payout Gateway
@@ -1361,7 +1429,7 @@ export default function App() {
       sku = 'KTX-DIRECT-UK';
     } else {
       prefix = 'TX-LOC-';
-      voucherTitle = 'Local Claim: Corporate Coffee Voucher';
+      voucherTitle = 'Local Coffee Voucher Claim';
       sku = 'JN-LOCAL-CLAIM';
     }
 
@@ -1395,8 +1463,7 @@ export default function App() {
         timestamp: 'Just Now'
       };
 
-      const pointDeduction = visaDemoMode ? 0 : 2500;
-      const newPts = totalVoucherPoints - pointDeduction;
+      const newPts = totalVoucherPoints - 2500;
       setVouchers([newTx, ...vouchers]);
       setTotalVoucherPoints(newPts);
       localStorage.setItem('kinetix_voucher_points', newPts.toString());
@@ -1432,12 +1499,15 @@ export default function App() {
 
     return (
       <div style={{ marginBottom: '10px' }}>
-        <h2 style={{ fontSize: '18px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
+        <h2 style={{ fontSize: '22px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
           ⚡ {timeGreeting}, {profile.name || 'GUEST_REST_MODE'}
         </h2>
-        <span style={{ fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace' }}>
-          Biometric Feed Status: {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Awaiting sensor handshake.'}
+        <span style={{ fontSize: '15px', color: '#9ca3af', fontFamily: 'monospace' }}>
+          {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Connect a device to see your live stats.'}
         </span>
+        <p style={{ fontSize: '14px', color: '#00bfff', fontStyle: 'italic', margin: '10px 0 0 0', lineHeight: '1.5' }}>
+          "{getDailyQuote()}"
+        </p>
       </div>
     );
   };
@@ -1475,7 +1545,7 @@ export default function App() {
               <div className="landing-cta-box">
                 <p className="hero-disclaimer">Platform Subscription: £14.99 / Month • Includes 7-Day Free Trial</p>
                 <button onClick={() => setOnboardingStep(1)} className="landing-launch-btn">
-                  INITIALIZE PLATFORM KEY →
+                  START FREE TRIAL →
                 </button>
               </div>
             </div>
@@ -1491,16 +1561,16 @@ export default function App() {
                     <span>SECTOR 01</span>
                     <span className="glow-bullet green"></span>
                   </div>
-                  <h4>6-Core Biometrics Array</h4>
-                  <p>Heart Health, Metabolic oxidation metrics, sleep tracking, and biological rhythm synchronizations in real-time.</p>
+                  <h4>Live Health Tracking</h4>
+                  <p>Heart rate, HRV, sleep, and activity tracking, synced in real-time from your device.</p>
                 </div>
                 <div className="tech-mini-card">
                   <div className="tech-card-header">
                     <span>SECTOR 02</span>
                     <span className="glow-bullet cyan"></span>
                   </div>
-                  <h4>1-Tap Chemical Ingest Scanner</h4>
-                  <p>Optical scanning technology analyzing allergen formulation hazards, dietary exclusions, and NHS fiber limits.</p>
+                  <h4>Food Scanner</h4>
+                  <p>Scan a barcode or photo to check ingredients, allergens, and nutrition.</p>
                 </div>
                 <div className="tech-mini-card">
                   <div className="tech-card-header">
@@ -1524,7 +1594,7 @@ export default function App() {
             {/* Compliance Footer */}
             <div className="landing-footer-block">
               <p>OPERATIONAL INTEGRITY HANDSHAKE COMPLIANT</p>
-              <p style={{ opacity: 0.5, fontSize: '8px', marginTop: '4px' }}>In complete alignment with UK GDPR & Data Protection Act 2018 guidelines.</p>
+              <p style={{ opacity: 0.5, fontSize: '12px', marginTop: '4px' }}>In complete alignment with UK GDPR & Data Protection Act 2018 guidelines.</p>
               <p style={{ marginTop: '10px' }}>
                 <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88', textDecoration: 'none', letterSpacing: '1px' }}>PRIVACY POLICY</a>
                 <span style={{ margin: '0 10px', opacity: 0.4 }}>·</span>
@@ -1568,7 +1638,7 @@ export default function App() {
             align-items: center;
           }
           .landing-tag {
-            font-size: 8px;
+            font-size: 12px;
             color: #6b7280;
             letter-spacing: 2px;
             font-weight: bold;
@@ -1588,11 +1658,11 @@ export default function App() {
             text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
           }
           .cinematic-subtitle {
-            font-size: 8.5px;
+            font-size: 13px;
             color: #00ff88;
             letter-spacing: 2.5px;
             margin-top: 10px;
-            line-height: 1.4;
+            line-height: 1.6;
           }
           .hud-line {
             width: 140px;
@@ -1608,7 +1678,7 @@ export default function App() {
             text-align: center;
           }
           .hero-disclaimer {
-            font-size: 8.5px;
+            font-size: 13px;
             color: #9ca3af;
             letter-spacing: 1px;
             margin: 0;
@@ -1620,7 +1690,7 @@ export default function App() {
             font-weight: bold !important;
             padding: 12px 25px !important;
             border-radius: 4px !important;
-            font-size: 11px !important;
+            font-size: 16px !important;
             font-family: monospace !important;
             letter-spacing: 1.5px !important;
             cursor: pointer !important;
@@ -1638,7 +1708,7 @@ export default function App() {
             box-sizing: border-box;
           }
           .grid-section-title {
-            font-size: 13px;
+            font-size: 18px;
             color: #ffffff;
             letter-spacing: 1.5px;
             text-transform: uppercase;
@@ -1647,9 +1717,9 @@ export default function App() {
             padding-left: 8px;
           }
           .grid-section-desc {
-            font-size: 10px;
+            font-size: 15px;
             color: #9ca3af;
-            line-height: 1.4;
+            line-height: 1.6;
             margin: 0 0 20px 0;
           }
           .tech-cards-grid {
@@ -1669,7 +1739,7 @@ export default function App() {
             justify-content: space-between;
             align-items: center;
             margin-bottom: 6px;
-            font-size: 7.5px;
+            font-size: 12px;
             color: #6b7280;
             letter-spacing: 1px;
             font-weight: bold;
@@ -1684,15 +1754,15 @@ export default function App() {
           .glow-bullet.amber { background-color: #ff9500; box-shadow: 0 0 8px #ff9500; }
           .glow-bullet.purple { background-color: #a855f7; box-shadow: 0 0 8px #a855f7; }
           .tech-mini-card h4 {
-            font-size: 10px;
+            font-size: 15px;
             color: #ffffff;
             margin: 0 0 4px 0;
             font-weight: bold;
           }
           .tech-mini-card p {
-            font-size: 8.5px;
+            font-size: 13px;
             color: #9ca3af;
-            line-height: 1.3;
+            line-height: 1.5;
             margin: 0;
           }
           .landing-footer-block {
@@ -1700,7 +1770,7 @@ export default function App() {
             border-top: 1px solid #111827;
             padding: 20px;
             text-align: center;
-            font-size: 8px;
+            font-size: 12px;
             color: #6b7280;
             letter-spacing: 2px;
             font-weight: bold;
@@ -1741,19 +1811,19 @@ export default function App() {
               </div>
 
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <span style={{ fontSize: '9px', color: '#6b7280', letterSpacing: '2px', fontWeight: 'bold' }}>B2B HEALTH TELEMETRY CLEARINGHOUSE</span>
+                <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '2px', fontWeight: 'bold' }}>SECURE SIGN-IN</span>
               </div>
 
               {!isOtpSent ? (
                 <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <p style={{ fontSize: '10.5px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4', margin: 0 }}>
-                    Secure corporate login gateway. Enter your company email to request a 4-digit verification token.
+                  <p style={{ fontSize: '16px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.6', margin: 0 }}>
+                    Enter your email to receive a 4-digit verification code.
                   </p>
-                  <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Business Email Address
+                  <label style={{ fontSize: '16px', color: '#9ca3af' }}>Email Address
                     <input
                       type="email"
                       required
-                      placeholder="name@company.co.uk"
+                      placeholder="name@example.com"
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
                       className="auth-input"
@@ -1767,7 +1837,7 @@ export default function App() {
                       Request Token
                     </button>
                   </div>
-                  <p style={{ fontSize: '9px', color: '#6b7280', textAlign: 'center', lineHeight: '1.4', margin: '4px 0 0 0' }}>
+                  <p style={{ fontSize: '14px', color: '#6b7280', textAlign: 'center', lineHeight: '1.6', margin: '4px 0 0 0' }}>
                     By requesting access, you agree to our{' '}
                     <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88' }}>Privacy Policy</a>
                     {' '}and{' '}
@@ -1776,10 +1846,10 @@ export default function App() {
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <p style={{ fontSize: '10.5px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.4', margin: 0 }}>
+                  <p style={{ fontSize: '16px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.6', margin: 0 }}>
                     Verification token sent to <strong style={{ color: '#00ff88' }}>{emailInput}</strong>. Enter code <strong style={{ color: '#00ff88' }}>1234</strong> to verify sandbox workspace.
                   </p>
-                  <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>4-Digit Security Token
+                  <label style={{ fontSize: '16px', color: '#9ca3af' }}>4-Digit Security Token
                     <input
                       type="text"
                       maxLength={4}
@@ -1810,7 +1880,7 @@ export default function App() {
                 color: #ffffff !important;
                 padding: 10px !important;
                 margin-top: 6px !important;
-                font-size: 11.5px !important;
+                font-size: 17px !important;
                 font-family: monospace !important;
                 border-radius: 4px !important;
                 outline: none !important;
@@ -1827,7 +1897,7 @@ export default function App() {
                 color: #ffffff !important;
                 padding: 10px !important;
                 margin-top: 6px !important;
-                font-size: 14px !important;
+                font-size: 19px !important;
                 letter-spacing: 5px !important;
                 text-align: center !important;
                 font-weight: bold !important;
@@ -1848,7 +1918,7 @@ export default function App() {
                 padding: 10px !important;
                 cursor: pointer !important;
                 border-radius: 4px !important;
-                font-size: 11.5px !important;
+                font-size: 17px !important;
                 font-family: monospace !important;
                 transition: all 0.2s !important;
               }
@@ -1863,7 +1933,7 @@ export default function App() {
                 padding: 10px !important;
                 cursor: pointer !important;
                 border-radius: 4px !important;
-                font-size: 11px !important;
+                font-size: 16px !important;
                 font-family: monospace !important;
               }
             `}</style>
@@ -1881,23 +1951,23 @@ export default function App() {
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 1 OF 3: PROFILE DEPLOYMENT</span>
-              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Setup Physical Telemetry Benchmarks</h2>
+              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 1 OF 3: PROFILE DEPLOYMENT</span>
+              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Tell Us About You</h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Your Display Name
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Your Display Name
                   <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Height (cm)
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Height (cm)
                   <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Weight (kg)
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Weight (kg)
                   <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Age
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Age
                   <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Biological Sex
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Biological Sex
                   <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="auth-input-select">
                     <option value="">Prefer not to say</option>
                     <option value="male">Male</option>
@@ -1906,15 +1976,15 @@ export default function App() {
                 </label>
                 {profile.sex === 'female' && (
                   <>
-                    <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Last Period Start Date
+                    <label style={{ fontSize: '16px', color: '#9ca3af' }}>Last Period Start Date
                       <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="auth-input" />
                     </label>
-                    <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Average Cycle Length (days)
+                    <label style={{ fontSize: '16px', color: '#9ca3af' }}>Average Cycle Length (days)
                       <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="auth-input" />
                     </label>
                   </>
                 )}
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Activity Level
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Activity Level
                   <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="auth-input-select">
                     <option value="sedentary">Sedentary (little to no exercise)</option>
                     <option value="light">Light (exercise 1-3x/week)</option>
@@ -1923,7 +1993,7 @@ export default function App() {
                     <option value="very_active">Very Active (hard exercise/physical job)</option>
                   </select>
                 </label>
-                <label style={{ fontSize: '10.5px', color: '#9ca3af' }}>Primary Fitness Target
+                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Primary Fitness Target
                   <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="auth-input-select">
                     <option value="Autonomic Recovery">Autonomic Recovery</option>
                     <option value="Weight Loss">Weight Loss</option>
@@ -1968,9 +2038,9 @@ export default function App() {
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: FOOD EXCLUSION CONFIGURATION</span>
-              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
-              <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '15px', margin: '0 0 15px 0' }}>
+              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: FOOD EXCLUSION CONFIGURATION</span>
+              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
+              <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '15px', margin: '0 0 15px 0' }}>
                 Select any food allergen classifications you are sensitive to. The AI Scanner will dynamically scan and flag these chemical hazards.
               </p>
 
@@ -1988,7 +2058,7 @@ export default function App() {
                         padding: '6px',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontSize: '10px',
+                        fontSize: '15px',
                         textAlign: 'left',
                         fontFamily: 'monospace'
                       }}
@@ -2022,9 +2092,9 @@ export default function App() {
 
           <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
             <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '9px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 3 OF 3: TELEMETRY INTEGRATION</span>
-              <h2 style={{ fontSize: '15px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Connect Biometric Sensor</h2>
-              <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginBottom: '15px', margin: '0 0 15px 0' }}>
+              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 3 OF 3: TELEMETRY INTEGRATION</span>
+              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Connect Biometric Sensor</h2>
+              <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '15px', margin: '0 0 15px 0' }}>
                 Synchronize your continuous physical sensors (pulse fluctuations, sleep recovery waves, stress baselines) with our secure clearinghouse.
               </p>
 
@@ -2039,7 +2109,7 @@ export default function App() {
                     padding: '10px',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '10.5px',
+                    fontSize: '16px',
                     textAlign: 'left',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -2053,7 +2123,7 @@ export default function App() {
                   </span>
                 </button>
                 {!Capacitor.isNativePlatform() && (
-                  <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0 }}>
+                  <p style={{ fontSize: '14px', color: '#9ca3af', margin: 0 }}>
                     📱 Live sync requires the iOS or Android app — you can skip this on web.
                   </p>
                 )}
@@ -2143,8 +2213,8 @@ export default function App() {
               <div className="vitals-hero-card">
                 <div style={{ flex: 1.2 }}>
                   {getPersonalizedWelcome()}
-                  <p style={{ fontSize: '10.5px', color: '#9ca3af', lineHeight: '1.4', marginTop: '10px', margin: '10px 0 0 0' }}>
-                    Continuous biometric telemetry active. Security velocity limits calibrated. Click any of the 6-Core Metrics below to analyze deep autonomic fluctuations.
+                  <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginTop: '10px', margin: '10px 0 0 0' }}>
+                    Tap any card below to see more detail.
                   </p>
                 </div>
 
@@ -2173,7 +2243,7 @@ export default function App() {
               <div className="ecg-module-card">
                 <div className="ecg-card-header">
                   <div>
-                    <span className="ecg-label">AUTONOMIC REALTIME OSCILLOSCOPE</span>
+                    <span className="ecg-label">LIVE HEART RATE</span>
                     <h3 className="ecg-title">
                       📈 {selectedMetric.metric}: <span style={{ color: selectedMetricId === 'BIO-2' ? '#ff3b30' : '#00ff88' }}>{selectedMetric.reading}</span>
                     </h3>
@@ -2222,7 +2292,7 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: '8.5px', color: '#6b7280', margin: '6px 0 0 0' }}>
+                <p style={{ fontSize: '13px', color: '#6b7280', margin: '6px 0 0 0' }}>
                   The buttons above preview each mode's telemetry pattern for demo purposes — they don't log a workout.
                 </p>
                 <button onClick={handleLogWorkout} className="primary-btn" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
@@ -2294,12 +2364,12 @@ export default function App() {
               </div> {/* End Left Panel */}
 
               <div className="vitals-right-panel">
-                {/* Advanced 6-Core Interactive Grid */}
+                {/* Core Health Interactive Grid */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className="section-header" style={{ margin: 0 }}>6-Core Health Telemetry Sync</h3>
+                  <h3 className="section-header" style={{ margin: 0 }}>Your Health Stats</h3>
                   <span style={{
-                    fontSize: '8px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '10px', letterSpacing: '0.5px',
+                    fontSize: '12px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '10px', letterSpacing: '0.5px',
                     color: isLiveHealthData ? '#00ff88' : '#ff9500',
                     backgroundColor: isLiveHealthData ? 'rgba(0, 255, 136, 0.08)' : 'rgba(255, 149, 0, 0.08)',
                     border: `1px solid ${isLiveHealthData ? '#00ff88' : '#ff9500'}`
@@ -2327,7 +2397,6 @@ export default function App() {
                         <span className="bio-behavior-log">
                           Behavior: {bio.behavior}
                         </span>
-                        {active && <div className="active-glow-indicator">ANALYSIS LOCKED</div>}
                       </div>
                     );
                   })}
@@ -2420,9 +2489,9 @@ export default function App() {
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                     {mealSuggestions.map((s, idx) => (
-                      <div key={idx} style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px 12px', fontSize: '10.5px', color: '#ffffff', lineHeight: '1.4' }}>
+                      <div key={idx} style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px 12px', fontSize: '16px', color: '#ffffff', lineHeight: '1.6' }}>
                         {s.text}
-                        <span style={{ display: 'block', fontSize: '8.5px', color: '#9ca3af', marginTop: '4px' }}>
+                        <span style={{ display: 'block', fontSize: '13px', color: '#9ca3af', marginTop: '4px' }}>
                           ~{s.calories} kcal · {s.protein}g protein · {s.fiber}g fiber
                         </span>
                       </div>
@@ -2431,11 +2500,11 @@ export default function App() {
                 </div>
               )}
 
-              {/* 1-Tap Natasha's Law Scanner */}
+              {/* Food Scanner */}
               <div className="scanner-module-card">
-                <h3 className="card-header-title">1-Tap Allergen Scanner</h3>
+                <h3 className="card-header-title">Food Scanner</h3>
                 <p className="card-header-desc">
-                  Check formulations and menus against your personal allergen exclusions under UK food safety rules.
+                  Check foods against your personal allergy preferences.
                 </p>
 
                 {/* Scanner Input Row with Camera Trigger */}
@@ -2511,13 +2580,13 @@ export default function App() {
                   {/* Bio Athlete Holographic Status Card */}
                   <div className="vitals-hero-card" style={{ position: 'relative', overflow: 'hidden' }}>
                     <div style={{ flex: 1.2 }}>
-                      <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '2px', fontSize: '9px', textTransform: 'uppercase' }}>🛡️ B2B ATHLETE BIOMETRIC IDENTITY</span>
-                      <h2 style={{ fontSize: '20px', color: '#fff', margin: '12px 0 6px 0', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                      <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '2px', fontSize: '14px', textTransform: 'uppercase' }}>🛡️ ATHLETE PROFILE</span>
+                      <h2 style={{ fontSize: '24px', color: '#fff', margin: '12px 0 6px 0', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '1px' }}>
                         {profile.name || 'ANONYMOUS ATHLETE'}
                       </h2>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-                        <span className="bio-status-badge status-optimal" style={{ fontSize: '8px', padding: '2px 8px' }}>STREAK: {getStreakFlameDisplay(streak).emoji} {streak}-Day</span>
-                        <span className="bio-status-badge status-syncing" style={{ fontSize: '8px', padding: '2px 8px' }}>CONDITION: PEAK ATHLETE</span>
+                        <span className="bio-status-badge status-optimal" style={{ fontSize: '12px', padding: '2px 8px' }}>STREAK: {getStreakFlameDisplay(streak).emoji} {streak}-Day</span>
+                        <span className="bio-status-badge status-syncing" style={{ fontSize: '12px', padding: '2px 8px' }}>CONDITION: PEAK ATHLETE</span>
                       </div>
                     </div>
                     <div className="glowing-logo" style={{ opacity: 0.15, transform: 'scale(1.1)' }}>
@@ -2529,39 +2598,21 @@ export default function App() {
 
                   {/* Smart Point balances Tracker */}
                   <div className="rewards-summary-card">
-                    <span className="vitals-label font-bold" style={{ letterSpacing: '1px', fontSize: '8.5px' }}>SECURE COCKPIT WALLET • LEVEL {level} ({xp} XP)</span>
-                    <h3 className="rewards-wallet-balance" style={{ fontSize: '24px', margin: '4px 0', color: '#00ff88', fontWeight: 'bold' }}>{totalVoucherPoints} Points</h3>
-                    <p style={{ fontSize: '10px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
-                      Verified efforts accumulate point balances programmatically. Settle points instantly for premium coffee cards, direct API gift cards, or local B2B pilot claims.
+                    <span className="vitals-label font-bold" style={{ letterSpacing: '1px', fontSize: '13px' }}>YOUR WALLET • LEVEL {level} ({xp} XP)</span>
+                    <h3 className="rewards-wallet-balance" style={{ fontSize: '28px', margin: '4px 0', color: '#00ff88', fontWeight: 'bold' }}>{totalVoucherPoints} Points</h3>
+                    <p style={{ fontSize: '15px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
+                      Complete quests to earn points, then redeem them for coffee vouchers or charity donations.
                     </p>
-
-                    {/* 🛡️ Secure Presentation Override Toggle */}
-                    <div style={{ borderTop: '1px dashed #1f2937', paddingTop: '12px' }}>
-                      <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', color: '#ff9500', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={visaDemoMode}
-                          onChange={(e) => {
-                            setVisaDemoMode(e.target.checked);
-                            setMotivationMessage(e.target.checked ? '🚀 Pitch Mode Active! Point limits and quest requirements bypassed.' : '🔒 Standard verification gates restored.');
-                            setTimeout(() => setMotivationMessage(null), 5000);
-                          }}
-                          className="demo-toggle-checkbox"
-                          style={{ accentColor: '#ff9500', width: '13px', height: '13px' }}
-                        />
-                        ⚡ Enable Demo Pitch Mode (Bypass verification checks)
-                      </label>
-                    </div>
                   </div>
 
                   {/* Active Wearable Sensor Integration Panel */}
                   <div className="biopoint-validator-card">
-                    <span className="validator-label" style={{ fontSize: '8.5px', letterSpacing: '1px' }}>🔋 ACTIVE TELEMETRY SENSOR LINKS</span>
-                    <p className="validator-desc" style={{ fontSize: '10px', lineHeight: '1.4' }}>
-                      Synchronize your wearable physical devices. Single-tap authorization feeds raw continuous telemetry streams straight to the KinetixFit clearinghouse.
+                    <span className="validator-label" style={{ fontSize: '13px', letterSpacing: '1px' }}>🔋 CONNECTED DEVICES</span>
+                    <p className="validator-desc" style={{ fontSize: '15px', lineHeight: '1.6' }}>
+                      Connect your wearable device to sync your activity, heart rate, and sleep data automatically.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '15px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
                         🔌 Configure Smart Sensor Links
                       </button>
                     </div>
@@ -2569,21 +2620,21 @@ export default function App() {
 
                   {/* Configure Biological Benchmarks Form */}
                   <div className="hub-support-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>⚙️ PHYSICAL PERFORMANCE PARAMETERS</span>
+                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>⚙️ PHYSICAL PERFORMANCE PARAMETERS</span>
                     <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Display Name
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Display Name
                         <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Height (cm)
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Height (cm)
                         <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Weight (kg)
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Weight (kg)
                         <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Age
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Age
                         <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Biological Sex
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Biological Sex
                         <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="">Prefer not to say</option>
                           <option value="male">Male</option>
@@ -2592,15 +2643,15 @@ export default function App() {
                       </label>
                       {profile.sex === 'female' && (
                         <>
-                          <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Last Period Start Date
+                          <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Last Period Start Date
                             <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                           </label>
-                          <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Average Cycle Length (days)
+                          <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Average Cycle Length (days)
                             <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                           </label>
                         </>
                       )}
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Activity Level
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Activity Level
                         <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="sedentary">Sedentary</option>
                           <option value="light">Light</option>
@@ -2609,7 +2660,7 @@ export default function App() {
                           <option value="very_active">Very Active</option>
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Fitness Target
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Fitness Target
                         <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="Autonomic Recovery">Autonomic Recovery</option>
                           <option value="Weight Loss">Weight Loss</option>
@@ -2622,8 +2673,8 @@ export default function App() {
 
                   {/* Natasha's Law Exclusions selection list */}
                   <div className="scanner-module-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1.5px', display: 'block', marginBottom: '4px' }}>🥗 NATASHA'S LAW FOOD EXCLUSIONS</span>
-                    <p className="card-header-desc" style={{ fontSize: '9.5px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
+                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1.5px', display: 'block', marginBottom: '4px' }}>🥗 FOOD ALLERGY PREFERENCES</span>
+                    <p className="card-header-desc" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
                       Select food allergies. These dynamically update the 1-Tap formulation scanning engines and suggest custom protein target alternatives.
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
@@ -2640,7 +2691,7 @@ export default function App() {
                               padding: '6px',
                               borderRadius: '4px',
                               cursor: 'pointer',
-                              fontSize: '10px',
+                              fontSize: '15px',
                               textAlign: 'left',
                               fontFamily: 'monospace'
                             }}
@@ -2654,8 +2705,8 @@ export default function App() {
 
                   {/* Notification Settings */}
                   <div className="hub-support-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '8.5px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>🔔 NOTIFICATION SETTINGS</span>
-                    <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '9.5px', color: '#ffffff', cursor: 'pointer', marginBottom: '10px' }}>
+                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>🔔 NOTIFICATION SETTINGS</span>
+                    <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#ffffff', cursor: 'pointer', marginBottom: '10px' }}>
                       <input
                         type="checkbox"
                         checked={hydrationRemindersEnabled}
@@ -2666,26 +2717,26 @@ export default function App() {
                         className="demo-toggle-checkbox"
                         style={{ accentColor: '#00ff88', width: '13px', height: '13px' }}
                       />
-                      💧 Hydration reminders during my shift
+                      💧 Hydration reminders during my active hours
                     </label>
                     <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Shift Start
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Work Hours Start
                         <select value={shiftStartHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Shift End
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Work Hours End
                         <select value={shiftEndHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '9px', color: '#9ca3af' }}>Every
+                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Every
                         <select value={hydrationIntervalHours} onChange={(e) => { const v = parseInt(e.target.value); setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {[1, 2, 3, 4].map(h => <option key={h} value={h}>{h}h</option>)}
                         </select>
                       </label>
                     </div>
-                    <p style={{ fontSize: '8.5px', color: '#6b7280', margin: '10px 0 0 0', lineHeight: '1.4' }}>
+                    <p style={{ fontSize: '13px', color: '#6b7280', margin: '10px 0 0 0', lineHeight: '1.6' }}>
                       Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
                     </p>
                   </div>
@@ -2698,8 +2749,8 @@ export default function App() {
                   {/* Today's Gamified Quests list */}
                   <div className="quests-card">
                     <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
-                      <h3 className="quests-title" style={{ fontSize: '12px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Daily Active Quests</h3>
-                      <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold' }}>{tasksCompletedTodayCount} Completed</span>
+                      <h3 className="quests-title" style={{ fontSize: '17px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Daily Active Quests</h3>
+                      <span style={{ fontSize: '15px', color: '#9ca3af', fontWeight: 'bold' }}>{tasksCompletedTodayCount} Completed</span>
                     </div>
                     <div className="quests-list-stack" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {todayTasks.map(t => {
@@ -2719,13 +2770,13 @@ export default function App() {
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
-                              fontSize: '10px',
+                              fontSize: '15px',
                               transition: 'all 0.25s'
                             }}
                           >
                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                               <span style={{ color: t.completed ? '#00ff88' : '#6b7280' }}>{t.completed ? '●' : '○'}</span>
-                              <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.3' }}>
+                              <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.5' }}>
                                 {isVerifying ? 'Verifying…' : t.text}
                               </span>
                             </div>
@@ -2739,7 +2790,7 @@ export default function App() {
                   {/* Achievements / Badges Gallery — computed live from existing tracked data */}
                   <div className="quests-card">
                     <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
-                      <h3 className="quests-title" style={{ fontSize: '12px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🏅 Achievements</h3>
+                      <h3 className="quests-title" style={{ fontSize: '17px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🏅 Achievements</h3>
                     </div>
                     <div className="badges-gallery-grid">
                       {[
@@ -2761,15 +2812,15 @@ export default function App() {
 
                   {/* Accrued Point Validator Accelerometer controls */}
                   <div className="biopoint-validator-card">
-                    <span className="validator-label" style={{ fontSize: '8.5px', letterSpacing: '1.5px' }}>⚡ BIOMECHANICAL STEP VELOCIMETER</span>
-                    <p className="validator-desc" style={{ fontSize: '9.5px', color: '#9ca3af', lineHeight: '1.4', margin: '4px 0 12px 0' }}>
+                    <span className="validator-label" style={{ fontSize: '13px', letterSpacing: '1.5px' }}>⚡ BIOMECHANICAL STEP VELOCIMETER</span>
+                    <p className="validator-desc" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
                       Enforce locomotive anti-cheat boundaries. Steps below 350 SPM velocity ceilings accrue point balances. Mechanical phone shakers are intercepted.
                     </p>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' }}>
+                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer' }}>
                         🏃 Locomotion (120 SPM)
                       </button>
-                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' }}>
+                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer' }}>
                         🚨 Fraud Shake (420 SPM)
                       </button>
                     </div>
@@ -2779,17 +2830,17 @@ export default function App() {
                   <div className="rewards-redemption-card">
                     <div className="rewards-redemption-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
                       <div>
-                        <h3 className="redemption-title" style={{ fontSize: '12.5px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Kinetix Rewards Vault</h3>
-                        <span style={{ fontSize: '8px', color: '#6b7280' }}>ACTIVE CLEARINGHOUSE ROUTER</span>
+                        <h3 className="redemption-title" style={{ fontSize: '18px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Kinetix Rewards Vault</h3>
+                        <span style={{ fontSize: '12px', color: '#6b7280' }}>REDEEM YOUR POINTS</span>
                       </div>
-                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '10.5px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                        {isRedeemingVoucher ? 'Processing…' : `🎟️ Cash Out Voucher ${visaDemoMode ? '(0 Pts)' : '(2,500 Pts)'}`}
+                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '16px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                        {isRedeemingVoucher ? 'Processing…' : '🎟️ Cash Out Voucher (2,500 Pts)'}
                       </button>
                     </div>
 
                     {/* Integrated Gateway Selector (disabled until live provider approval is confirmed) */}
                     <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
-                      <span style={{ fontSize: '8px', color: '#6b7280', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Select Rewards Settlement Gateway:</span>
+                      <span style={{ fontSize: '12px', color: '#6b7280', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Select Rewards Settlement Gateway:</span>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                         <button
                           disabled
@@ -2797,7 +2848,7 @@ export default function App() {
                             backgroundColor: '#0b0f19',
                             border: '1px solid #1f2937',
                             color: '#4b5563',
-                            fontSize: '9px',
+                            fontSize: '14px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
@@ -2814,7 +2865,7 @@ export default function App() {
                             backgroundColor: '#0b0f19',
                             border: '1px solid #1f2937',
                             color: '#4b5563',
-                            fontSize: '9px',
+                            fontSize: '14px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
@@ -2831,7 +2882,7 @@ export default function App() {
                             backgroundColor: '#0b0f19',
                             border: '1px solid #1f2937',
                             color: '#4b5563',
-                            fontSize: '9px',
+                            fontSize: '14px',
                             padding: '6px 2px',
                             fontFamily: 'monospace',
                             borderRadius: '4px',
@@ -2840,19 +2891,19 @@ export default function App() {
                             opacity: 0.5
                           }}
                         >
-                          Local B2B
+                          Local Claim
                         </button>
                       </div>
 
                       {/* Honest status message shown regardless of gateway state */}
-                      <span style={{ fontSize: '8px', color: '#9ca3af', marginTop: '8px', display: 'block', lineHeight: '1.3' }}>
+                      <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px', display: 'block', lineHeight: '1.5' }}>
                         Rewards redemption is launching soon — check back shortly.
                       </span>
                     </div>
 
                     {/* Active vouchers history ledger */}
                     <div className="ledger-table-container">
-                      <table className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px' }}>
+                      <table className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid #1f2937' }}>
                             <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>TXID</th>
@@ -2868,7 +2919,7 @@ export default function App() {
                               <td style={{ padding: '6px 4px' }}>{v.provider}</td>
                               <td style={{ color: '#00ff88', fontWeight: 'bold', padding: '6px 4px' }}>{v.value}</td>
                               <td style={{ padding: '6px 4px' }}>
-                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`} style={{ fontSize: '7.5px', padding: '1px 5px', borderRadius: '3px' }}>
+                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`} style={{ fontSize: '12px', padding: '1px 5px', borderRadius: '3px' }}>
                                   {v.state.toUpperCase()}
                                 </span>
                               </td>
@@ -2883,21 +2934,21 @@ export default function App() {
                   <div className="charity-matching-card">
                     <div className="charity-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
                       <div>
-                        <h3 className="charity-title" style={{ fontSize: '11.5px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🎗️ UK Social Philanthropy Portal</h3>
-                        <span className="charity-subtitle" style={{ fontSize: '8px', color: '#9ca3af' }}>Converts completed achievements directly into CSR donations.</span>
+                        <h3 className="charity-title" style={{ fontSize: '17px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🎗️ UK Social Philanthropy Portal</h3>
+                        <span className="charity-subtitle" style={{ fontSize: '12px', color: '#9ca3af' }}>Turn your points into real charity donations.</span>
                       </div>
-                      <span className="donations-count-pill" style={{ fontSize: '9.5px', color: '#00ff88', fontWeight: 'bold' }}>Issued: {charityDonations}</span>
+                      <span className="donations-count-pill" style={{ fontSize: '14px', color: '#00ff88', fontWeight: 'bold' }}>Issued: {charityDonations}</span>
                     </div>
 
                     <div className="charity-options-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {ukCharities.map(charity => (
                         <div key={charity.id} className="charity-item-subcard" style={{ background: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px' }}>
                           <div>
-                            <span className="charity-item-tag" style={{ fontSize: '7.5px', color: '#00bfff', textTransform: 'uppercase', fontWeight: 'bold' }}>{charity.desc}</span>
-                            <h4 className="charity-item-name" style={{ fontSize: '11px', color: '#ffffff', margin: '2px 0' }}>{charity.name}</h4>
-                            <p className="charity-item-mission" style={{ fontSize: '9px', color: '#9ca3af', lineHeight: '1.3', margin: 0 }}>{charity.mission}</p>
+                            <span className="charity-item-tag" style={{ fontSize: '12px', color: '#00bfff', textTransform: 'uppercase', fontWeight: 'bold' }}>{charity.desc}</span>
+                            <h4 className="charity-item-name" style={{ fontSize: '16px', color: '#ffffff', margin: '2px 0' }}>{charity.name}</h4>
+                            <p className="charity-item-mission" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>{charity.mission}</p>
                           </div>
-                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '9.5px' }}>
+                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '14px' }}>
                             {isDonating ? 'Processing…' : '🎗️ Donate 1,000 Pts (£2.50)'}
                           </button>
                         </div>
@@ -2974,9 +3025,9 @@ export default function App() {
               {/* About Kinetix and Data GDPR Shields */}
               <div className="hub-legal-stack">
                 <div className="legal-block-card">
-                  <h3 className="legal-card-title">🏢 About KinetixFit Systems</h3>
+                  <h3 className="legal-card-title">About KinetixFit</h3>
                   <p className="legal-card-text">
-                    KinetixFit is a bespoke, category-of-one biometric health clearinghouse built specifically to streamline continuous tracking, formulation ingredient checking, and high-performance lifestyle monitoring.
+                    KinetixFit helps you track your fitness, nutrition, and rewards all in one place.
                   </p>
                 </div>
 
@@ -2990,11 +3041,11 @@ export default function App() {
 
               {/* Corporate Help Desk Widget */}
               <div className="hub-support-card">
-                <h3 className="support-card-title">✉️ Corporate Support Desk</h3>
+                <h3 className="support-card-title">✉️ Contact Support</h3>
 
                 {contactSuccess ? (
                   <div className="support-success-banner">
-                    🚀 Message received! Our engineering desk will respond within 12 hours.
+                    🚀 Message received! We'll respond within 12 hours.
                   </div>
                 ) : (
                   <form onSubmit={handleSendContact} className="support-form-stack">
@@ -3024,8 +3075,8 @@ export default function App() {
 
           {/* ==================== FOOTER STATEMENT ==================== */}
           <footer className="app-compliance-footer">
-            <h4 style={{ color: '#fff', fontSize: '10px', textTransform: 'uppercase', marginBottom: '4px' }}>⚕️ UK Clinical Compliance Framework</h4>
-            <p style={{ lineHeight: '1.4' }}>
+            <h4 style={{ color: '#fff', fontSize: '15px', textTransform: 'uppercase', marginBottom: '4px' }}>⚕️ UK Clinical Compliance Framework</h4>
+            <p style={{ lineHeight: '1.6' }}>
               KinetixFit acts as an autonomic biometric analysis clearinghouse. It is not a certified medical device and does not substitute professional medical diagnosis, clinical testing, or general practitioner (GP) advice. Always consult a certified specialist prior to starting high-workload fitness structures or dietary deficits.
             </p>
           </footer>
@@ -3101,7 +3152,7 @@ export default function App() {
                 <span className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? '#00ff88' : '#6b7280' }}>
                   {tab.icon}
                 </span>
-                <span className="nav-label" style={{ fontSize: '9px', fontWeight: active ? 'bold' : 'normal', color: active ? '#ffffff' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <span className="nav-label" style={{ fontSize: '14px', fontWeight: active ? 'bold' : 'normal', color: active ? '#ffffff' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   {tab.label}
                 </span>
                 {active && <span style={{ position: 'absolute', bottom: '0', width: '12px', height: '2px', backgroundColor: '#00ff88', borderRadius: '10px' }}></span>}
@@ -3120,16 +3171,16 @@ export default function App() {
             <span className="levelup-sparkle levelup-sparkle-2">✨</span>
             <span className="levelup-sparkle levelup-sparkle-3">✨</span>
             <span className="levelup-trophy-icon" style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
-            <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '20px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+            <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '24px', letterSpacing: '2px', textTransform: 'uppercase' }}>
               ATHLETIC LEVEL UP!
             </h2>
-            <p className="modal-desc" style={{ color: '#ffffff', fontSize: '11.5px', marginTop: '10px', lineHeight: '1.5' }}>
+            <p className="modal-desc" style={{ color: '#ffffff', fontSize: '17px', marginTop: '10px', lineHeight: '1.6' }}>
               Congratulations! Your verified physical and biometric efforts have promoted your telemetry status to:
               <br/>
-              <strong style={{ color: '#00bfff', display: 'block', margin: '10px 0', fontSize: '15px' }}>
+              <strong style={{ color: '#00bfff', display: 'block', margin: '10px 0', fontSize: '20px' }}>
                 LEVEL {level + 1} PEAK CONDITIONING ATHLETE
               </strong>
-              Your B2B clearinghouse pass quotas and points limits have been upgraded successfully.
+              Your points limits have been upgraded!
             </p>
             <button
               onClick={() => {
@@ -3166,17 +3217,17 @@ export default function App() {
               </button>
             </div>
             {!Capacitor.isNativePlatform() && (
-              <p style={{ fontSize: '9px', color: '#9ca3af', marginTop: '10px' }}>
+              <p style={{ fontSize: '14px', color: '#9ca3af', marginTop: '10px' }}>
                 📱 Live sync requires the iOS or Android app — desktop/web can't connect Apple Health or Health Connect.
               </p>
             )}
 
             {/* Real-time Syncing Educational Diagnostics Panel */}
-            <div className="sync-diagnostics-card" style={{ marginTop: '15px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '12px', borderRadius: '8px', fontSize: '9.5px', color: '#9ca3af', textAlign: 'left', lineHeight: '1.4' }}>
+            <div className="sync-diagnostics-card" style={{ marginTop: '15px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '12px', borderRadius: '8px', fontSize: '14px', color: '#9ca3af', textAlign: 'left', lineHeight: '1.6' }}>
               <span style={{ color: '#00bfff', fontWeight: 'bold', display: 'block', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 📡 Telemetry Sync Protocol: How it Works
               </span>
-              KinetixFit operates on a **Single-Tap Aggregated Handshake**. Instead of connecting directly to 50 individual devices, our app links with your phone's native health data aggregation layer.
+              KinetixFit connects directly to your phone's health app — Apple Health or Health Connect — instead of 50 individual devices.
               <br/><br/>
               Whether you are syncing locomotive steps from a wristband, cardiac HRV streams from an ECG chest strap, or restorative deep sleep stages from a circadian ring, your smartphone aggregates them into a central feed. KinetixFit reads this central feed with a single click, instantly validating points in real-time!
             </div>
@@ -3187,7 +3238,7 @@ export default function App() {
         </div>
       )}
 
-      {/* --- SIMULATED OPTICAL CHARACTER CAMERA OCR VIEWPORT MODAL --- */}
+      {/* --- AI SPECTRAL INGESTION SCANNER MODAL --- */}
       {showCameraModal && (
         <div className="portal-overlay-modal">
           <div className="modal-content-card">
@@ -3196,21 +3247,22 @@ export default function App() {
             {isCameraScanning ? (
               <div className="camera-viewfinder-scanning" style={{ height: '240px' }}>
                 <div className="laser-beam"></div>
-                <div className="ocr-matrix-output" style={{ padding: '15px', color: '#00ff88', fontSize: '9px', fontFamily: 'monospace', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <div>⏳ [SYS_START]: INGESTION PIPELINE ACTIVE</div>
-                  <div>📡 [OCR_SNAP]: EXTRACTING INGREDIENT TEXT STRINGS</div>
-                  <div>🧬 [VECTOR]: COMPILING ALLERGEN VECTORS (UK FSA STANDARD)</div>
-                  <div>🛡️ [NATASHA]: CROSS-REFERENCING CUSTOM BIO PROFILE...</div>
-                </div>
-                <span className="scanner-timer" style={{ fontSize: '28px', marginTop: '10px' }}>⚡</span>
-                <span className="scanner-status-text" style={{ textShadow: '0 0 10px #00ff88', marginTop: '5px' }}>INTERROGATING INGREDIENTS DICTIONARY...</span>
-                <span className="scanner-subtext">UK Food Information Regulations Compliant</span>
+                <span className="scanner-status-text" style={{ textShadow: '0 0 10px #00ff88', marginTop: '5px' }}>Looking up product…</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <p className="modal-desc">
-                  Snap or upload a photo for AI-powered food identification and portion estimation, or pick a quick option below.
+                  Scan a barcode, snap or upload a photo for AI-powered food identification, or pick a quick option below.
                 </p>
+
+                {/* Real barcode scan */}
+                <button
+                  onClick={handleBarcodeScan}
+                  className="primary-btn"
+                  style={{ width: '100%', padding: '12px' }}
+                >
+                  🔍 Scan Barcode
+                </button>
 
                 {/* Real photo capture */}
                 <input
@@ -3247,15 +3299,15 @@ export default function App() {
                         triggerCameraScan(p.ing);
                       }}
                       className="camera-mock-choice-btn hover-green"
-                      style={{ padding: '10px', fontSize: '11px', textTransform: 'none' }}
+                      style={{ padding: '10px', fontSize: '16px', textTransform: 'none' }}
                     >
                       <div style={{ textAlign: 'left' }}>
                         <span style={{ fontWeight: 'bold', color: '#fff', display: 'block', marginBottom: '2px' }}>🛒 {p.name}</span>
-                        <span style={{ color: '#6b7280', fontSize: '9px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
+                        <span style={{ color: '#6b7280', fontSize: '14px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
                           Ingredients: {p.ing}
                         </span>
                       </div>
-                      <span style={{ color: '#00ff88', fontSize: '9px', fontWeight: 'bold', border: '1px solid #00ff88', padding: '2px 6px', borderRadius: '4px' }}>SCAN</span>
+                      <span style={{ color: '#00ff88', fontSize: '14px', fontWeight: 'bold', border: '1px solid #00ff88', padding: '2px 6px', borderRadius: '4px' }}>SCAN</span>
                     </button>
                   ))}
                 </div>
@@ -3269,7 +3321,7 @@ export default function App() {
                     value={mealInput}
                     onChange={(e) => setMealInput(e.target.value)}
                     className="support-textarea"
-                    style={{ fontSize: '11px', background: '#030712', color: '#00ff88', border: '1px solid #00ff88', fontFamily: 'monospace', padding: '10px' }}
+                    style={{ fontSize: '16px', background: '#030712', color: '#00ff88', border: '1px solid #00ff88', fontFamily: 'monospace', padding: '10px' }}
                   />
                   <button
                     onClick={() => triggerCameraScan(mealInput)}
@@ -3382,7 +3434,7 @@ export default function App() {
           filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5)) !important;
         }
         .app-brand-title {
-          font-size: 20px !important;
+          font-size: 24px !important;
           font-weight: 900 !important;
           color: #ffffff !important;
           margin: 0 !important;
@@ -3390,7 +3442,7 @@ export default function App() {
           text-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
         }
         .app-brand-subtitle {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #6b7280 !important;
           letter-spacing: 2px !important;
           display: block !important;
@@ -3400,7 +3452,7 @@ export default function App() {
           background-color: rgba(0, 255, 136, 0.08) !important;
           border: 1px solid rgba(0, 255, 136, 0.3) !important;
           color: #00ff88 !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           font-weight: bold !important;
           padding: 6px 14px !important;
           border-radius: 20px !important;
@@ -3417,7 +3469,7 @@ export default function App() {
           border-bottom: 1px solid rgba(0, 255, 136, 0.25) !important;
           color: #00ff88 !important;
           padding: 8px 15px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           text-align: center !important;
           font-weight: bold !important;
           z-index: 100 !important;
@@ -3434,7 +3486,7 @@ export default function App() {
 
         /* Headers of sections */
         .section-header {
-          font-size: 12px !important;
+          font-size: 17px !important;
           color: #9ca3af !important;
           text-transform: uppercase !important;
           letter-spacing: 1px !important;
@@ -3481,7 +3533,7 @@ export default function App() {
           background: radial-gradient(circle, #00ff88 0%, #00bfff 100%) !important;
           color: #030712 !important;
           font-weight: 900 !important;
-          font-size: 13px !important;
+          font-size: 18px !important;
           width: 52px !important;
           height: 52px !important;
           border-radius: 50% !important;
@@ -3491,19 +3543,19 @@ export default function App() {
           box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
         }
         .athlete-title {
-          font-size: 13.5px !important;
+          font-size: 19px !important;
           color: #ffffff !important;
           margin: 0 0 2px 0 !important;
         }
         .athlete-subtext {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
         }
         .streak-badge {
           background-color: rgba(255, 149, 0, 0.08) !important;
           border: 1px solid #ff9500 !important;
           color: #ff9500 !important;
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           font-weight: bold !important;
           padding: 5px 12px !important;
           border-radius: 12px !important;
@@ -3535,8 +3587,8 @@ export default function App() {
           text-align: center !important;
           transition: all 0.3s ease !important;
         }
-        .badge-icon { font-size: 22px !important; }
-        .badge-label { font-size: 8px !important; text-transform: uppercase; letter-spacing: 0.3px !important; line-height: 1.3 !important; }
+        .badge-icon { font-size: 26px !important; }
+        .badge-label { font-size: 12px !important; text-transform: uppercase; letter-spacing: 0.3px !important; line-height: 1.5 !important; }
         .badge-unlocked {
           background-color: rgba(0, 255, 136, 0.06) !important;
           border: 1px solid #00ff88 !important;
@@ -3554,7 +3606,7 @@ export default function App() {
           position: absolute !important;
           top: 4px !important;
           right: 6px !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
         }
         .xp-progress-bar-container {
           display: flex !important;
@@ -3564,7 +3616,7 @@ export default function App() {
         .xp-bar-header {
           display: flex !important;
           justify-content: space-between !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #6b7280 !important;
           text-transform: uppercase !important;
         }
@@ -3602,7 +3654,7 @@ export default function App() {
           color: #9ca3af !important;
           padding: 8px !important;
           font-family: monospace !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
           font-weight: bold !important;
           cursor: pointer !important;
           border-radius: 6px !important;
@@ -3645,13 +3697,13 @@ export default function App() {
           top: 38% !important;
           left: 50% !important;
           transform: translate(-50%, -50%) !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
           font-weight: bold !important;
           color: #ffffff !important;
         }
         .ring-indicator span {
           display: block !important;
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #9ca3af !important;
           margin-top: 6px !important;
           text-transform: uppercase !important;
@@ -3676,14 +3728,14 @@ export default function App() {
           align-items: flex-start !important;
         }
         .ecg-label {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #6b7280 !important;
           letter-spacing: 2px !important;
           display: block !important;
           text-transform: uppercase !important;
         }
         .ecg-title {
-          font-size: 15px !important;
+          font-size: 20px !important;
           font-weight: bold !important;
           color: #ffffff !important;
           margin: 4px 0 0 0 !important;
@@ -3693,7 +3745,7 @@ export default function App() {
           background-color: rgba(255, 59, 48, 0.08) !important;
           border: 1px solid rgba(255, 59, 48, 0.3) !important;
           color: #ff3b30 !important;
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           font-weight: bold !important;
           padding: 4px 10px !important;
           border-radius: 12px !important;
@@ -3736,7 +3788,7 @@ export default function App() {
           padding: 15px !important;
         }
         .drilldown-analysis-title {
-          font-size: 11.5px !important;
+          font-size: 17px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
           margin: 0 0 6px 0 !important;
@@ -3744,9 +3796,9 @@ export default function App() {
           letter-spacing: 1px !important;
         }
         .drilldown-analysis-desc {
-          font-size: 10px !important;
+          font-size: 15px !important;
           color: #9ca3af !important;
-          line-height: 1.5 !important;
+          line-height: 1.6 !important;
           margin: 0 0 12px 0 !important;
         }
         .drilldown-submetrics-grid {
@@ -3762,14 +3814,14 @@ export default function App() {
           text-align: center !important;
         }
         .capsule-label {
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #6b7280 !important;
           text-transform: uppercase !important;
           display: block !important;
           margin-bottom: 3px !important;
         }
         .capsule-value {
-          font-size: 11px !important;
+          font-size: 16px !important;
           font-family: monospace !important;
           display: block !important;
         }
@@ -3812,14 +3864,14 @@ export default function App() {
           margin-bottom: 6px !important;
         }
         .bio-system-label {
-          font-size: 8px !important;
+          font-size: 12px !important;
           color: #6b7280 !important;
           font-weight: bold !important;
           text-transform: uppercase !important;
           letter-spacing: 0.5px !important;
         }
         .bio-status-badge {
-          font-size: 7.5px !important;
+          font-size: 12px !important;
           padding: 2px 6px !important;
           border-radius: 10px !important;
           font-weight: bold !important;
@@ -3830,14 +3882,14 @@ export default function App() {
         .status-calibrating { background-color: rgba(255, 149, 0, 0.08) !important; color: #ff9500 !important; }
         .status-critical { background-color: rgba(255, 59, 48, 0.08) !important; color: #ff3b30 !important; }
         .bio-metric-title {
-          font-size: 12px !important;
+          font-size: 17px !important;
           color: #ffffff !important;
           margin: 0 !important;
           font-weight: normal !important;
           letter-spacing: 0.5px !important;
         }
         .bio-metric-reading {
-          font-size: 15px !important;
+          font-size: 20px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
           margin: 6px 0 !important;
@@ -3845,7 +3897,7 @@ export default function App() {
           text-shadow: 0 0 10px rgba(0, 255, 136, 0.2) !important;
         }
         .bio-behavior-log {
-          font-size: 8px !important;
+          font-size: 12px !important;
           color: #9ca3af !important;
           display: block !important;
           border-top: 1px solid #111827 !important;
@@ -3856,7 +3908,7 @@ export default function App() {
           text-overflow: ellipsis !important;
         }
         .active-glow-indicator {
-          font-size: 7.5px !important;
+          font-size: 12px !important;
           color: #00ff88 !important;
           font-weight: bold !important;
           position: absolute !important;
@@ -3880,7 +3932,7 @@ export default function App() {
           padding: 10px !important;
           border-radius: 20px !important;
           cursor: pointer !important;
-          font-size: 10.5px !important;
+          font-size: 16px !important;
           font-family: monospace !important;
           transition: all 0.2s ease !important;
         }
@@ -3896,7 +3948,7 @@ export default function App() {
           padding: 10px !important;
           border-radius: 20px !important;
           cursor: pointer !important;
-          font-size: 10.5px !important;
+          font-size: 16px !important;
           font-family: monospace !important;
           transition: all 0.2s ease !important;
         }
@@ -3913,7 +3965,7 @@ export default function App() {
           box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.01) !important;
         }
         .drawer-title {
-          font-size: 12px !important;
+          font-size: 17px !important;
           color: #00ff88 !important;
           text-transform: uppercase !important;
           margin: 0 0 15px 0 !important;
@@ -3925,7 +3977,7 @@ export default function App() {
           gap: 15px !important;
         }
         .drawer-label {
-          font-size: 10px !important;
+          font-size: 15px !important;
           color: #9ca3af !important;
         }
         .drawer-input {
@@ -3936,7 +3988,7 @@ export default function App() {
           padding: 8px !important;
           margin-top: 4px !important;
           font-family: monospace !important;
-          font-size: 11px !important;
+          font-size: 16px !important;
           border-radius: 4px !important;
           outline: none !important;
           box-sizing: border-box !important;
@@ -3949,7 +4001,7 @@ export default function App() {
           padding: 8px !important;
           margin-top: 4px !important;
           font-family: monospace !important;
-          font-size: 11px !important;
+          font-size: 16px !important;
           border-radius: 4px !important;
           outline: none !important;
           box-sizing: border-box !important;
@@ -3967,7 +4019,7 @@ export default function App() {
           padding: 20px !important;
         }
         .nourish-calories-remaining {
-          font-size: 20px !important;
+          font-size: 24px !important;
           font-weight: bold !important;
           margin: 6px 0 !important;
         }
@@ -3987,7 +4039,7 @@ export default function App() {
         .macro-bar-header {
           display: flex !important;
           justify-content: space-between !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           color: #9ca3af !important;
         }
         .progress-track {
@@ -4012,7 +4064,7 @@ export default function App() {
           padding: 20px !important;
         }
         .card-header-title {
-          font-size: 13px !important;
+          font-size: 18px !important;
           color: #ffffff !important;
           margin: 0 0 6px 0 !important;
           border-left: 3px solid #00ff88 !important;
@@ -4021,9 +4073,9 @@ export default function App() {
           letter-spacing: 1px !important;
         }
         .card-header-desc {
-          font-size: 10.5px !important;
+          font-size: 16px !important;
           color: #9ca3af !important;
-          line-height: 1.5 !important;
+          line-height: 1.6 !important;
           margin: 0 0 15px 0 !important;
         }
         .scanner-input-row {
@@ -4036,7 +4088,7 @@ export default function App() {
           border: 1px solid #374151 !important;
           color: #ffffff !important;
           padding: 12px !important;
-          font-size: 12px !important;
+          font-size: 17px !important;
           font-family: monospace !important;
           border-radius: 6px !important;
           outline: none !important;
@@ -4049,7 +4101,7 @@ export default function App() {
           border: 1px solid #00ff88 !important;
           color: #00ff88 !important;
           padding: 0 15px !important;
-          font-size: 16px !important;
+          font-size: 21px !important;
           cursor: pointer !important;
           border-radius: 6px !important;
           display: flex !important;
@@ -4066,7 +4118,7 @@ export default function App() {
           font-weight: bold !important;
           border: none !important;
           padding: 0 20px !important;
-          font-size: 12px !important;
+          font-size: 17px !important;
           font-family: monospace !important;
           cursor: pointer !important;
           border-radius: 6px !important;
@@ -4089,10 +4141,10 @@ export default function App() {
           border-bottom: 1px solid #1f2937 !important;
           padding-bottom: 10px !important;
           margin-bottom: 12px !important;
-          font-size: 12px !important;
+          font-size: 17px !important;
         }
         .compliance-badge {
-          font-size: 9px !important;
+          font-size: 14px !important;
           padding: 3px 10px !important;
           border-radius: 4px !important;
           font-weight: bold !important;
@@ -4101,7 +4153,7 @@ export default function App() {
         .badge-hazard_detected { background-color: rgba(255, 59, 48, 0.1) !important; color: #ff3b30 !important; }
         .estimated-portion-badge {
           display: inline-block !important;
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #9ca3af !important;
           background-color: #030712 !important;
           border: 1px solid #1f2937 !important;
@@ -4113,21 +4165,21 @@ export default function App() {
           display: grid !important;
           grid-template-columns: 1.1fr 0.9fr !important;
           gap: 12px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           color: #9ca3af !important;
           margin-bottom: 10px !important;
         }
         .panel-sub-label {
           color: #ffffff !important;
           display: block !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
           margin-bottom: 4px !important;
         }
         .scan-clinical-recommendation {
           border-top: 1px solid #111827 !important;
           padding-top: 8px !important;
-          font-size: 9.5px !important;
-          line-height: 1.4 !important;
+          font-size: 14px !important;
+          line-height: 1.6 !important;
         }
         .scan-clinical-recommendation strong {
           color: #ffffff !important;
@@ -4143,7 +4195,7 @@ export default function App() {
           padding: 20px !important;
         }
         .rewards-wallet-balance {
-          font-size: 24px !important;
+          font-size: 28px !important;
           font-weight: bold !important;
           color: #00ff88 !important;
           margin: 4px 0 !important;
@@ -4152,7 +4204,7 @@ export default function App() {
           display: flex !important;
           align-items: center !important;
           gap: 8px !important;
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #ff9500 !important;
           cursor: pointer !important;
         }
@@ -4170,16 +4222,16 @@ export default function App() {
           padding: 20px !important;
         }
         .validator-label {
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #6b7280 !important;
           letter-spacing: 1px !important;
           display: block !important;
           margin-bottom: 4px !important;
         }
         .validator-desc {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
+          line-height: 1.6 !important;
           margin: 0 0 12px 0 !important;
         }
         .cadence-btn-normal {
@@ -4188,7 +4240,7 @@ export default function App() {
           border: 1px solid #00ff88 !important;
           color: #00ff88 !important;
           padding: 8px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           cursor: pointer !important;
           border-radius: 4px !important;
           font-family: monospace !important;
@@ -4200,7 +4252,7 @@ export default function App() {
           border: 1px solid #ff3b30 !important;
           color: #ff3b30 !important;
           padding: 8px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           cursor: pointer !important;
           border-radius: 4px !important;
           font-family: monospace !important;
@@ -4223,7 +4275,7 @@ export default function App() {
           margin-bottom: 12px !important;
         }
         .quests-title {
-          font-size: 12.5px !important;
+          font-size: 18px !important;
           color: #00ff88 !important;
           margin: 0 !important;
           text-transform: uppercase !important;
@@ -4242,7 +4294,7 @@ export default function App() {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          font-size: 10.5px !important;
+          font-size: 16px !important;
           transition: border-color 0.2s !important;
         }
         .quest-item-completed {
@@ -4264,7 +4316,7 @@ export default function App() {
           margin-bottom: 12px !important;
         }
         .redemption-title {
-          font-size: 13px !important;
+          font-size: 18px !important;
           color: #ffffff !important;
           margin: 0 !important;
           border-left: 3px solid #00ff88 !important;
@@ -4279,13 +4331,13 @@ export default function App() {
           padding: 6px 12px !important;
           border-radius: 15px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           font-family: monospace !important;
         }
         .redemption-description {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
+          line-height: 1.6 !important;
           margin: 0 0 12px 0 !important;
         }
         .ledger-table-container {
@@ -4294,7 +4346,7 @@ export default function App() {
         .ledger-table {
           width: 100% !important;
           border-collapse: collapse !important;
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           text-align: left !important;
         }
         .ledger-table th {
@@ -4308,7 +4360,7 @@ export default function App() {
           border-bottom: 1px solid #111827 !important;
         }
         .ledger-status-pill {
-          font-size: 7.5px !important;
+          font-size: 12px !important;
           padding: 1px 4px !important;
           border-radius: 3px !important;
           font-weight: bold !important;
@@ -4332,18 +4384,18 @@ export default function App() {
           margin-bottom: 12px !important;
         }
         .charity-title {
-          font-size: 11.5px !important;
+          font-size: 17px !important;
           color: #ffffff !important;
           margin: 0 !important;
           text-transform: uppercase !important;
         }
         .charity-subtitle {
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #9ca3af !important;
           display: block !important;
         }
         .donations-count-pill {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #00ff88 !important;
           font-weight: bold !important;
         }
@@ -4363,21 +4415,21 @@ export default function App() {
           gap: 10px !important;
         }
         .charity-item-tag {
-          font-size: 7.5px !important;
+          font-size: 12px !important;
           color: #00bfff !important;
           text-transform: uppercase !important;
           font-weight: bold !important;
           display: block !important;
         }
         .charity-item-name {
-          font-size: 11.5px !important;
+          font-size: 17px !important;
           color: #ffffff !important;
           margin: 2px 0 !important;
         }
         .charity-item-mission {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
-          line-height: 1.3 !important;
+          line-height: 1.5 !important;
           margin: 0 !important;
         }
         .donate-points-btn {
@@ -4389,7 +4441,7 @@ export default function App() {
           padding: 6px !important;
           cursor: pointer !important;
           border-radius: 4px !important;
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           font-family: monospace !important;
         }
 
@@ -4401,14 +4453,14 @@ export default function App() {
           padding: 15px !important;
         }
         .billing-status-title {
-          font-size: 13.5px !important;
+          font-size: 19px !important;
           font-weight: bold !important;
           margin: 4px 0 !important;
         }
         .billing-disclaimer {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #6b7280 !important;
-          line-height: 1.4 !important;
+          line-height: 1.6 !important;
           margin: 5px 0 12px 0 !important;
         }
         .billing-stats-row {
@@ -4423,21 +4475,21 @@ export default function App() {
           padding: 10px !important;
         }
         .billing-stat-box span {
-          font-size: 7.5px !important;
+          font-size: 12px !important;
           color: #6b7280 !important;
           display: block !important;
         }
         .billing-stat-box strong {
-          font-size: 11.5px !important;
+          font-size: 17px !important;
           color: #00ff88 !important;
           display: block !important;
           margin: 2px 0 !important;
         }
         .billing-stat-box p {
-          font-size: 8px !important;
+          font-size: 12px !important;
           color: #9ca3af !important;
           margin: 0 !important;
-          line-height: 1.3 !important;
+          line-height: 1.5 !important;
         }
         .promo-input-box {
           margin-top: 15px !important;
@@ -4447,13 +4499,13 @@ export default function App() {
           padding: 12px !important;
         }
         .promo-box-title {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #00bfff !important;
           font-weight: bold !important;
           display: block !important;
         }
         .promo-box-desc {
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #9ca3af !important;
           margin: 2px 0 8px 0 !important;
         }
@@ -4467,7 +4519,7 @@ export default function App() {
           border: 1px solid #374151 !important;
           color: #ffffff !important;
           padding: 6px !important;
-          font-size: 10.5px !important;
+          font-size: 16px !important;
           font-family: monospace !important;
           border-radius: 4px !important;
           outline: none;
@@ -4481,13 +4533,13 @@ export default function App() {
           font-weight: bold !important;
           border: none !important;
           padding: 0 12px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           font-family: monospace !important;
           cursor: pointer !important;
           border-radius: 4px !important;
         }
         .promo-response-msg {
-          font-size: 9px !important;
+          font-size: 14px !important;
           margin-top: 6px !important;
         }
         .response-error { color: #ff3b30 !important; }
@@ -4506,14 +4558,14 @@ export default function App() {
           padding: 12px !important;
         }
         .legal-card-title {
-          font-size: 11px !important;
+          font-size: 16px !important;
           color: #ffffff !important;
           margin: 0 0 6px 0 !important;
         }
         .legal-card-text {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
+          line-height: 1.6 !important;
           margin: 0 !important;
         }
 
@@ -4525,7 +4577,7 @@ export default function App() {
           padding: 15px !important;
         }
         .support-card-title {
-          font-size: 11.5px !important;
+          font-size: 17px !important;
           color: #ffffff !important;
           margin: 0 0 10px 0 !important;
         }
@@ -4535,7 +4587,7 @@ export default function App() {
           color: #00ff88 !important;
           padding: 12px !important;
           border-radius: 6px !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           text-align: center !important;
         }
         .support-form-stack {
@@ -4544,7 +4596,7 @@ export default function App() {
           gap: 10px !important;
         }
         .support-field-label {
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
         }
         .support-input {
@@ -4555,7 +4607,7 @@ export default function App() {
           padding: 6px !important;
           margin-top: 3px !important;
           font-family: monospace !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           border-radius: 4px !important;
           outline: none !important;
           box-sizing: border-box !important;
@@ -4568,7 +4620,7 @@ export default function App() {
           padding: 6px !important;
           margin-top: 3px !important;
           font-family: monospace !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           border-radius: 4px !important;
           outline: none !important;
           resize: none !important;
@@ -4578,7 +4630,7 @@ export default function App() {
           border-top: 1px solid #111827 !important;
           margin-top: 12px !important;
           padding-top: 10px !important;
-          font-size: 9px !important;
+          font-size: 14px !important;
           color: #9ca3af !important;
           display: flex !important;
           flex-direction: column !important;
@@ -4617,7 +4669,7 @@ export default function App() {
           align-items: center !important;
           cursor: pointer !important;
           font-family: monospace !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           font-weight: bold !important;
           gap: 4px !important;
           transition: all 0.25s ease !important;
@@ -4626,7 +4678,7 @@ export default function App() {
           color: #00ff88 !important;
         }
         .nav-icon {
-          font-size: 16px !important;
+          font-size: 21px !important;
         }
         .nav-item-active .nav-icon {
           filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.3)) !important;
@@ -4643,7 +4695,7 @@ export default function App() {
           background: radial-gradient(circle, #0b0f19 0%, #030712 100%) !important;
           border: 2px solid #00ff88 !important;
           color: #00ff88 !important;
-          font-size: 22px !important;
+          font-size: 26px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
@@ -4714,27 +4766,27 @@ export default function App() {
         }
         .levelup-sparkle {
           position: absolute !important;
-          font-size: 16px !important;
+          font-size: 21px !important;
           opacity: 0 !important;
           animation: levelUpSparkleTwinkle 2.4s ease-in-out infinite !important;
           pointer-events: none !important;
         }
         .levelup-sparkle-1 { top: 12% !important; left: 15% !important; animation-delay: 0s !important; }
-        .levelup-sparkle-2 { top: 20% !important; right: 12% !important; animation-delay: 0.7s !important; font-size: 12px !important; }
-        .levelup-sparkle-3 { bottom: 18% !important; left: 22% !important; animation-delay: 1.3s !important; font-size: 13px !important; }
+        .levelup-sparkle-2 { top: 20% !important; right: 12% !important; animation-delay: 0.7s !important; font-size: 17px !important; }
+        .levelup-sparkle-3 { bottom: 18% !important; left: 22% !important; animation-delay: 1.3s !important; font-size: 18px !important; }
         @keyframes levelUpSparkleTwinkle {
           0%, 100% { opacity: 0; transform: scale(0.6); }
           50% { opacity: 1; transform: scale(1.1); }
         }
         .modal-title {
-          font-size: 14px !important;
+          font-size: 19px !important;
           color: #ffffff !important;
           margin: 0 0 4px 0 !important;
         }
         .modal-desc {
-          font-size: 10px !important;
+          font-size: 15px !important;
           color: #9ca3af !important;
-          line-height: 1.4 !important;
+          line-height: 1.6 !important;
           margin: 0 0 15px 0 !important;
         }
         .modal-options-stack {
@@ -4749,7 +4801,7 @@ export default function App() {
           padding: 10px !important;
           border-radius: 6px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           display: flex !important;
           justify-content: space-between !important;
           font-family: monospace !important;
@@ -4762,7 +4814,7 @@ export default function App() {
           padding: 8px !important;
           border-radius: 6px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           font-family: monospace !important;
           margin-top: 12px !important;
         }
@@ -4796,7 +4848,7 @@ export default function App() {
           100% { top: 0; }
         }
         .scanner-timer {
-          font-size: 24px !important;
+          font-size: 28px !important;
           animation: rotationSpin 2s infinite linear !important;
         }
         @keyframes rotationSpin {
@@ -4804,14 +4856,14 @@ export default function App() {
           to { transform: rotate(360deg); }
         }
         .scanner-status-text {
-          font-size: 9.5px !important;
+          font-size: 14px !important;
           color: #00ff88 !important;
           font-weight: bold !important;
           margin-top: 10px !important;
           text-align: center !important;
         }
         .scanner-subtext {
-          font-size: 8px !important;
+          font-size: 12px !important;
           color: #6b7280 !important;
           margin-top: 4px !important;
         }
@@ -4824,7 +4876,7 @@ export default function App() {
           padding: 10px !important;
           border-radius: 6px !important;
           cursor: pointer !important;
-          font-size: 10px !important;
+          font-size: 15px !important;
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
@@ -4839,7 +4891,7 @@ export default function App() {
           border-top: 2px solid #1f2937 !important;
           margin-top: 15px !important;
           padding-top: 15px !important;
-          font-size: 8.5px !important;
+          font-size: 13px !important;
           color: #6b7280 !important;
         }
 
@@ -4883,7 +4935,7 @@ export default function App() {
             right: 20px !important;
             width: 50px !important;
             height: 50px !important;
-            font-size: 18px !important;
+            font-size: 22px !important;
           }
         }
       `}</style>
