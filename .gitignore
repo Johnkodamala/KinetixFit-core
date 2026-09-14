@@ -39,3 +39,10 @@ ios/App/Pods
 ios/App/build
 ios/App/App.xcworkspace/xcuserdata
 ios/App/App.xcodeproj/xcuserdata
+
+# Android/iOS signing keys — never commit these, losing control of the release key means
+# nobody (including you) can ever publish an update under the app's existing identity again.
+*.jks
+*.keystore
+*.p12
+*.pem

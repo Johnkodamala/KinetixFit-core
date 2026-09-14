@@ -4,6 +4,8 @@ import { Browser } from '@capacitor/browser';
 import { Purchases, type CustomerInfo } from '@revenuecat/purchases-capacitor';
 import { Health } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -44,7 +46,141 @@ interface UserProfile {
   averageCycleLength: number;
 }
 
-const SLEEP_QUALITY_PERCENT = 84;
+// Onboarding step index at which the real dashboard becomes visible. Steps: 0-1 Welcome,
+// 2 Sign up/Log in, 3 Health permission, 4 Notifications permission, 5 Profile, 6 Allergies.
+const DASHBOARD_STEP = 7;
+
+// Phase 1 design tokens — clean, light, trustworthy (MyFitnessPal/Apple Health direction),
+// used by the new onboarding screens. Existing dashboard tabs keep their current look until
+// the Phase 3 rollout retrofits them.
+const ONBOARDING_STYLES = `
+  .ob-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
+    background-color: #FAFAFA;
+    color: #1A1D1F;
+    width: 100%;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  .ob-card {
+    width: 100%;
+    max-width: 420px;
+    background-color: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 32px 24px;
+    box-sizing: border-box;
+  }
+  .ob-logo { display: flex; justify-content: center; margin-bottom: 24px; }
+  .ob-title { font-size: 24px; font-weight: 700; margin: 0 0 8px 0; text-align: center; color: #1A1D1F; }
+  .ob-body { font-size: 16px; color: #6B7280; line-height: 1.6; text-align: center; margin: 0 0 24px 0; }
+  .ob-label { font-size: 14px; color: #374151; font-weight: 600; display: block; margin-bottom: 6px; }
+  .ob-input {
+    width: 100%; background-color: #FFFFFF; border: 1px solid #E5E7EB; color: #1A1D1F;
+    padding: 12px 14px; font-size: 16px; border-radius: 8px; outline: none;
+    box-sizing: border-box; font-family: inherit; margin-bottom: 16px;
+  }
+  .ob-input:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+  .ob-btn-primary {
+    width: 100%; background-color: #2563EB; color: #FFFFFF; font-weight: 600; font-size: 16px;
+    border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
+    transition: background-color 0.15s;
+  }
+  .ob-btn-primary:hover { background-color: #1D4ED8; }
+  .ob-btn-primary:disabled { background-color: #93C5FD; cursor: not-allowed; }
+  .ob-btn-secondary {
+    width: 100%; background-color: #FFFFFF; color: #374151; font-weight: 600; font-size: 16px;
+    border: 1px solid #E5E7EB; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
+  }
+  .ob-btn-secondary:hover { background-color: #F3F4F6; }
+  .ob-btn-google {
+    width: 100%; background-color: #FFFFFF; color: #1A1D1F; font-weight: 600; font-size: 16px;
+    border: 1px solid #E5E7EB; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .ob-btn-google:hover { background-color: #F3F4F6; }
+  .ob-btn-row { display: flex; gap: 12px; margin-top: 8px; }
+  .ob-link { color: #2563EB; font-weight: 600; cursor: pointer; background: none; border: none; font-size: 14px; font-family: inherit; padding: 0; }
+  .ob-link:hover { text-decoration: underline; }
+  .ob-error { color: #DC2626; font-size: 14px; text-align: center; margin: -8px 0 16px 0; }
+  .ob-success { color: #059669; font-size: 14px; text-align: center; margin: -8px 0 16px 0; }
+  .ob-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #9CA3AF; font-size: 13px; }
+  .ob-divider::before, .ob-divider::after { content: ''; flex: 1; height: 1px; background-color: #E5E7EB; }
+  .ob-dots { display: flex; justify-content: center; gap: 6px; margin-top: 24px; }
+  .ob-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #E5E7EB; }
+  .ob-dot.active { background-color: #2563EB; }
+  .ob-footnote { font-size: 13px; color: #9CA3AF; text-align: center; line-height: 1.6; margin-top: 20px; }
+  .ob-footnote a { color: #6B7280; }
+`;
+
+// Shared styles for the two reused/renumbered profile-setup steps (5: profile, 6: allergies),
+// which keep their original dark theme pending the Phase 3 design-system rollout.
+const ONBOARDING_PROFILE_STYLES = `
+  .auth-input {
+    width: 100% !important;
+    background-color: #030712 !important;
+    border: 1px solid #374151 !important;
+    color: #ffffff !important;
+    padding: 10px !important;
+    margin-top: 6px !important;
+    font-size: 17px !important;
+    font-family: monospace !important;
+    border-radius: 4px !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+  }
+  .auth-input:focus {
+    border-color: #00ff88 !important;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
+  }
+  .auth-input-select {
+    width: 100% !important;
+    background-color: #030712 !important;
+    border: 1px solid #374151 !important;
+    color: #ffffff !important;
+    padding: 8px !important;
+    margin-top: 4px !important;
+    font-family: monospace !important;
+    border-radius: 4px !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+  }
+  .auth-input-select option {
+    background-color: #0b0f19 !important;
+    color: #ffffff !important;
+  }
+  .primary-btn {
+    background-color: #00ff88 !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    border: none !important;
+    padding: 10px !important;
+    cursor: pointer !important;
+    border-radius: 4px !important;
+    font-size: 17px !important;
+    font-family: monospace !important;
+    transition: all 0.2s !important;
+  }
+  .primary-btn:hover {
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
+    transform: translateY(-1px) !important;
+  }
+  .secondary-btn {
+    background-color: #1f2937 !important;
+    color: #ffffff !important;
+    border: 1px solid #374151 !important;
+    padding: 10px !important;
+    cursor: pointer !important;
+    border-radius: 4px !important;
+    font-size: 16px !important;
+    font-family: monospace !important;
+  }
+`;
 
 // Standard-length cycle phase breakdown, scaled to the user's own average cycle length.
 function computeCyclePhase(lastPeriodStartDate: string, averageCycleLength: number): { phase: string; dayOfCycle: number } {
@@ -69,7 +205,7 @@ const DEFAULT_PROFILE: UserProfile = {
   weight: 75.0,
   target: 'Autonomic Recovery',
   personalAllergens: [],
-  workoutsLogged: ['Morning Walk (30m)'],
+  workoutsLogged: [],
   smartDeviceConnected: null,
   sex: null,
   age: 30,
@@ -228,10 +364,16 @@ export default function App() {
     return saved === 'true';
   });
 
-  const [onboardingStep, setOnboardingStep] = useState<number>(0); // 0: Landing/Marketing, 1: Login, 2: Profile, 3: Allergens, 4: Device, 5: Portal
+  // 0: Welcome 1, 1: Welcome 2, 2: Sign up/Log in, 3: Health permission, 4: Notifications permission,
+  // 5: Profile setup, 6: Allergies, 7 (DASHBOARD_STEP): main app
+  const [onboardingStep, setOnboardingStep] = useState<number>(0);
   const [emailInput, setEmailInput] = useState<string>('');
-  const [otpInput, setOtpInput] = useState<string>('');
-  const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [authMode, setAuthMode] = useState<'signup' | 'login' | 'forgot'>('signup');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
 
   // --- 2. ACTIVE NAVIGATION TAB (Sync with URL Hash to support Browser Back Button) ---
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -330,26 +472,30 @@ export default function App() {
   const [tasksCompletedTodayCount, setTasksCompletedTodayCount] = useState<number>(0);
 
   // --- 6. REAL-TIME LIVE PULSE WAVE OSCILLATION MODULE ---
-  const [liveBpm, setLiveBpm] = useState<number>(72);
-  const [liveHrv, setLiveHrv] = useState<number>(68);
+  // null until either the demo ticker or a real device reading has produced a value — lets the
+  // dashboard show an honest "waiting for data" state instead of a fabricated starting number.
+  const [liveBpm, setLiveBpm] = useState<number | null>(null);
+  const [liveHrv, setLiveHrv] = useState<number | null>(null);
   const [pulseHistory, setPulseHistory] = useState<number[]>([72, 74, 71, 70, 75, 78, 73, 71, 72, 75, 79, 73, 70, 72, 74, 71]);
 
   // When no real device is connected, keep the dashboard visually alive with clearly-labeled
   // demo data (see the "DEMO DATA" badge on the telemetry panel) rather than freezing it.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP) return;
     if (isLiveHealthData) return;
 
     const interval = setInterval(() => {
       setLiveBpm(prev => {
+        const base = prev ?? 72;
         const delta = (Math.random() - 0.5) * 6;
-        const next = Math.max(58, Math.min(108, Math.round(prev + delta)));
+        const next = Math.max(58, Math.min(108, Math.round(base + delta)));
         setPulseHistory(h => [...h.slice(1), next]);
         return next;
       });
       setLiveHrv(prev => {
+        const base = prev ?? 68;
         const delta = (Math.random() - 0.5) * 8;
-        return Math.max(48, Math.min(115, Math.round(prev + delta)));
+        return Math.max(48, Math.min(115, Math.round(base + delta)));
       });
     }, 2500);
     return () => clearInterval(interval);
@@ -357,7 +503,7 @@ export default function App() {
 
   // Real periodic reads from HealthKit/Health Connect once a device is actually connected.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5 || !isLiveHealthData) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData) return;
 
     const readLiveHealthData = async () => {
       try {
@@ -426,7 +572,7 @@ export default function App() {
   // Hydration reminders: repeating daily local notifications at fixed times across the
   // configured shift window. Rescheduled (old ones cancelled first) whenever settings change.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5 || !hydrationRemindersEnabled) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !hydrationRemindersEnabled) return;
     if (!Capacitor.isNativePlatform()) return;
 
     (async () => {
@@ -454,7 +600,7 @@ export default function App() {
   // Activity alert: if the connected device shows meaningful step activity today but nothing's
   // been logged in-app yet, nudge once (max once per day).
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5 || !isLiveHealthData || liveSteps === null) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData || liveSteps === null) return;
     if (!Capacitor.isNativePlatform()) return;
 
     const todayKey = new Date().toISOString().slice(0, 10);
@@ -483,17 +629,16 @@ export default function App() {
       id: 'BIO-1',
       metric: 'Activity and Movement',
       system: 'Steps',
-      reading: '110 SPM',
-      status: 'Optimal',
-      behavior: 'Good pace today',
+      reading: 'Not connected',
+      status: 'Calibrating',
+      behavior: 'Connect a device in Profile to see your real steps',
       waveType: 'sinusoidal',
       details: {
         title: 'Step Details',
         description: 'Tracks your daily steps and filters out fake step-counting from shaking your phone.',
         subMetrics: [
-          { label: 'Steps', value: '110 SPM', color: '#00ff88' },
-          { label: 'Max Speed Limit', value: '350 SPM', color: '#ff9500' },
-          { label: 'Step Consistency', value: '98.4%', color: '#00bfff' }
+          { label: 'Steps', value: '--', color: '#6b7280' },
+          { label: 'Max Speed Limit', value: '350 SPM', color: '#ff9500' }
         ]
       }
     },
@@ -501,17 +646,17 @@ export default function App() {
       id: 'BIO-2',
       metric: 'Heart Health',
       system: 'Heart Rate',
-      reading: '72 BPM / 68 ms HRV',
-      status: 'Optimal',
-      behavior: 'Healthy recovery signs',
+      reading: 'Waiting for reading…',
+      status: 'Calibrating',
+      behavior: 'Connect a device to see your real heart rate',
       waveType: 'ecg',
       details: {
         title: 'Heart Rate Details',
         description: 'Tracks your heart rate and HRV (a marker of recovery) throughout the day.',
         subMetrics: [
-          { label: 'Resting Heart Rate', value: '72 BPM', color: '#ff3b30' },
-          { label: 'HRV', value: '68 ms', color: '#00bfff' },
-          { label: 'Recovery Level', value: 'Good', color: '#00ff88' }
+          { label: 'Resting Heart Rate', value: '--', color: '#ff3b30' },
+          { label: 'HRV', value: '--', color: '#00bfff' },
+          { label: 'Recovery', value: '--', color: '#00ff88' }
         ]
       }
     },
@@ -519,17 +664,15 @@ export default function App() {
       id: 'BIO-4',
       metric: 'Sleep and Rest',
       system: 'Sleep',
-      reading: `${SLEEP_QUALITY_PERCENT}% Quality`,
-      status: 'Optimal',
-      behavior: 'Good sleep quality',
+      reading: 'Not connected',
+      status: 'Calibrating',
+      behavior: 'Connect a device in Profile to see your real sleep',
       waveType: 'delta',
       details: {
         title: 'Sleep Details',
-        description: 'Tracks your sleep quality, including deep sleep and REM sleep.',
+        description: 'Tracks your overall sleep quality from your connected device.',
         subMetrics: [
-          { label: 'Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' },
-          { label: 'Deep Sleep', value: '2h 15m', color: '#00bfff' },
-          { label: 'REM Sleep', value: '1h 52m', color: '#a855f7' }
+          { label: 'Sleep Quality', value: '--', color: '#6b7280' }
         ]
       }
     },
@@ -537,17 +680,15 @@ export default function App() {
       id: 'BIO-5',
       metric: 'Stress',
       system: 'Stress',
-      reading: 'Low Stress',
-      status: 'Optimal',
-      behavior: 'Stress levels look fine',
+      reading: 'Waiting for data…',
+      status: 'Calibrating',
+      behavior: 'Connect a device to see a stress estimate',
       waveType: 'erratic_spikes',
       details: {
         title: 'Stress Details',
-        description: 'Estimates your stress and recovery from your heart rate and HRV data.',
+        description: 'Estimates your stress from your HRV — this app has no way to directly measure stress hormones.',
         subMetrics: [
-          { label: 'Stress Level', value: 'Low', color: '#00ff88' },
-          { label: 'Recovery Rate', value: '1.8x Baseline', color: '#00bfff' },
-          { label: 'Fatigue Risk', value: 'Low', color: '#ff9500' }
+          { label: 'Stress Level', value: '--', color: '#6b7280' }
         ]
       }
     },
@@ -594,11 +735,27 @@ export default function App() {
     }
 
     if (profile.sex === 'male') {
+      if (liveHrv === null || liveBpm === null) {
+        return {
+          id: 'BIO-6',
+          metric: 'Recovery & Hormonal Balance',
+          system: 'Recovery Estimate',
+          reading: 'Waiting for data',
+          status: 'Calibrating',
+          behavior: isLiveHealthData ? 'No recent heart rate data from your device yet' : 'Connect a device to see your recovery estimate',
+          waveType: 'slow_sinusoidal',
+          details: {
+            title: 'Recovery & Stress Load',
+            description: 'This app has no way to directly measure hormone levels — this card is a recovery/stress-load estimate built from your HRV, heart rate and sleep data instead.',
+            subMetrics: []
+          }
+        };
+      }
       const recoveryLabel = liveHrv > 60 && liveBpm < 80 ? 'High Recovery' : liveHrv > 45 ? 'Moderate Recovery' : 'Low Recovery — Prioritize Rest';
       return {
         id: 'BIO-6',
         metric: 'Recovery & Hormonal Balance',
-        system: 'Autonomic Recovery Index',
+        system: 'Recovery Estimate',
         reading: recoveryLabel,
         status: liveHrv > 45 ? 'Optimal' : 'Critical',
         behavior: 'Derived from HRV, resting heart rate & sleep quality',
@@ -609,47 +766,126 @@ export default function App() {
           subMetrics: [
             { label: 'HRV', value: `${liveHrv} ms`, color: '#00bfff' },
             { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-            { label: 'Sleep Quality', value: `${SLEEP_QUALITY_PERCENT}%`, color: '#00ff88' }
+            { label: 'Sleep Quality', value: liveSleepQualityPercent !== null ? `${liveSleepQualityPercent}%` : '--', color: '#00ff88' }
           ]
         }
       };
     }
 
     return null;
-  }, [profile.sex, profile.lastPeriodStartDate, profile.averageCycleLength, liveHrv, liveBpm]);
+  }, [profile.sex, profile.lastPeriodStartDate, profile.averageCycleLength, liveHrv, liveBpm, liveSleepQualityPercent, isLiveHealthData]);
 
-  // Heart-rate/HRV display is derived live from the ticker values rather than synced via an
-  // effect, so BIO-2 never lags a render behind liveBpm/liveHrv.
+  // Each card gets its own honest empty state — not connected, or connected but no reading yet —
+  // instead of relying on the shared panel-level DEMO DATA / LIVE badge to explain what's real.
   const allBiometrics = useMemo(() => {
     const withLiveData = biometrics.map(item => {
-      if (item.id === 'BIO-1' && isLiveHealthData && liveSteps !== null) {
+      if (item.id === 'BIO-1') {
+        if (!isLiveHealthData) {
+          return {
+            ...item,
+            reading: 'Not connected',
+            status: 'Calibrating' as const,
+            behavior: 'Connect a device in Profile to see your real steps',
+            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+          };
+        }
+        if (liveSteps === null) {
+          return {
+            ...item,
+            reading: 'Waiting for data…',
+            status: 'Calibrating' as const,
+            behavior: 'No step data from your device yet today',
+            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+          };
+        }
         return {
           ...item,
           reading: `${liveSteps} steps today`,
-          details: { ...item.details, subMetrics: [{ label: 'Steps Today (Live)', value: `${liveSteps}`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+          behavior: 'Synced from your device',
+          details: { ...item.details, subMetrics: [{ label: 'Steps Today', value: `${liveSteps}`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
         };
       }
       if (item.id === 'BIO-2') {
+        if (liveBpm === null || liveHrv === null) {
+          return {
+            ...item,
+            reading: 'Waiting for reading…',
+            status: 'Calibrating' as const,
+            behavior: isLiveHealthData ? 'No recent heart rate data from your device yet' : 'Connect a device to see your real heart rate',
+            details: {
+              ...item.details,
+              subMetrics: [
+                { label: 'Resting Heart Rate', value: '--', color: '#6b7280' },
+                { label: 'HRV', value: '--', color: '#6b7280' }
+              ]
+            }
+          };
+        }
         return {
           ...item,
           reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
           status: liveBpm > 100 ? 'Critical' as const : 'Optimal' as const,
-          behavior: liveBpm > 100 ? 'Elevated Cardiac Response' : 'High Vagal Tone Detected',
+          behavior: liveBpm > 100 ? 'Elevated heart rate' : (isLiveHealthData ? 'Synced from your device' : 'Demo data — connect a device for real readings'),
           details: {
             ...item.details,
             subMetrics: [
-              { label: 'Live Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-              { label: 'Autonomic HRV Variance', value: `${liveHrv} ms`, color: '#00bfff' },
-              { label: 'Vagal Stability Index', value: liveBpm > 100 ? 'Caution Threshold' : 'Optimal Floor', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
+              { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
+              { label: 'HRV', value: `${liveHrv} ms`, color: '#00bfff' },
+              { label: 'Recovery', value: liveBpm > 100 ? 'Caution' : 'Good', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
             ]
           }
         };
       }
-      if (item.id === 'BIO-4' && isLiveHealthData && liveSleepQualityPercent !== null) {
+      if (item.id === 'BIO-4') {
+        if (!isLiveHealthData) {
+          return {
+            ...item,
+            reading: 'Not connected',
+            status: 'Calibrating' as const,
+            behavior: 'Connect a device in Profile to see your real sleep',
+            details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+          };
+        }
+        if (liveSleepQualityPercent === null) {
+          return {
+            ...item,
+            reading: 'Waiting for data…',
+            status: 'Calibrating' as const,
+            behavior: 'No sleep data from your device yet',
+            details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+          };
+        }
         return {
           ...item,
           reading: `${liveSleepQualityPercent}% Quality`,
-          details: { ...item.details, subMetrics: [{ label: 'Overall Sleep Quality (Live)', value: `${liveSleepQualityPercent}%`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+          behavior: 'Synced from your device',
+          details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: `${liveSleepQualityPercent}%`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+        };
+      }
+      if (item.id === 'BIO-5') {
+        if (liveHrv === null) {
+          return {
+            ...item,
+            reading: 'Waiting for data…',
+            status: 'Calibrating' as const,
+            behavior: isLiveHealthData ? 'No recent HRV data from your device yet' : 'Connect a device to see a stress estimate',
+            details: { ...item.details, subMetrics: [{ label: 'Stress Level', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+          };
+        }
+        const stressLabel = liveHrv > 60 ? 'Low' : liveHrv > 45 ? 'Moderate' : 'High';
+        return {
+          ...item,
+          reading: `${stressLabel} Stress`,
+          status: stressLabel === 'High' ? 'Critical' as const : 'Optimal' as const,
+          behavior: isLiveHealthData ? 'Estimated from your HRV' : 'Demo estimate — connect a device for a real reading',
+          details: {
+            ...item.details,
+            description: 'Estimates your stress from your HRV — this app has no way to directly measure stress hormones.',
+            subMetrics: [
+              { label: 'Stress Level', value: stressLabel, color: stressLabel === 'High' ? '#ff3b30' : '#00ff88' },
+              ...item.details.subMetrics.slice(1)
+            ]
+          }
         };
       }
       return item;
@@ -658,9 +894,9 @@ export default function App() {
   }, [biometrics, liveBpm, liveHrv, liveSteps, liveSleepQualityPercent, isLiveHealthData, sexCard]);
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
-  const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '420'));
-  const [level] = useState<number>(() => parseInt(localStorage.getItem('kinetix_level') || '3'));
-  const [totalVoucherPoints, setTotalVoucherPoints] = useState<number>(() => parseInt(localStorage.getItem('kinetix_voucher_points') || '1250'));
+  const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '0'));
+  const [level] = useState<number>(() => parseInt(localStorage.getItem('kinetix_level') || '1'));
+  const [totalVoucherPoints, setTotalVoucherPoints] = useState<number>(() => parseInt(localStorage.getItem('kinetix_voucher_points') || '0'));
   const [streak, setStreak] = useState<number>(() => parseInt(localStorage.getItem('kinetix_streak') || '0'));
 
   const [todayTasks, setTodayTasks] = useState<Task[]>(() => getTasksForTarget(profile.target));
@@ -763,12 +999,12 @@ export default function App() {
 
   // --- 9. LIVE Energy Balance & NHS Dietary Metrics ---
   const [dailyConsumables, setDailyConsumables] = useState({
-    calories: 1450,
-    carbs: 180,
-    protein: 65,
-    fiber: 18
+    calories: 0,
+    carbs: 0,
+    protein: 0,
+    fiber: 0
   });
-  const [caloriesBurned, setCaloriesBurned] = useState<number>(450);
+  const [caloriesBurned, setCaloriesBurned] = useState<number>(0);
 
   const nhsTargets = useMemo(() => {
     const bmr = calculateBmr(profile);
@@ -785,7 +1021,7 @@ export default function App() {
 
   // Calorie/macro progress alerts: fires once per threshold (90%/100%) per metric per day.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP) return;
     if (!Capacitor.isNativePlatform()) return;
 
     (async () => {
@@ -956,7 +1192,7 @@ export default function App() {
   // anonymous per-device ID, so promo grants and entitlement checks target the right person
   // regardless of whether they redeemed on web or in the app.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5 || !profile.email) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !profile.email) return;
     if (!Capacitor.isNativePlatform()) return;
 
     (async () => {
@@ -992,7 +1228,7 @@ export default function App() {
   // Pull real subscription status from RevenueCat (native platforms only). Falls back to the
   // existing demo-mode revenueCatStatus text (e.g. from a promo code) when unavailable.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < 5) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP) return;
     if (!Capacitor.isNativePlatform()) return;
     (async () => {
       await refreshRevenueCatStatus();
@@ -1032,38 +1268,122 @@ export default function App() {
 
   // --- ACTION HANDLERS ---
 
-  // OTP Login Simulation
-  const handleRequestOtp = (e: React.FormEvent) => {
+  // Restore/track the real Supabase session. If a session already exists (e.g. the app was
+  // closed mid-onboarding after signing up), skip straight past Welcome/Auth rather than asking
+  // an already-authenticated person to sign in again.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const advancePastAuthIfNeeded = (newSession: Session | null) => {
+      setSession(newSession);
+      if (newSession) {
+        setOnboardingStep(prev => (prev < 3 ? 3 : prev));
+      }
+    };
+    supabase.auth.getSession().then(({ data }) => advancePastAuthIfNeeded(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      advancePastAuthIfNeeded(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailInput.includes('@') || !emailInput.includes('.')) {
-      alert("Please enter a valid email address.");
+    setAuthError(null);
+    setAuthMessage(null);
+
+    if (!isSupabaseConfigured) {
+      setAuthError('Sign-up/login is not configured yet — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
       return;
     }
-    setIsOtpSent(true);
-    setMotivationMessage(`📩 Security token successfully transmitted to ${emailInput}.`);
-    setTimeout(() => setMotivationMessage(null), 5000);
+    if (!emailInput.includes('@') || !emailInput.includes('.')) {
+      setAuthError('Please enter a valid email address.');
+      return;
+    }
+
+    if (authMode === 'forgot') {
+      setIsSubmittingAuth(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
+        redirectTo: 'https://kinetixfit.co.uk/'
+      });
+      setIsSubmittingAuth(false);
+      if (error) {
+        setAuthError(error.message);
+      } else {
+        setAuthMessage('Password reset email sent — check your inbox.');
+      }
+      return;
+    }
+
+    if (!passwordInput || passwordInput.length < 6) {
+      setAuthError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setIsSubmittingAuth(true);
+    const { data, error } =
+      authMode === 'signup'
+        ? await supabase.auth.signUp({ email: emailInput, password: passwordInput })
+        : await supabase.auth.signInWithPassword({ email: emailInput, password: passwordInput });
+    setIsSubmittingAuth(false);
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    if (authMode === 'signup' && !data.session) {
+      setAuthMessage('Check your email to confirm your account, then log in.');
+      setAuthMode('login');
+      return;
+    }
+
+    saveProfileToStorage({
+      ...profile,
+      email: emailInput,
+      name: profile.name || emailInput.split('@')[0]
+    });
+    setOnboardingStep(3);
   };
 
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpInput === '7721' || otpInput === '1234') {
-      saveProfileToStorage({
-        ...profile,
-        email: emailInput,
-        name: emailInput.split('@')[0].toUpperCase()
-      });
-      setOnboardingStep(2); // Onboarding Step 2: Physical Parameters
-    } else {
-      alert("Invalid verification code. Please use '1234' for developer sandbox entry.");
+  const handleGoogleSignIn = async () => {
+    if (!isSupabaseConfigured) {
+      setAuthError('Sign-up/login is not configured yet — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+      return;
     }
+    if (Capacitor.isNativePlatform()) {
+      // Completing an OAuth redirect on native requires a custom URL scheme + deep-link listener
+      // that isn't wired up yet (the same category of native-return complexity flagged for Oura
+      // earlier) — being honest here rather than starting a flow that can't complete.
+      setAuthError('Google sign-in is available on the web for now — please use email/password in the app.');
+      return;
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) setAuthError(error.message);
   };
 
   const handleCompleteOnboarding = () => {
     setIsLogged(true);
     localStorage.setItem('kinetix_logged_in', 'true');
-    setOnboardingStep(5); // Launch main platform portal
+    setOnboardingStep(DASHBOARD_STEP);
     setMotivationMessage('🏆 Welcome to KinetixFit!');
     setTimeout(() => setMotivationMessage(null), 7000);
+  };
+
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    localStorage.removeItem('kinetix_logged_in');
+    setIsLogged(false);
+    setOnboardingStep(0);
+    setEmailInput('');
+    setPasswordInput('');
+    setAuthMode('signup');
+    setAuthError(null);
+    setAuthMessage(null);
   };
 
   const handleLogWorkout = () => {
@@ -1518,433 +1838,220 @@ export default function App() {
   // --- RENDERING ROUTER ---
 
   // A. MARKETING FRONT HOME LANDING PAGE
+  // --- NEW ONBOARDING: Welcome (1 of 2) ---
   if (!isLoggedIn && onboardingStep === 0) {
     return (
       <div className="workspace-container">
         <div className="app-viewport-container">
-          <div className="app-scroll-body relative" style={{ padding: '0px', gap: '0px' }}>
-            {/* Cinematic Hero Backdrop */}
-            <div className="landing-cinematic-hero">
-              <div className="matrix-particles"></div>
-
-              <div className="landing-top-bar">
-                <div className="glowing-logo">
-                  <svg width="45" height="25" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <div className="landing-tag">BIOMETRIC SIGNAL MATRIX</div>
+          <div className="ob-container">
+            <div className="ob-card">
+              <div className="ob-logo">
+                <svg width="56" height="28" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#2563EB" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
-
-              <div className="landing-main-text">
-                <h1 className="cinematic-title">KINETIXFIT</h1>
-                <p className="cinematic-subtitle">THE BIOMETRIC CLEARINGHOUSE FOR HIGH-PERFORMANCE LIVES</p>
-                <div className="hud-line"></div>
+              <h1 className="ob-title">Welcome to KinetixFit</h1>
+              <p className="ob-body">Track your fitness, nutrition, and progress — all in one place.</p>
+              <button onClick={() => setOnboardingStep(1)} className="ob-btn-primary">
+                Get Started
+              </button>
+              <div className="ob-dots">
+                <span className="ob-dot active"></span>
+                <span className="ob-dot"></span>
               </div>
-
-              <div className="landing-cta-box">
-                <p className="hero-disclaimer">Platform Subscription: £14.99 / Month • Includes 7-Day Free Trial</p>
-                <button onClick={() => setOnboardingStep(1)} className="landing-launch-btn">
-                  START FREE TRIAL →
-                </button>
-              </div>
-            </div>
-
-            {/* Core Tech Showcase Grid */}
-            <div className="landing-tech-grid">
-              <h3 className="grid-section-title">🧬 Telemetry Architecture</h3>
-              <p className="grid-section-desc">Continuous tactical tracking of biological parameters to schedule active stress thresholds cleanly.</p>
-
-              <div className="tech-cards-grid">
-                <div className="tech-mini-card">
-                  <div className="tech-card-header">
-                    <span>SECTOR 01</span>
-                    <span className="glow-bullet green"></span>
-                  </div>
-                  <h4>Live Health Tracking</h4>
-                  <p>Heart rate, HRV, sleep, and activity tracking, synced in real-time from your device.</p>
-                </div>
-                <div className="tech-mini-card">
-                  <div className="tech-card-header">
-                    <span>SECTOR 02</span>
-                    <span className="glow-bullet cyan"></span>
-                  </div>
-                  <h4>Food Scanner</h4>
-                  <p>Scan a barcode or photo to check ingredients, allergens, and nutrition.</p>
-                </div>
-                <div className="tech-mini-card">
-                  <div className="tech-card-header">
-                    <span>SECTOR 03</span>
-                    <span className="glow-bullet amber"></span>
-                  </div>
-                  <h4>Anti-Cheat Velocity Sensor</h4>
-                  <p>4-Stage hardware verification filtering out mechanical device oscillations exceeding 350 Steps Per Minute.</p>
-                </div>
-                <div className="tech-mini-card">
-                  <div className="tech-card-header">
-                    <span>SECTOR 04</span>
-                    <span className="glow-bullet purple"></span>
-                  </div>
-                  <h4>Kinetix Rewards Vault</h4>
-                  <p>Secured gamification coordinates converting verified efforts to lifestyle vouchers or matching UK CSR donations.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Compliance Footer */}
-            <div className="landing-footer-block">
-              <p>OPERATIONAL INTEGRITY HANDSHAKE COMPLIANT</p>
-              <p style={{ opacity: 0.5, fontSize: '12px', marginTop: '4px' }}>In complete alignment with UK GDPR & Data Protection Act 2018 guidelines.</p>
-              <p style={{ marginTop: '10px' }}>
-                <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88', textDecoration: 'none', letterSpacing: '1px' }}>PRIVACY POLICY</a>
-                <span style={{ margin: '0 10px', opacity: 0.4 }}>·</span>
-                <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88', textDecoration: 'none', letterSpacing: '1px' }}>TERMS OF SERVICE</a>
-              </p>
             </div>
           </div>
         </div>
-        <style>{`
-          .landing-cinematic-hero {
-            height: 480px;
-            background: radial-gradient(circle at center, #0f172a 0%, #030712 100%);
-            border-bottom: 1px solid #1f2937;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 25px 20px;
-            box-sizing: border-box;
-            overflow: hidden;
-          }
-          .matrix-particles {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: radial-gradient(#00ff88 1px, transparent 1px);
-            background-size: 16px 16px;
-            opacity: 0.05;
-            pointer-events: none;
-            animation: matrixFade 10s infinite alternate;
-          }
-          @keyframes matrixFade {
-            0% { opacity: 0.03; }
-            100% { opacity: 0.08; }
-          }
-          .landing-top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .landing-tag {
-            font-size: 12px;
-            color: #6b7280;
-            letter-spacing: 2px;
-            font-weight: bold;
-            border-left: 2px solid #00ff88;
-            padding-left: 6px;
-          }
-          .landing-main-text {
-            text-align: center;
-            margin-top: 40px;
-          }
-          .cinematic-title {
-            font-size: 42px;
-            font-weight: 900;
-            letter-spacing: 12px;
-            color: #ffffff;
-            margin: 0;
-            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
-          }
-          .cinematic-subtitle {
-            font-size: 13px;
-            color: #00ff88;
-            letter-spacing: 2.5px;
-            margin-top: 10px;
-            line-height: 1.6;
-          }
-          .hud-line {
-            width: 140px;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #00ff88, transparent);
-            margin: 20px auto 0 auto;
-          }
-          .landing-cta-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            text-align: center;
-          }
-          .hero-disclaimer {
-            font-size: 13px;
-            color: #9ca3af;
-            letter-spacing: 1px;
-            margin: 0;
-          }
-          .landing-launch-btn {
-            background-color: transparent !important;
-            border: 1px solid #00ff88 !important;
-            color: #00ff88 !important;
-            font-weight: bold !important;
-            padding: 12px 25px !important;
-            border-radius: 4px !important;
-            font-size: 16px !important;
-            font-family: monospace !important;
-            letter-spacing: 1.5px !important;
-            cursor: pointer !important;
-            transition: all 0.3s ease !important;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.1) !important;
-          }
-          .landing-launch-btn:hover {
-            background-color: #00ff88 !important;
-            color: #000000 !important;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4) !important;
-          }
-          .landing-tech-grid {
-            background-color: #030712;
-            padding: 25px 20px;
-            box-sizing: border-box;
-          }
-          .grid-section-title {
-            font-size: 18px;
-            color: #ffffff;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            margin: 0 0 6px 0;
-            border-left: 3px solid #00ff88;
-            padding-left: 8px;
-          }
-          .grid-section-desc {
-            font-size: 15px;
-            color: #9ca3af;
-            line-height: 1.6;
-            margin: 0 0 20px 0;
-          }
-          .tech-cards-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-          }
-          .tech-mini-card {
-            background-color: #0b0f19;
-            border: 1px solid #1f2937;
-            border-radius: 8px;
-            padding: 12px;
-            box-sizing: border-box;
-          }
-          .tech-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-            font-size: 12px;
-            color: #6b7280;
-            letter-spacing: 1px;
-            font-weight: bold;
-          }
-          .glow-bullet {
-            width: 4px;
-            height: 4px;
-            border-radius: 50%;
-          }
-          .glow-bullet.green { background-color: #00ff88; box-shadow: 0 0 8px #00ff88; }
-          .glow-bullet.cyan { background-color: #00bfff; box-shadow: 0 0 8px #00bfff; }
-          .glow-bullet.amber { background-color: #ff9500; box-shadow: 0 0 8px #ff9500; }
-          .glow-bullet.purple { background-color: #a855f7; box-shadow: 0 0 8px #a855f7; }
-          .tech-mini-card h4 {
-            font-size: 15px;
-            color: #ffffff;
-            margin: 0 0 4px 0;
-            font-weight: bold;
-          }
-          .tech-mini-card p {
-            font-size: 13px;
-            color: #9ca3af;
-            line-height: 1.5;
-            margin: 0;
-          }
-          .landing-footer-block {
-            background-color: #070a13;
-            border-top: 1px solid #111827;
-            padding: 20px;
-            text-align: center;
-            font-size: 12px;
-            color: #6b7280;
-            letter-spacing: 2px;
-            font-weight: bold;
-          }
-        `}</style>
+        <style>{ONBOARDING_STYLES}</style>
       </div>
     );
   }
 
-  // B. PRE-LOGIN: Secure OTP B2B Email Gateway
+  // --- NEW ONBOARDING: Welcome (2 of 2) ---
   if (!isLoggedIn && onboardingStep === 1) {
     return (
       <div className="workspace-container">
         <div className="app-viewport-container">
-
-          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                <div style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '120px',
-                  height: '60px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(0, 255, 136, 0.15)',
-                  padding: '5px',
-                  boxShadow: '0 4px 20px rgba(0, 255, 136, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
-                }}>
-                  <svg width="70" height="35" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0px 4px 10px rgba(0, 255, 136, 0.15))' }}>
-                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+          <div className="ob-container">
+            <div className="ob-card">
+              <h1 className="ob-title">What you can do</h1>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0 28px 0' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '20px' }}>❤️</span>
+                  <div>
+                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Health tracking</strong>
+                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>See your real steps, heart rate, and sleep from your device.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '20px' }}>🍽️</span>
+                  <div>
+                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Food scanner</strong>
+                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>Scan a barcode or photo to check nutrition and allergens.</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '20px' }}>🎁</span>
+                  <div>
+                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Rewards</strong>
+                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>Earn points for healthy habits, redeem for vouchers or donations.</p>
+                  </div>
                 </div>
               </div>
-
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <span style={{ fontSize: '14px', color: '#6b7280', letterSpacing: '2px', fontWeight: 'bold' }}>SECURE SIGN-IN</span>
+              <div className="ob-btn-row">
+                <button onClick={() => setOnboardingStep(0)} className="ob-btn-secondary">Back</button>
+                <button onClick={() => setOnboardingStep(2)} className="ob-btn-primary">Continue</button>
               </div>
-
-              {!isOtpSent ? (
-                <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <p style={{ fontSize: '16px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.6', margin: 0 }}>
-                    Enter your email to receive a 4-digit verification code.
-                  </p>
-                  <label style={{ fontSize: '16px', color: '#9ca3af' }}>Email Address
-                    <input
-                      type="email"
-                      required
-                      placeholder="name@example.com"
-                      value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
-                      className="auth-input"
-                    />
-                  </label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" onClick={() => setOnboardingStep(0)} className="secondary-btn">
-                      Back
-                    </button>
-                    <button type="submit" className="primary-btn" style={{ flex: 2 }}>
-                      Request Token
-                    </button>
-                  </div>
-                  <p style={{ fontSize: '14px', color: '#6b7280', textAlign: 'center', lineHeight: '1.6', margin: '4px 0 0 0' }}>
-                    By requesting access, you agree to our{' '}
-                    <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88' }}>Privacy Policy</a>
-                    {' '}and{' '}
-                    <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff88' }}>Terms of Service</a>.
-                  </p>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <p style={{ fontSize: '16px', color: '#9ca3af', textAlign: 'center', lineHeight: '1.6', margin: 0 }}>
-                    Verification token sent to <strong style={{ color: '#00ff88' }}>{emailInput}</strong>. Enter code <strong style={{ color: '#00ff88' }}>1234</strong> to verify sandbox workspace.
-                  </p>
-                  <label style={{ fontSize: '16px', color: '#9ca3af' }}>4-Digit Security Token
-                    <input
-                      type="text"
-                      maxLength={4}
-                      required
-                      placeholder="e.g. 1234"
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value)}
-                      className="auth-otp-input"
-                    />
-                  </label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" onClick={() => setIsOtpSent(false)} className="secondary-btn">
-                      Back
-                    </button>
-                    <button type="submit" className="primary-btn" style={{ flex: 2 }}>
-                      Verify Token
-                    </button>
-                  </div>
-                </form>
-              )}
+              <div className="ob-dots">
+                <span className="ob-dot"></span>
+                <span className="ob-dot active"></span>
+              </div>
             </div>
-
-            <style>{`
-              .auth-input {
-                width: 100% !important;
-                background-color: #030712 !important;
-                border: 1px solid #374151 !important;
-                color: #ffffff !important;
-                padding: 10px !important;
-                margin-top: 6px !important;
-                font-size: 17px !important;
-                font-family: monospace !important;
-                border-radius: 4px !important;
-                outline: none !important;
-                box-sizing: border-box !important;
-              }
-              .auth-input:focus {
-                border-color: #00ff88 !important;
-                box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
-              }
-              .auth-otp-input {
-                width: 100% !important;
-                background-color: #030712 !important;
-                border: 1px solid #374151 !important;
-                color: #ffffff !important;
-                padding: 10px !important;
-                margin-top: 6px !important;
-                font-size: 19px !important;
-                letter-spacing: 5px !important;
-                text-align: center !important;
-                font-weight: bold !important;
-                font-family: monospace !important;
-                border-radius: 4px !important;
-                outline: none !important;
-                box-sizing: border-box !important;
-              }
-              .auth-otp-input:focus {
-                border-color: #00ff88 !important;
-                box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
-              }
-              .primary-btn {
-                background-color: #00ff88 !important;
-                color: #000000 !important;
-                font-weight: bold !important;
-                border: none !important;
-                padding: 10px !important;
-                cursor: pointer !important;
-                border-radius: 4px !important;
-                font-size: 17px !important;
-                font-family: monospace !important;
-                transition: all 0.2s !important;
-              }
-              .primary-btn:hover {
-                box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
-                transform: translateY(-1px) !important;
-              }
-              .secondary-btn {
-                background-color: #1f2937 !important;
-                color: #ffffff !important;
-                border: 1px solid #374151 !important;
-                padding: 10px !important;
-                cursor: pointer !important;
-                border-radius: 4px !important;
-                font-size: 16px !important;
-                font-family: monospace !important;
-              }
-            `}</style>
           </div>
         </div>
+        <style>{ONBOARDING_STYLES}</style>
       </div>
     );
   }
 
-  // C. ONBOARDING STEP 2: Biographical profile setup
-  if (onboardingStep === 2) {
+  // --- NEW ONBOARDING: Sign up / Log in / Forgot password (real Supabase Auth) ---
+  if (!isLoggedIn && onboardingStep === 2) {
+    return (
+      <div className="workspace-container">
+        <div className="app-viewport-container">
+          <div className="ob-container">
+            <div className="ob-card">
+              <h1 className="ob-title">
+                {authMode === 'forgot' ? 'Reset your password' : authMode === 'login' ? 'Log in' : 'Create your account'}
+              </h1>
+              {!isSupabaseConfigured && (
+                <p className="ob-error">Sign-up isn't configured yet — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</p>
+              )}
+              <form onSubmit={handleAuthSubmit}>
+                <label className="ob-label">Email address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="ob-input"
+                />
+                {authMode !== 'forgot' && (
+                  <>
+                    <label className="ob-label">Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="At least 6 characters"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      className="ob-input"
+                    />
+                  </>
+                )}
+                {authMode === 'login' && (
+                  <button type="button" onClick={() => { setAuthMode('forgot'); setAuthError(null); setAuthMessage(null); }} className="ob-link" style={{ display: 'block', marginBottom: '16px' }}>
+                    Forgot password?
+                  </button>
+                )}
+                {authError && <p className="ob-error">{authError}</p>}
+                {authMessage && <p className="ob-success">{authMessage}</p>}
+                <button type="submit" disabled={isSubmittingAuth} className="ob-btn-primary">
+                  {isSubmittingAuth ? 'Please wait…' : authMode === 'forgot' ? 'Send reset email' : authMode === 'login' ? 'Log in' : 'Sign up'}
+                </button>
+              </form>
+
+              {authMode !== 'forgot' && (
+                <>
+                  <div className="ob-divider">or</div>
+                  <button onClick={handleGoogleSignIn} className="ob-btn-google">
+                    <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.95v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.95A9 9 0 0 0 0 9c0 1.45.35 2.83.95 4.03l3-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .95 4.97l3 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+                    Continue with Google
+                  </button>
+                </>
+              )}
+
+              <p className="ob-footnote">
+                {authMode === 'forgot' ? (
+                  <button type="button" onClick={() => { setAuthMode('login'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Back to log in</button>
+                ) : authMode === 'login' ? (
+                  <>Don't have an account? <button type="button" onClick={() => { setAuthMode('signup'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Sign up</button></>
+                ) : (
+                  <>Already have an account? <button type="button" onClick={() => { setAuthMode('login'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Log in</button></>
+                )}
+              </p>
+              <p className="ob-footnote">
+                By continuing, you agree to our <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a>.
+              </p>
+              <button type="button" onClick={() => setOnboardingStep(1)} className="ob-link" style={{ display: 'block', margin: '16px auto 0 auto' }}>Back</button>
+            </div>
+          </div>
+        </div>
+        <style>{ONBOARDING_STYLES}</style>
+      </div>
+    );
+  }
+
+  // --- NEW ONBOARDING: Health permission priming (explains before the OS prompt fires) ---
+  if (!isLoggedIn && onboardingStep === 3) {
+    return (
+      <div className="workspace-container">
+        <div className="app-viewport-container">
+          <div className="ob-container">
+            <div className="ob-card">
+              <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '8px' }}>❤️</div>
+              <h1 className="ob-title">See your real stats</h1>
+              <p className="ob-body">
+                We use {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'} to show your real steps, heart rate, and sleep — no guessing, no placeholder numbers. You can disconnect at any time in Profile.
+              </p>
+              <button onClick={handleConnectHealthSource} disabled={isConnectingHealth} className="ob-btn-primary" style={{ marginBottom: '12px' }}>
+                {isConnectingHealth ? 'Connecting…' : `Connect ${Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}`}
+              </button>
+              <button onClick={() => setOnboardingStep(4)} className="ob-btn-secondary">
+                {profile.smartDeviceConnected ? 'Continue' : 'Skip for now'}
+              </button>
+              {!Capacitor.isNativePlatform() && (
+                <p className="ob-footnote">📱 Live sync requires the iOS or Android app — you can skip this on web.</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <style>{ONBOARDING_STYLES}</style>
+      </div>
+    );
+  }
+
+  // --- NEW ONBOARDING: Notifications permission priming ---
+  if (!isLoggedIn && onboardingStep === 4) {
+    return (
+      <div className="workspace-container">
+        <div className="app-viewport-container">
+          <div className="ob-container">
+            <div className="ob-card">
+              <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '8px' }}>🔔</div>
+              <h1 className="ob-title">Stay on track</h1>
+              <p className="ob-body">
+                We'll send helpful reminders — hydration during your work hours, and a nudge if you forget to log a meal. Only if you want them — you can turn these off anytime in Profile.
+              </p>
+              <button
+                onClick={async () => { await ensureNotificationPermission(); setOnboardingStep(5); }}
+                className="ob-btn-primary"
+                style={{ marginBottom: '12px' }}
+              >
+                Enable Notifications
+              </button>
+              <button onClick={() => setOnboardingStep(5)} className="ob-btn-secondary">Skip for now</button>
+            </div>
+          </div>
+        </div>
+        <style>{ONBOARDING_STYLES}</style>
+      </div>
+    );
+  }
+
+  // C. ONBOARDING STEP 5: Biographical profile setup
+  if (onboardingStep === 5) {
     return (
       <div className="workspace-container">
         <div className="app-viewport-container">
@@ -2001,37 +2108,20 @@ export default function App() {
                     <option value="Cardio Endurance">Cardio Endurance</option>
                   </select>
                 </label>
-                <button onClick={() => setOnboardingStep(3)} className="primary-btn" style={{ marginTop: '10px' }}>
+                <button onClick={() => setOnboardingStep(6)} className="primary-btn" style={{ marginTop: '10px' }}>
                   Confirm & Continue
                 </button>
               </div>
             </div>
-            <style>{`
-              .auth-input-select {
-                width: 100% !important;
-                background-color: #030712 !important;
-                border: 1px solid #374151 !important;
-                color: #ffffff !important;
-                padding: 8px !important;
-                margin-top: 4px !important;
-                font-family: monospace !important;
-                border-radius: 4px !important;
-                outline: none !important;
-                box-sizing: border-box !important;
-              }
-              .auth-input-select option {
-                background-color: #0b0f19 !important;
-                color: #ffffff !important;
-              }
-            `}</style>
+            <style>{ONBOARDING_PROFILE_STYLES}</style>
           </div>
         </div>
       </div>
     );
   }
 
-  // D. ONBOARDING STEP 3: Personal Allergy Manager Setup
-  if (onboardingStep === 3) {
+  // D. ONBOARDING STEP 6: Personal Allergy Manager Setup
+  if (onboardingStep === 6) {
     return (
       <div className="workspace-container">
         <div className="app-viewport-container">
@@ -2041,7 +2131,7 @@ export default function App() {
               <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: FOOD EXCLUSION CONFIGURATION</span>
               <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
               <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '15px', margin: '0 0 15px 0' }}>
-                Select any food allergen classifications you are sensitive to. The AI Scanner will dynamically scan and flag these chemical hazards.
+                Select any food allergens you're sensitive to. The scanner will flag these when you scan a barcode or photo.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px' }}>
@@ -2070,74 +2160,15 @@ export default function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => setOnboardingStep(2)} className="secondary-btn" style={{ flex: 1 }}>
+                <button onClick={() => setOnboardingStep(5)} className="secondary-btn" style={{ flex: 1 }}>
                   Back
                 </button>
-                <button onClick={() => setOnboardingStep(4)} className="primary-btn" style={{ flex: 1.5 }}>
+                <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.5 }}>
                   Confirm Allergens
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // E. ONBOARDING STEP 4: Smart Device Sync Gateway
-  if (onboardingStep === 4) {
-    return (
-      <div className="workspace-container">
-        <div className="app-viewport-container">
-
-          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 3 OF 3: TELEMETRY INTEGRATION</span>
-              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Connect Biometric Sensor</h2>
-              <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '15px', margin: '0 0 15px 0' }}>
-                Synchronize your continuous physical sensors (pulse fluctuations, sleep recovery waves, stress baselines) with our secure clearinghouse.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '15px' }}>
-                <button
-                  onClick={handleConnectHealthSource}
-                  disabled={isConnectingHealth}
-                  style={{
-                    backgroundColor: '#030712',
-                    border: '1px solid #1f2937',
-                    color: '#ffffff',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    textAlign: 'left',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  <span>⚡ {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
-                  <span style={{ color: '#00ff88', fontWeight: 'bold' }}>
-                    {isConnectingHealth ? 'Connecting...' : 'Link Sensor'}
-                  </span>
-                </button>
-                {!Capacitor.isNativePlatform() && (
-                  <p style={{ fontSize: '14px', color: '#9ca3af', margin: 0 }}>
-                    📱 Live sync requires the iOS or Android app — you can skip this on web.
-                  </p>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={() => setOnboardingStep(3)} className="secondary-btn" style={{ flex: 1 }}>
-                  Back
-                </button>
-                <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.5 }}>
-                  Launch Dashboard
-                </button>
-              </div>
-            </div>
+            <style>{ONBOARDING_PROFILE_STYLES}</style>
           </div>
         </div>
       </div>
@@ -2739,6 +2770,17 @@ export default function App() {
                     <p style={{ fontSize: '13px', color: '#6b7280', margin: '10px 0 0 0', lineHeight: '1.6' }}>
                       Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
                     </p>
+                  </div>
+
+                  {/* Account */}
+                  <div className="hub-support-card">
+                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>👤 ACCOUNT</span>
+                    {(session?.user?.email || profile.email) && (
+                      <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0 0 12px 0' }}>Signed in as <strong style={{ color: '#ffffff' }}>{session?.user?.email || profile.email}</strong></p>
+                    )}
+                    <button onClick={handleLogout} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '15px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                      Log Out
+                    </button>
                   </div>
 
                 </div>
