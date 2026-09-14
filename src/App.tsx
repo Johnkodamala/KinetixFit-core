@@ -194,6 +194,12 @@ function toDayEntries(samples: { startDate: string; value: number }[]): { day: s
   return samples.map(s => ({ day: new Date(s.startDate).toISOString().slice(0, 10), value: s.value }));
 }
 
+function formatMinutesAsHoursMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes}m`;
+}
+
 // Fills in the last `days` calendar days (oldest first) from whatever real entries exist,
 // leaving genuinely missing days as null rather than interpolating or zero-filling — a gap in
 // the graph is more honest than a fabricated flat value.
@@ -483,11 +489,11 @@ export default function App() {
   const [rewardGateway] = useState<'primary' | 'direct' | 'local'>('local'); // Gateway selector disabled until live provider approval; defaults to local
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [activeSportMode, setActiveSportMode] = useState<'rest' | 'run' | 'cycle' | 'swim'>('rest');
-  const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
   const [isConnectingHealth, setIsConnectingHealth] = useState<boolean>(false);
   const [liveSteps, setLiveSteps] = useState<number | null>(null);
   const [liveSleepQualityPercent, setLiveSleepQualityPercent] = useState<number | null>(null);
+  const [liveSleepMinutes, setLiveSleepMinutes] = useState<number | null>(null);
   const isLiveHealthData = Capacitor.isNativePlatform() && profile.smartDeviceConnected !== null;
 
   // --- LOCAL PUSH NOTIFICATIONS (hydration, activity, nutrition) ---
@@ -618,6 +624,7 @@ export default function App() {
           }, 0);
           syncedSleepQuality = Math.min(100, Math.round((totalMinutes / (8 * 60)) * 100));
           setLiveSleepQualityPercent(syncedSleepQuality);
+          setLiveSleepMinutes(Math.round(totalMinutes));
         }
 
         // Push this reading to the server so quest completion can be verified against it —
@@ -743,6 +750,7 @@ export default function App() {
         title: 'Sleep Details',
         description: 'Tracks your overall sleep quality from your connected device.',
         subMetrics: [
+          { label: 'Time Asleep', value: '--', color: '#6b7280' },
           { label: 'Sleep Quality', value: '--', color: '#6b7280' }
         ]
       }
@@ -903,13 +911,17 @@ export default function App() {
         };
       }
       if (item.id === 'BIO-4') {
+        const emptySleepSubMetrics = [
+          { label: 'Time Asleep', value: '--', color: '#6b7280' },
+          { label: 'Sleep Quality', value: '--', color: '#6b7280' }
+        ];
         if (!isLiveHealthData) {
           return {
             ...item,
             reading: 'Not connected',
             status: 'Calibrating' as const,
             behavior: 'Connect a device in Profile to see your real sleep',
-            details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+            details: { ...item.details, subMetrics: emptySleepSubMetrics }
           };
         }
         if (liveSleepQualityPercent === null) {
@@ -918,14 +930,20 @@ export default function App() {
             reading: 'Waiting for data…',
             status: 'Calibrating' as const,
             behavior: 'No sleep data from your device yet',
-            details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+            details: { ...item.details, subMetrics: emptySleepSubMetrics }
           };
         }
         return {
           ...item,
-          reading: `${liveSleepQualityPercent}% Quality`,
+          reading: liveSleepMinutes !== null ? formatMinutesAsHoursMinutes(liveSleepMinutes) : `${liveSleepQualityPercent}% Quality`,
           behavior: 'Synced from your device',
-          details: { ...item.details, subMetrics: [{ label: 'Sleep Quality', value: `${liveSleepQualityPercent}%`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+          details: {
+            ...item.details,
+            subMetrics: [
+              { label: 'Time Asleep', value: liveSleepMinutes !== null ? formatMinutesAsHoursMinutes(liveSleepMinutes) : '--', color: '#00ff88' },
+              { label: 'Sleep Quality', value: `${liveSleepQualityPercent}%`, color: '#00bfff' }
+            ]
+          }
         };
       }
       if (item.id === 'BIO-5') {
@@ -957,7 +975,7 @@ export default function App() {
       return item;
     });
     return sexCard ? [...withLiveData, sexCard] : withLiveData;
-  }, [biometrics, liveBpm, liveHrv, liveSteps, liveSleepQualityPercent, isLiveHealthData, sexCard]);
+  }, [biometrics, liveBpm, liveHrv, liveSteps, liveSleepQualityPercent, liveSleepMinutes, isLiveHealthData, sexCard]);
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
   const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '0'));
@@ -1886,7 +1904,7 @@ export default function App() {
     return (
       <div style={{ marginBottom: '10px' }}>
         <h2 style={{ fontSize: '22px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
-          ⚡ {timeGreeting}, {profile.name || 'GUEST_REST_MODE'}
+          {timeGreeting}, {profile.name || 'there'}
         </h2>
         <span style={{ fontSize: '15px', color: '#9ca3af', fontFamily: 'monospace' }}>
           {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Connect a device to see your live stats.'}
@@ -2269,51 +2287,24 @@ export default function App() {
               </div>
               <div>
                 <h1 className="app-brand-title">KINETIXFIT</h1>
-                <span className="app-brand-subtitle">BIOMETRIC SIGNAL MATRIX</span>
               </div>
-            </div>
-            <div className="app-auth-pill">
-              <span className="green-pulse-dot"></span>
-              SECURE SYNC
             </div>
           </header>
 
-          {/* ==================== TAB 1: TODAY (VITALS & SCI-FI DRILLDOWN) ==================== */}
+          {/* ==================== TAB 1: TODAY ==================== */}
           {activeTab === 'vitals' && (
             <div className="tab-fade-in vitals-dashboard-grid">
               <div className="vitals-left-panel">
-
-              {/* Athletic Level & XP Progress Cockpit */}
-              <div className="athlete-level-gauge-card">
-                <div className="level-gauge-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div className="athlete-avatar-badge">LVL {level}</div>
-                    <div>
-                      <h4 className="athlete-title">{profile.name ? `Welcome back, ${profile.name}` : 'Welcome back'}</h4>
-                      <span className="athlete-subtext">Biometric Status: <strong style={{ color: '#00ff88' }}>Peak Athlete Floor</strong></span>
-                    </div>
-                  </div>
-                  <div className={`streak-badge ${getStreakFlameDisplay(streak).tierClass}`}>
-                    {getStreakFlameDisplay(streak).emoji} {streak}-DAY STREAK
-                  </div>
-                </div>
-
-                {/* Dynamic XP Progress Bar */}
-                <div className="xp-progress-bar-container">
-                  <div className="xp-bar-header">
-                    <span>Performance Experience Progress</span>
-                    <strong>{xp} / {level * 500} XP</strong>
-                  </div>
-                  <div className="xp-bar-track">
-                    <div className="xp-bar-fill" style={{ width: `${Math.min(100, (xp / (level * 500)) * 100)}%` }}></div>
-                  </div>
-                </div>
-              </div>
 
               {/* Welcome banner */}
               <div className="vitals-hero-card">
                 <div style={{ flex: 1.2 }}>
                   {getPersonalizedWelcome()}
+                  {streak > 0 && (
+                    <p style={{ fontSize: '14px', color: '#9ca3af', margin: '8px 0 0 0' }}>
+                      {getStreakFlameDisplay(streak).emoji} {streak}-day streak
+                    </p>
+                  )}
                   <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginTop: '10px', margin: '10px 0 0 0' }}>
                     Tap a card below to see your real 7-day trend.
                   </p>
@@ -2458,44 +2449,12 @@ export default function App() {
                 )}
               </div>
 
-              {/* Option to Sync device & Customize Profile */}
+              {/* Device connection shortcut — editing your details lives in Profile now, not duplicated here */}
               <div className="profile-actions-row">
                 <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
-                  🔌 Sync Wearable Sensor
-                </button>
-                <button onClick={() => setIsEditingProfile(!isEditingProfile)} className="edit-bio-btn">
-                  ✏️ Adjust Bio Parameters
+                  🔌 Connect a Device
                 </button>
               </div>
-
-              {/* Edit Bio parameters section */}
-              {isEditingProfile && (
-                <div className="edit-profile-drawer">
-                  <h3 className="drawer-title">Update Biometric Benchmarks</h3>
-                  <div className="drawer-form-grid">
-                    <label className="drawer-label">Display Name
-                      <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" />
-                    </label>
-                    <label className="drawer-label">Height (cm)
-                      <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" />
-                    </label>
-                    <label className="drawer-label">Weight (kg)
-                      <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" />
-                    </label>
-                    <label className="drawer-label">Primary Fitness Target
-                      <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select">
-                        <option value="Autonomic Recovery">Autonomic Recovery</option>
-                        <option value="Weight Loss">Weight Loss</option>
-                        <option value="Weight Gain">Weight Gain</option>
-                        <option value="Cardio Endurance">Cardio Endurance</option>
-                      </select>
-                    </label>
-                  </div>
-                  <button onClick={() => setIsEditingProfile(false)} className="primary-btn" style={{ width: '100%', marginTop: '15px' }}>
-                    Save Biometric Changes
-                  </button>
-                </div>
-              )}
 
               </div> {/* End Right Panel */}
             </div>
@@ -3141,9 +3100,9 @@ export default function App() {
 
           {/* ==================== FOOTER STATEMENT ==================== */}
           <footer className="app-compliance-footer">
-            <h4 style={{ color: '#fff', fontSize: '15px', textTransform: 'uppercase', marginBottom: '4px' }}>⚕️ UK Clinical Compliance Framework</h4>
+            <h4 style={{ color: '#fff', fontSize: '15px', textTransform: 'uppercase', marginBottom: '4px' }}>Not a Medical Device</h4>
             <p style={{ lineHeight: '1.6' }}>
-              KinetixFit acts as an autonomic biometric analysis clearinghouse. It is not a certified medical device and does not substitute professional medical diagnosis, clinical testing, or general practitioner (GP) advice. Always consult a certified specialist prior to starting high-workload fitness structures or dietary deficits.
+              KinetixFit is a fitness and nutrition tracking app, not a certified medical device. It doesn't replace professional medical advice — always consult a doctor before starting a new fitness or diet plan.
             </p>
           </footer>
 
@@ -3156,7 +3115,7 @@ export default function App() {
             setShowCameraModal(true);
           }}
           className="floating-hud-camera-fab"
-          title="Launch Ingestion Scan"
+          title="Scan Food"
         >
           📷
         </button>
@@ -3238,15 +3197,15 @@ export default function App() {
             <span className="levelup-sparkle levelup-sparkle-3">✨</span>
             <span className="levelup-trophy-icon" style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
             <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '24px', letterSpacing: '2px', textTransform: 'uppercase' }}>
-              ATHLETIC LEVEL UP!
+              Level Up!
             </h2>
             <p className="modal-desc" style={{ color: '#ffffff', fontSize: '17px', marginTop: '10px', lineHeight: '1.6' }}>
-              Congratulations! Your verified physical and biometric efforts have promoted your telemetry status to:
+              You've reached
               <br/>
               <strong style={{ color: '#00bfff', display: 'block', margin: '10px 0', fontSize: '20px' }}>
-                LEVEL {level + 1} PEAK CONDITIONING ATHLETE
+                Level {level + 1}
               </strong>
-              Your points limits have been upgraded!
+              Here's a bonus for sticking with it.
             </p>
             <button
               onClick={() => {
@@ -3479,28 +3438,6 @@ export default function App() {
           letter-spacing: 2px !important;
           text-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
         }
-        .app-brand-subtitle {
-          font-size: 14px !important;
-          color: #6b7280 !important;
-          letter-spacing: 2px !important;
-          display: block !important;
-          text-transform: uppercase !important;
-        }
-        .app-auth-pill {
-          background-color: rgba(0, 255, 136, 0.08) !important;
-          border: 1px solid rgba(0, 255, 136, 0.3) !important;
-          color: #00ff88 !important;
-          font-size: 15px !important;
-          font-weight: bold !important;
-          padding: 6px 14px !important;
-          border-radius: 20px !important;
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          letter-spacing: 1px !important;
-          box-shadow: 0 0 15px rgba(0, 255, 136, 0.1) !important;
-        }
-
         /* Alert Notification banner */
         .alert-ticker {
           background-color: rgba(0, 255, 136, 0.08) !important;
@@ -3553,61 +3490,6 @@ export default function App() {
           gap: 25px !important;
         }
 
-        /* Athletic Progress Cockpit Styling */
-        .athlete-level-gauge-card {
-          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
-        }
-        .level-gauge-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          margin-bottom: 15px !important;
-        }
-        .athlete-avatar-badge {
-          background: radial-gradient(circle, #00ff88 0%, #00bfff 100%) !important;
-          color: #030712 !important;
-          font-weight: 900 !important;
-          font-size: 18px !important;
-          width: 52px !important;
-          height: 52px !important;
-          border-radius: 50% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
-        }
-        .athlete-title {
-          font-size: 19px !important;
-          color: #ffffff !important;
-          margin: 0 0 2px 0 !important;
-        }
-        .athlete-subtext {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-        }
-        .streak-badge {
-          background-color: rgba(255, 149, 0, 0.08) !important;
-          border: 1px solid #ff9500 !important;
-          color: #ff9500 !important;
-          font-size: 14px !important;
-          font-weight: bold !important;
-          padding: 5px 12px !important;
-          border-radius: 12px !important;
-          letter-spacing: 0.5px !important;
-          transition: box-shadow 0.5s ease, border-color 0.5s ease !important;
-        }
-        .streak-tier-0 { opacity: 0.6 !important; }
-        .streak-tier-2 { box-shadow: 0 0 8px rgba(255, 149, 0, 0.35) !important; }
-        .streak-tier-3 { box-shadow: 0 0 12px rgba(255, 149, 0, 0.5) !important; border-color: #ffb347 !important; }
-        .streak-tier-4 { box-shadow: 0 0 18px rgba(255, 149, 0, 0.7) !important; border-color: #ffcc80 !important; animation: streakGlowPulse 1.8s ease-in-out infinite !important; }
-        @keyframes streakGlowPulse {
-          0%, 100% { box-shadow: 0 0 12px rgba(255, 149, 0, 0.5); }
-          50% { box-shadow: 0 0 22px rgba(255, 149, 0, 0.85); }
-        }
         .badges-gallery-grid {
           display: grid !important;
           grid-template-columns: repeat(3, 1fr) !important;
@@ -3646,39 +3528,6 @@ export default function App() {
           right: 6px !important;
           font-size: 14px !important;
         }
-        .xp-progress-bar-container {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 6px !important;
-        }
-        .xp-bar-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          font-size: 14px !important;
-          color: #6b7280 !important;
-          text-transform: uppercase !important;
-        }
-        .xp-bar-track {
-          width: 100% !important;
-          height: 8px !important;
-          background-color: #030712 !important;
-          border-radius: 4px !important;
-          overflow: hidden !important;
-          border: 1px solid #1f2937 !important;
-        }
-        .xp-bar-fill {
-          height: 100% !important;
-          background: linear-gradient(90deg, #00ff88 0%, #00bfff 100%) !important;
-          border-radius: 4px !important;
-          box-shadow: 0 0 8px rgba(0, 255, 136, 0.5) !important;
-          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
-          animation: xpBarBreathe 2.4s ease-in-out infinite !important;
-        }
-        @keyframes xpBarBreathe {
-          0%, 100% { box-shadow: 0 0 8px rgba(0, 255, 136, 0.5); }
-          50% { box-shadow: 0 0 14px rgba(0, 191, 255, 0.6); }
-        }
-
         /* Athletic Sport Selector Styling */
         .sport-workload-bar {
           display: grid !important;
@@ -3859,21 +3708,6 @@ export default function App() {
           background-color: #374151 !important;
         }
 
-        /* Edit Profile Drawer drawer-card */
-        .edit-profile-drawer {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 12px !important;
-          padding: 20px !important;
-          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.01) !important;
-        }
-        .drawer-title {
-          font-size: 17px !important;
-          color: #00ff88 !important;
-          text-transform: uppercase !important;
-          margin: 0 0 15px 0 !important;
-          letter-spacing: 1px !important;
-        }
         .drawer-form-grid {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
@@ -4780,19 +4614,6 @@ export default function App() {
           color: #6b7280 !important;
         }
 
-        /* Generic classes */
-        .green-pulse-dot {
-          width: 6px !important;
-          height: 6px !important;
-          background-color: #00ff88 !important;
-          border-radius: 50% !important;
-          animation: syncPulse 1.5s infinite !important;
-        }
-        @keyframes syncPulse {
-          0% { opacity: 0.4; }
-          50% { opacity: 1; }
-          100% { opacity: 0.4; }
-        }
         /* 📱 Symmetrical Mobile Adaptation (Collapses seamlessly on smaller viewports) */
         @media (max-width: 1024px) {
           .vitals-dashboard-grid {

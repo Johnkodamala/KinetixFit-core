@@ -1,4 +1,4 @@
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
@@ -43,6 +43,28 @@ interface BiometricTrendCardProps {
   onRangeChange: (days: 7 | 30) => void;
 }
 
+// Renders every real point as a small dot except the most recent real value ("today"), which
+// gets a larger, filled dot so the current reading stands out from its own history at a glance.
+// Recharts' own custom-dot prop type doesn't line up cleanly with a plain function component
+// (a known library quirk — see recharts/recharts#3799-style issues), so props are untyped here.
+function makeTodayDot(color: string, lastRealIndex: number) {
+  return function TodayDot(props: { cx?: number; cy?: number; index?: number; payload?: DailyPoint }) {
+    const { cx, cy, index, payload } = props;
+    if (cx === undefined || cy === undefined || payload?.value === null || payload?.value === undefined) return <></>;
+    const isToday = index === lastRealIndex;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isToday ? 5 : 2.5}
+        fill={isToday ? color : '#FFFFFF'}
+        stroke={color}
+        strokeWidth={isToday ? 0 : 1.5}
+      />
+    );
+  };
+}
+
 export default function BiometricTrendCard({
   icon, title, status, behavior, latestReading, subMetrics, trend, unit, color, chartType,
   isTrackable, disconnectedMessage, buildingMessage, minPoints = 2, trendFootnote,
@@ -51,6 +73,9 @@ export default function BiometricTrendCard({
   const visibleData = trend.slice(-rangeDays);
   const nonNullCount = visibleData.filter(d => d.value !== null).length;
   const showBuilding = isTrackable && nonNullCount < minPoints;
+  const gradientId = `btc-grad-${title.replace(/[^a-zA-Z0-9]/g, '')}`;
+  let lastRealIndex = -1;
+  visibleData.forEach((d, i) => { if (d.value !== null) lastRealIndex = i; });
 
   return (
     <div className="btc-card">
@@ -79,20 +104,46 @@ export default function BiometricTrendCard({
           <ResponsiveContainer width="100%" height="100%">
             {chartType === 'bar' ? (
               <BarChart data={visibleData} margin={{ top: 4, right: expanded ? 8 : 0, left: expanded ? 0 : 0, bottom: 0 }}>
-                {expanded && <CartesianGrid stroke="#E5E7EB" vertical={false} />}
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity={1} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.7} />
+                  </linearGradient>
+                </defs>
+                {expanded && <CartesianGrid stroke="#EEF0F2" strokeDasharray="3 3" vertical={false} />}
                 {expanded && <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />}
                 {expanded && <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} width={36} />}
                 {expanded && <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }} formatter={(v) => [`${v}${unit}`, title]} />}
-                <Bar dataKey="value" fill={color} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="value" fill={`url(#${gradientId})`} radius={[4, 4, 2, 2]} isAnimationActive={false} maxBarSize={28}>
+                  {visibleData.map((d, i) => (
+                    <Cell key={d.date} fillOpacity={d.value === null ? 0 : i === lastRealIndex ? 1 : 0.45} />
+                  ))}
+                </Bar>
               </BarChart>
             ) : (
-              <LineChart data={visibleData} margin={{ top: 4, right: expanded ? 8 : 0, left: expanded ? 0 : 0, bottom: 0 }}>
-                {expanded && <CartesianGrid stroke="#E5E7EB" vertical={false} />}
+              <AreaChart data={visibleData} margin={{ top: 4, right: expanded ? 8 : 0, left: expanded ? 0 : 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                {expanded && <CartesianGrid stroke="#EEF0F2" strokeDasharray="3 3" vertical={false} />}
                 {expanded && <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />}
                 {expanded && <YAxis tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} width={36} domain={['auto', 'auto']} />}
                 {expanded && <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #E5E7EB' }} formatter={(v) => [`${v}${unit}`, title]} />}
-                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={expanded} connectNulls isAnimationActive={false} />
-              </LineChart>
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={color}
+                  strokeWidth={2.5}
+                  fill={`url(#${gradientId})`}
+                  connectNulls
+                  isAnimationActive={false}
+                  dot={expanded ? makeTodayDot(color, lastRealIndex) : false}
+                  activeDot={expanded ? { r: 5, fill: color, stroke: '#FFFFFF', strokeWidth: 2 } : false}
+                />
+              </AreaChart>
             )}
           </ResponsiveContainer>
         </div>
