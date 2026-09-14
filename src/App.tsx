@@ -6,6 +6,7 @@ import { Health } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import type { Session } from '@supabase/supabase-js';
+import BiometricTrendCard, { type DailyPoint } from './components/BiometricTrendCard';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -22,7 +23,6 @@ interface TelemetryStream {
   reading: string | number;
   status: 'Optimal' | 'Syncing' | 'Calibrating' | 'Critical';
   behavior: string;
-  waveType: 'sinusoidal' | 'ecg' | 'mitochondrial' | 'delta' | 'erratic_spikes' | 'slow_sinusoidal';
   details: {
     title: string;
     description: string;
@@ -181,6 +181,63 @@ const ONBOARDING_PROFILE_STYLES = `
     font-family: monospace !important;
   }
 `;
+
+// How many days of history the 7/30-day trend graphs fetch/keep. Health Connect and HealthKit
+// both hold far more than this; 30 is just the widest range the UI currently offers.
+const TRENDS_LOOKBACK_DAYS = 30;
+const STRESS_HISTORY_STORAGE_KEY = 'kinetix_stress_history';
+
+// Turns aggregated device-history samples into { day, value } entries keyed by calendar day,
+// ready for buildDailyPoints. Rounding/unit conversion (e.g. sleep minutes -> quality %) happens
+// at the call site since it differs per metric.
+function toDayEntries(samples: { startDate: string; value: number }[]): { day: string; value: number }[] {
+  return samples.map(s => ({ day: new Date(s.startDate).toISOString().slice(0, 10), value: s.value }));
+}
+
+// Fills in the last `days` calendar days (oldest first) from whatever real entries exist,
+// leaving genuinely missing days as null rather than interpolating or zero-filling — a gap in
+// the graph is more honest than a fabricated flat value.
+function buildDailyPoints(entries: { day: string; value: number }[], days: number): DailyPoint[] {
+  const byDay = new Map(entries.map(e => [e.day, e.value]));
+  const points: DailyPoint[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const raw = byDay.get(key);
+    points.push({
+      date: key,
+      label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+      value: raw === undefined ? null : raw
+    });
+  }
+  return points;
+}
+
+// Stress has no queryable device history, so this is our own local record of each day's real
+// HRV reading — the only honest basis for a "stress trend" until enough days accumulate.
+function loadStressHistory(): { day: string; value: number }[] {
+  try {
+    const raw = localStorage.getItem(STRESS_HISTORY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function recordStressSnapshot(hrv: number): { day: string; value: number }[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const history = loadStressHistory();
+  const idx = history.findIndex(h => h.day === today);
+  if (idx >= 0) {
+    history[idx] = { day: today, value: hrv };
+  } else {
+    history.push({ day: today, value: hrv });
+  }
+  const trimmed = history.slice(-TRENDS_LOOKBACK_DAYS);
+  localStorage.setItem(STRESS_HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+  return trimmed;
+}
 
 // Standard-length cycle phase breakdown, scaled to the user's own average cycle length.
 function computeCyclePhase(lastPeriodStartDate: string, averageCycleLength: number): { phase: string; dayOfCycle: number } {
@@ -410,9 +467,6 @@ export default function App() {
     window.location.hash = tabId;
   };
 
-  // --- 3. SELECTED METRIC FOR DETAILED TRIPLE-TIER DRILLDOWN ---
-  const [selectedMetricId, setSelectedMetricId] = useState<string | null>('BIO-2'); // Defaults to Heart Health (BIO-2)
-
   // --- 4. USER PROFILE DATA STATE (With LocalStorage Persistence) ---
   const [profile, setProfile] = useState<UserProfile>(() => {
     const saved = localStorage.getItem('kinetix_profile');
@@ -471,33 +525,52 @@ export default function App() {
   const [requiredTaskCountForRedeem] = useState<number>(2); // Multi-step validation defense
   const [tasksCompletedTodayCount, setTasksCompletedTodayCount] = useState<number>(0);
 
-  // --- 6. REAL-TIME LIVE PULSE WAVE OSCILLATION MODULE ---
-  // null until either the demo ticker or a real device reading has produced a value — lets the
-  // dashboard show an honest "waiting for data" state instead of a fabricated starting number.
+  // --- 6. LIVE HEART RATE / HRV STATE ---
+  // null until a real device reading arrives — no demo/simulated data is ever substituted here,
+  // so a disconnected user always sees an honest "connect a device" state, never a fake number.
   const [liveBpm, setLiveBpm] = useState<number | null>(null);
   const [liveHrv, setLiveHrv] = useState<number | null>(null);
-  const [pulseHistory, setPulseHistory] = useState<number[]>([72, 74, 71, 70, 75, 78, 73, 71, 72, 75, 79, 73, 70, 72, 74, 71]);
 
-  // When no real device is connected, keep the dashboard visually alive with clearly-labeled
-  // demo data (see the "DEMO DATA" badge on the telemetry panel) rather than freezing it.
+  // --- 7-DAY/30-DAY HEALTH TRENDS (real device history, plus a locally-persisted HRV/stress log) ---
+  // Stress has no queryable device history (it's an estimate derived from HRV, not a stored
+  // health metric), so its initial value is read from our own local, honest record here —
+  // built up one real day at a time from here on, rather than a backdated trend that never happened.
+  const [healthTrends, setHealthTrends] = useState<{ steps: DailyPoint[]; heartRate: DailyPoint[]; sleep: DailyPoint[]; stress: DailyPoint[] }>(() => ({
+    steps: [], heartRate: [], sleep: [], stress: buildDailyPoints(loadStressHistory(), TRENDS_LOOKBACK_DAYS)
+  }));
+  const [trendRangeDays, setTrendRangeDays] = useState<7 | 30>(7);
+  const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
+
+  // Real steps/heart-rate/sleep history from HealthKit/Health Connect once a device is connected.
   useEffect(() => {
-    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP) return;
-    if (isLiveHealthData) return;
+    if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData) return;
 
-    const interval = setInterval(() => {
-      setLiveBpm(prev => {
-        const base = prev ?? 72;
-        const delta = (Math.random() - 0.5) * 6;
-        const next = Math.max(58, Math.min(108, Math.round(base + delta)));
-        setPulseHistory(h => [...h.slice(1), next]);
-        return next;
-      });
-      setLiveHrv(prev => {
-        const base = prev ?? 68;
-        const delta = (Math.random() - 0.5) * 8;
-        return Math.max(48, Math.min(115, Math.round(base + delta)));
-      });
-    }, 2500);
+    const fetchHealthTrends = async () => {
+      try {
+        const now = new Date();
+        const startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - (TRENDS_LOOKBACK_DAYS - 1));
+        startDate.setHours(0, 0, 0, 0);
+
+        const [stepsResult, hrResult, sleepResult] = await Promise.all([
+          Health.queryAggregated({ dataType: 'steps', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'sum' }),
+          Health.queryAggregated({ dataType: 'heartRate', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'average' }),
+          Health.queryAggregated({ dataType: 'sleep', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'sum' })
+        ]);
+
+        setHealthTrends(prev => ({
+          ...prev,
+          steps: buildDailyPoints(toDayEntries(stepsResult.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS),
+          heartRate: buildDailyPoints(toDayEntries(hrResult.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS),
+          sleep: buildDailyPoints(toDayEntries(sleepResult.samples).map(e => ({ ...e, value: Math.min(100, Math.round((e.value / (8 * 60)) * 100)) })), TRENDS_LOOKBACK_DAYS)
+        }));
+      } catch (err) {
+        console.warn('Health trend fetch failed:', err);
+      }
+    };
+
+    fetchHealthTrends();
+    const interval = setInterval(fetchHealthTrends, 30 * 60000);
     return () => clearInterval(interval);
   }, [isLoggedIn, onboardingStep, isLiveHealthData]);
 
@@ -528,11 +601,12 @@ export default function App() {
         if (hrResult.samples.length > 0) {
           syncedBpm = Math.round(hrResult.samples[0].value);
           setLiveBpm(syncedBpm);
-          setPulseHistory(h => [...h.slice(1), syncedBpm as number]);
         }
         if (hrvResult.samples.length > 0) {
           syncedHrv = Math.round(hrvResult.samples[0].value);
           setLiveHrv(syncedHrv);
+          const trimmedHistory = recordStressSnapshot(syncedHrv);
+          setHealthTrends(prev => ({ ...prev, stress: buildDailyPoints(trimmedHistory, TRENDS_LOOKBACK_DAYS) }));
         }
         if (stepsResult.samples.length > 0) {
           syncedSteps = Math.round(stepsResult.samples[0].value);
@@ -632,7 +706,6 @@ export default function App() {
       reading: 'Not connected',
       status: 'Calibrating',
       behavior: 'Connect a device in Profile to see your real steps',
-      waveType: 'sinusoidal',
       details: {
         title: 'Step Details',
         description: 'Tracks your daily steps and filters out fake step-counting from shaking your phone.',
@@ -649,7 +722,6 @@ export default function App() {
       reading: 'Waiting for reading…',
       status: 'Calibrating',
       behavior: 'Connect a device to see your real heart rate',
-      waveType: 'ecg',
       details: {
         title: 'Heart Rate Details',
         description: 'Tracks your heart rate and HRV (a marker of recovery) throughout the day.',
@@ -667,7 +739,6 @@ export default function App() {
       reading: 'Not connected',
       status: 'Calibrating',
       behavior: 'Connect a device in Profile to see your real sleep',
-      waveType: 'delta',
       details: {
         title: 'Sleep Details',
         description: 'Tracks your overall sleep quality from your connected device.',
@@ -683,7 +754,6 @@ export default function App() {
       reading: 'Waiting for data…',
       status: 'Calibrating',
       behavior: 'Connect a device to see a stress estimate',
-      waveType: 'erratic_spikes',
       details: {
         title: 'Stress Details',
         description: 'Estimates your stress from your HRV — this app has no way to directly measure stress hormones.',
@@ -706,7 +776,6 @@ export default function App() {
           reading: 'Awaiting Cycle Data',
           status: 'Calibrating',
           behavior: 'Set your last period start date in Profile to activate',
-          waveType: 'slow_sinusoidal',
           details: {
             title: 'Biological Rhythm Alignment',
             description: 'Add your last period start date and average cycle length in your Profile to activate real cycle phase tracking.',
@@ -722,7 +791,6 @@ export default function App() {
         reading: phase,
         status: 'Optimal',
         behavior: `Day ${dayOfCycle} of ${profile.averageCycleLength}-day cycle`,
-        waveType: 'slow_sinusoidal',
         details: {
           title: 'Biological Rhythm Alignment',
           description: 'Calculated from your logged last period start date and average cycle length — not a fixed value.',
@@ -743,7 +811,6 @@ export default function App() {
           reading: 'Waiting for data',
           status: 'Calibrating',
           behavior: isLiveHealthData ? 'No recent heart rate data from your device yet' : 'Connect a device to see your recovery estimate',
-          waveType: 'slow_sinusoidal',
           details: {
             title: 'Recovery & Stress Load',
             description: 'This app has no way to directly measure hormone levels — this card is a recovery/stress-load estimate built from your HRV, heart rate and sleep data instead.',
@@ -759,7 +826,6 @@ export default function App() {
         reading: recoveryLabel,
         status: liveHrv > 45 ? 'Optimal' : 'Critical',
         behavior: 'Derived from HRV, resting heart rate & sleep quality',
-        waveType: 'slow_sinusoidal',
         details: {
           title: 'Recovery & Stress Load',
           description: 'This app has no way to directly measure hormone levels — this card is a recovery/stress-load estimate built from your existing HRV, heart rate and sleep data instead.',
@@ -1832,9 +1898,6 @@ export default function App() {
     );
   };
 
-  // --- TRIPLE-TIER DRILLDOWN SELECTION ---
-  const selectedMetric = allBiometrics.find(b => b.id === selectedMetricId) || allBiometrics[1];
-
   // --- RENDERING ROUTER ---
 
   // A. MARKETING FRONT HOME LANDING PAGE
@@ -2175,6 +2238,13 @@ export default function App() {
     );
   }
 
+  // Individual live-derived biometric entries for the 7-day trend cards below.
+  const stepsBio = allBiometrics.find(b => b.id === 'BIO-1')!;
+  const heartRateBio = allBiometrics.find(b => b.id === 'BIO-2')!;
+  const sleepBio = allBiometrics.find(b => b.id === 'BIO-4')!;
+  const stressBio = allBiometrics.find(b => b.id === 'BIO-5')!;
+  const hasStressHistory = healthTrends.stress.some(d => d.value !== null);
+
   // F. MAIN HOLLYWOOD HUD PLATFORM PORTAL SCREEN WITH GLASS SCI-FI OVERLAYS
   return (
     <div className="workspace-container">
@@ -2240,198 +2310,152 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Oura & Apple Health Goal Rings */}
+              {/* Welcome banner */}
               <div className="vitals-hero-card">
                 <div style={{ flex: 1.2 }}>
                   {getPersonalizedWelcome()}
                   <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginTop: '10px', margin: '10px 0 0 0' }}>
-                    Tap any card below to see more detail.
+                    Tap a card below to see your real 7-day trend.
                   </p>
-                </div>
-
-                {/* 3 Active Ring Vectors */}
-                <div className="progress-rings-box">
-                  <div className="ring-indicator">
-                    <svg width="45" height="45" viewBox="0 0 36 36">
-                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#111827" strokeWidth="3" />
-                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#00ff88" strokeWidth="3.5" strokeDasharray="65, 100" strokeLinecap="round" />
-                    </svg>
-                    <div className="ring-text">65%</div>
-                    <span>Steps</span>
-                  </div>
-                  <div className="ring-indicator">
-                    <svg width="45" height="45" viewBox="0 0 36 36">
-                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#111827" strokeWidth="3" />
-                      <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#00bfff" strokeWidth="3.5" strokeDasharray="84, 100" strokeLinecap="round" />
-                    </svg>
-                    <div className="ring-text">84%</div>
-                    <span>Sleep</span>
-                  </div>
                 </div>
               </div>
 
-              {/* Dynamic ECG/Pulse fluctuation Interactive Plot (Drilldown) */}
-              <div className="ecg-module-card">
-                <div className="ecg-card-header">
-                  <div>
-                    <span className="ecg-label">LIVE HEART RATE</span>
-                    <h3 className="ecg-title">
-                      📈 {selectedMetric.metric}: <span style={{ color: selectedMetricId === 'BIO-2' ? '#ff3b30' : '#00ff88' }}>{selectedMetric.reading}</span>
-                    </h3>
-                  </div>
-                  <div className="live-broadcast-pill">
-                    <span className="live-pulse-dot"></span>
-                    LIVE SIGNAL
-                  </div>
-                </div>
+              {/* 7-Day Health Trends — real device history, honest empty states when disconnected */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <BiometricTrendCard
+                  icon="🚶"
+                  title="Steps"
+                  status={stepsBio.status}
+                  behavior={stepsBio.behavior}
+                  latestReading={String(stepsBio.reading)}
+                  subMetrics={stepsBio.details.subMetrics}
+                  trend={healthTrends.steps}
+                  unit=""
+                  color="#2563EB"
+                  chartType="bar"
+                  isTrackable={isLiveHealthData}
+                  disconnectedMessage="Connect a device in Profile to see your 7-day steps trend."
+                  minPoints={1}
+                  expanded={expandedTrendId === 'BIO-1'}
+                  onToggle={() => setExpandedTrendId(prev => prev === 'BIO-1' ? null : 'BIO-1')}
+                  rangeDays={trendRangeDays}
+                  onRangeChange={setTrendRangeDays}
+                />
+                <BiometricTrendCard
+                  icon="❤️"
+                  title="Heart Rate"
+                  status={heartRateBio.status}
+                  behavior={heartRateBio.behavior}
+                  latestReading={String(heartRateBio.reading)}
+                  subMetrics={heartRateBio.details.subMetrics}
+                  trend={healthTrends.heartRate}
+                  unit=" bpm"
+                  color="#DC2626"
+                  chartType="line"
+                  isTrackable={isLiveHealthData}
+                  disconnectedMessage="Connect a device to see your 7-day heart rate trend."
+                  minPoints={1}
+                  expanded={expandedTrendId === 'BIO-2'}
+                  onToggle={() => setExpandedTrendId(prev => prev === 'BIO-2' ? null : 'BIO-2')}
+                  rangeDays={trendRangeDays}
+                  onRangeChange={setTrendRangeDays}
+                />
+                <BiometricTrendCard
+                  icon="😴"
+                  title="Sleep"
+                  status={sleepBio.status}
+                  behavior={sleepBio.behavior}
+                  latestReading={String(sleepBio.reading)}
+                  subMetrics={sleepBio.details.subMetrics}
+                  trend={healthTrends.sleep}
+                  unit="%"
+                  color="#7C3AED"
+                  chartType="bar"
+                  isTrackable={isLiveHealthData}
+                  disconnectedMessage="Connect a device in Profile to see your 7-day sleep trend."
+                  minPoints={1}
+                  expanded={expandedTrendId === 'BIO-4'}
+                  onToggle={() => setExpandedTrendId(prev => prev === 'BIO-4' ? null : 'BIO-4')}
+                  rangeDays={trendRangeDays}
+                  onRangeChange={setTrendRangeDays}
+                />
+                <BiometricTrendCard
+                  icon="🧘"
+                  title="Stress (HRV estimate)"
+                  status={stressBio.status}
+                  behavior={stressBio.behavior}
+                  latestReading={String(stressBio.reading)}
+                  subMetrics={stressBio.details.subMetrics}
+                  trend={healthTrends.stress}
+                  unit=" ms HRV"
+                  color="#D97706"
+                  chartType="line"
+                  isTrackable={isLiveHealthData || hasStressHistory}
+                  disconnectedMessage="Connect a device to start tracking your stress trend."
+                  buildingMessage="Building your trend — check back in a few days."
+                  minPoints={2}
+                  trendFootnote="Estimated from your HRV — higher HRV generally means lower stress. This app has no way to directly measure stress hormones."
+                  expanded={expandedTrendId === 'BIO-5'}
+                  onToggle={() => setExpandedTrendId(prev => prev === 'BIO-5' ? null : 'BIO-5')}
+                  rangeDays={trendRangeDays}
+                  onRangeChange={setTrendRangeDays}
+                />
+              </div>
 
-                {/* Athletic Multi-Sport Workload Control Deck */}
+              {/* Workout logging — a real log entry, independent of live heart rate/HRV data */}
+              <div className="ecg-module-card">
+                <h3 className="ecg-title" style={{ margin: '0 0 10px 0' }}>Log a Workout</h3>
                 <div className="sport-workload-bar">
                   {[
-                    { id: 'rest', label: '🧘 Rest Recovery', wave: 'slow_sinusoidal', bpm: 62, hrv: 85, color: '#00ff88' },
-                    { id: 'run', label: '🏃 Cardio Run', wave: 'ecg', bpm: 145, hrv: 45, color: '#ff3b30' },
-                    { id: 'cycle', label: '🚴 Cycle Sprint', wave: 'mitochondrial', bpm: 155, hrv: 35, color: '#00bfff' },
-                    { id: 'swim', label: '🏊 Swim Laps', wave: 'delta', bpm: 130, hrv: 55, color: '#a855f7' }
+                    { id: 'rest', label: '🧘 Rest & Recovery' },
+                    { id: 'run', label: '🏃 Cardio Run' },
+                    { id: 'cycle', label: '🚴 Cycle Sprint' },
+                    { id: 'swim', label: '🏊 Swim Laps' }
                   ].map(mode => (
                     <button
                       key={mode.id}
-                      onClick={() => {
-                        setActiveSportMode(mode.id as 'rest' | 'run' | 'cycle' | 'swim');
-                        setLiveBpm(mode.bpm);
-                        setLiveHrv(mode.hrv);
-                        setMotivationMessage(`⚡ WORKLOAD DIVERTER: Synced metrics to ${mode.label}!`);
-                        setTimeout(() => setMotivationMessage(null), 4000);
-
-                        // Dynamically alter selected metric details
-                        setBiometrics(prev => prev.map(item => {
-                          if (item.id === 'BIO-2') {
-                            return {
-                              ...item,
-                              reading: `${mode.bpm} BPM / ${mode.hrv} ms HRV`,
-                              status: mode.bpm > 100 ? 'Critical' : 'Optimal',
-                              waveType: mode.wave as TelemetryStream['waveType'],
-                              behavior: mode.bpm > 130 ? 'Peak Athletic VO2 Threshold' : 'High Vagal Tone Detected'
-                            };
-                          }
-                          return item;
-                        }));
-                      }}
+                      onClick={() => setActiveSportMode(mode.id as 'rest' | 'run' | 'cycle' | 'swim')}
                       className={`sport-mode-btn ${activeSportMode === mode.id ? 'active-sport-btn' : ''}`}
-                      style={{ borderColor: activeSportMode === mode.id ? mode.color : '#1f2937' }}
                     >
                       {mode.label}
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: '13px', color: '#6b7280', margin: '6px 0 0 0' }}>
-                  The buttons above preview each mode's telemetry pattern for demo purposes — they don't log a workout.
-                </p>
                 <button onClick={handleLogWorkout} className="primary-btn" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
                   ✅ Log This Workout
                 </button>
-
-                {/* Tactical Holographic Wave Oscilloscope */}
-                <div className="ecg-oscilloscope-viewport">
-                  {/* Glowing background grid lines */}
-                  <div className="hud-grid-background"></div>
-
-                  <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-                    <path
-                      d={`M 0,32.5 ${pulseHistory.map((v, idx) => {
-                        const x = (idx / (pulseHistory.length - 1)) * 380;
-                        let y = 32.5;
-
-                        // RENDER DYNAMIC HOLLYWOOD-STYLE MATHEMATICAL WAVE SCHEMAS
-                        if (selectedMetric.waveType === 'ecg') {
-                          // Traditional Cardio ECG Signature with R-peaks
-                          if (idx % 4 === 0) y = 10;
-                          else if (idx % 4 === 1) y = 55;
-                          else y = 32.5 - (v - 72) * 1.2;
-                        } else if (selectedMetric.waveType === 'sinusoidal') {
-                          // Smooth High-Frequency Movement wave
-                          y = 32.5 + Math.sin(idx * 1.5) * 20;
-                        } else if (selectedMetric.waveType === 'delta') {
-                          // Very slow deep delta sleep waves
-                          y = 32.5 + Math.sin(idx * 0.4) * 25;
-                        } else if (selectedMetric.waveType === 'mitochondrial') {
-                          // Rapid high-energy metabolic curves
-                          y = 32.5 + Math.cos(idx * 2.2) * 15 + Math.sin(idx * 1.1) * 8;
-                        } else if (selectedMetric.waveType === 'erratic_spikes') {
-                          // High-stress jagged stress peaks
-                          y = 32.5 + (Math.sin(idx * 3.5) * 12) + ((idx % 2 === 0 ? 1 : -1) * 18);
-                        } else if (selectedMetric.waveType === 'slow_sinusoidal') {
-                          // Long structural biological rhythm waves
-                          y = 32.5 + Math.sin(idx * 0.2) * 22;
-                        }
-
-                        return `L ${x},${y}`;
-                      }).join(' ')}`}
-                      fill="none"
-                      stroke={selectedMetricId === 'BIO-2' ? '#ff3b30' : '#00ff88'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="ecg-path"
-                    />
-                  </svg>
-                </div>
-
-                {/* Submetrics Drilldown Details Panel */}
-                <div className="drilldown-submetrics-panel">
-                  <h4 className="drilldown-analysis-title">⚕️ {selectedMetric.details.title}</h4>
-                  <p className="drilldown-analysis-desc">{selectedMetric.details.description}</p>
-
-                  <div className="drilldown-submetrics-grid">
-                    {selectedMetric.details.subMetrics.map((sm, idx) => (
-                      <div key={idx} className="drilldown-submetric-capsule">
-                        <span className="capsule-label">{sm.label}</span>
-                        <strong className="capsule-value" style={{ color: sm.color }}>{sm.value}</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               </div> {/* End Left Panel */}
 
               <div className="vitals-right-panel">
-                {/* Core Health Interactive Grid */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className="section-header" style={{ margin: 0 }}>Your Health Stats</h3>
+                  <h3 className="section-header" style={{ margin: 0 }}>Connection Status</h3>
                   <span style={{
                     fontSize: '12px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '10px', letterSpacing: '0.5px',
                     color: isLiveHealthData ? '#00ff88' : '#ff9500',
                     backgroundColor: isLiveHealthData ? 'rgba(0, 255, 136, 0.08)' : 'rgba(255, 149, 0, 0.08)',
                     border: `1px solid ${isLiveHealthData ? '#00ff88' : '#ff9500'}`
                   }}>
-                    {isLiveHealthData ? `🟢 LIVE — ${profile.smartDeviceConnected}` : '⚠️ DEMO DATA'}
+                    {isLiveHealthData ? `🟢 LIVE — ${profile.smartDeviceConnected}` : '🔌 NOT CONNECTED'}
                   </span>
                 </div>
-                <div className="core-biometrics-grid">
-                  {allBiometrics.map(bio => {
-                    const active = selectedMetricId === bio.id;
-                    return (
-                      <div
-                        key={bio.id}
-                        onClick={() => setSelectedMetricId(bio.id)}
-                        className={`biometric-item-card ${active ? 'active-bio-card' : ''}`}
-                      >
-                        <div className="bio-card-header">
-                          <span className="bio-system-label">{bio.system}</span>
-                          <span className={`bio-status-badge status-${bio.status.toLowerCase()}`}>
-                            {bio.status}
-                          </span>
-                        </div>
-                        <h4 className="bio-metric-title">{bio.metric}</h4>
-                        <p className="bio-metric-reading">{bio.reading}</p>
-                        <span className="bio-behavior-log">
-                          Behavior: {bio.behavior}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                {sexCard && (
+                  <div className="biometric-item-card">
+                    <div className="bio-card-header">
+                      <span className="bio-system-label">{sexCard.system}</span>
+                      <span className={`bio-status-badge status-${sexCard.status.toLowerCase()}`}>
+                        {sexCard.status}
+                      </span>
+                    </div>
+                    <h4 className="bio-metric-title">{sexCard.metric}</h4>
+                    <p className="bio-metric-reading">{sexCard.reading}</p>
+                    <span className="bio-behavior-log">
+                      Behavior: {sexCard.behavior}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Option to Sync device & Customize Profile */}
@@ -3326,34 +3350,6 @@ export default function App() {
                   📷 Take / Upload Photo
                 </button>
 
-                {/* Preloaded database list */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
-                  {[
-                    { name: 'Premium Deli Smoked Salmon Salad Box', ing: 'Atlantic Salmon (Fish), Mixed Leaves, Olive Oil, Soya Dressing, Sea Salt' },
-                    { name: 'Organic Peanut Protein Bar', ing: 'Roasted Peanuts, Peanut Butter, Oats, Milk Chocolate, Honey, Wheat Flour' },
-                    { name: 'Sweet Potato Bhaji Wrap', ing: 'Sweet Potato, Spices, Wheat Tortilla, Mustard Seed, Celery, Sesame Oil' },
-                    { name: 'High-Street Sausage Roll Formulation', ing: 'Wheat Flour, Pork Sausage, Butter (Milk), Eggs, Spices, Soya Protein' }
-                  ].map(p => (
-                    <button
-                      key={p.name}
-                      onClick={() => {
-                        setMealInput(p.ing);
-                        triggerCameraScan(p.ing);
-                      }}
-                      className="camera-mock-choice-btn hover-green"
-                      style={{ padding: '10px', fontSize: '16px', textTransform: 'none' }}
-                    >
-                      <div style={{ textAlign: 'left' }}>
-                        <span style={{ fontWeight: 'bold', color: '#fff', display: 'block', marginBottom: '2px' }}>🛒 {p.name}</span>
-                        <span style={{ color: '#6b7280', fontSize: '14px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                          Ingredients: {p.ing}
-                        </span>
-                      </div>
-                      <span style={{ color: '#00ff88', fontSize: '14px', fontWeight: 'bold', border: '1px solid #00ff88', padding: '2px 6px', borderRadius: '4px' }}>SCAN</span>
-                    </button>
-                  ))}
-                </div>
-
                 {/* OCR text custom capture box */}
                 <div style={{ borderTop: '1px solid #1f2937', paddingTop: '15px' }}>
                   <label className="drawer-label" style={{ marginBottom: '6px', display: 'block' }}>Custom Formulation Viewfinder Capture</label>
@@ -3725,34 +3721,7 @@ export default function App() {
           gap: 20px !important;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
         }
-        .progress-rings-box {
-          display: flex !important;
-          gap: 15px !important;
-          align-items: center !important;
-        }
-        .ring-indicator {
-          text-align: center !important;
-          position: relative !important;
-        }
-        .ring-text {
-          position: absolute !important;
-          top: 38% !important;
-          left: 50% !important;
-          transform: translate(-50%, -50%) !important;
-          font-size: 14px !important;
-          font-weight: bold !important;
-          color: #ffffff !important;
-        }
-        .ring-indicator span {
-          display: block !important;
-          font-size: 13px !important;
-          color: #9ca3af !important;
-          margin-top: 6px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-        }
-
-        /* ECG Oscilloscope card */
+        /* Workout logger card (reuses the old ECG card's shell/title styles) */
         .ecg-module-card {
           background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
           border: 1px solid #1f2937 !important;
@@ -3764,116 +3733,13 @@ export default function App() {
           position: relative !important;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
         }
-        .ecg-card-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: flex-start !important;
-        }
-        .ecg-label {
-          font-size: 14px !important;
-          color: #6b7280 !important;
-          letter-spacing: 2px !important;
-          display: block !important;
-          text-transform: uppercase !important;
-        }
         .ecg-title {
           font-size: 20px !important;
           font-weight: bold !important;
           color: #ffffff !important;
-          margin: 4px 0 0 0 !important;
           letter-spacing: 0.5px !important;
         }
-        .live-broadcast-pill {
-          background-color: rgba(255, 59, 48, 0.08) !important;
-          border: 1px solid rgba(255, 59, 48, 0.3) !important;
-          color: #ff3b30 !important;
-          font-size: 13px !important;
-          font-weight: bold !important;
-          padding: 4px 10px !important;
-          border-radius: 12px !important;
-          display: flex !important;
-          align-items: center !important;
-          gap: 6px !important;
-          letter-spacing: 1px !important;
-          box-shadow: 0 0 10px rgba(255, 59, 48, 0.1) !important;
-        }
-        .ecg-oscilloscope-viewport {
-          width: 100% !important;
-          height: 100px !important;
-          background-color: #02040a !important;
-          border-radius: 10px !important;
-          border: 1px solid #1f2937 !important;
-          position: relative !important;
-          overflow: hidden !important;
-        }
-        .hud-grid-background {
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          background-image:
-            linear-gradient(rgba(0, 255, 136, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 136, 0.05) 1px, transparent 1px) !important;
-          background-size: 15px 15px !important;
-          pointer-events: none !important;
-        }
-        .ecg-path {
-          filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.6)) !important;
-        }
 
-        /* Submetrics details panels */
-        .drilldown-submetrics-panel {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 10px !important;
-          padding: 15px !important;
-        }
-        .drilldown-analysis-title {
-          font-size: 17px !important;
-          font-weight: bold !important;
-          color: #00ff88 !important;
-          margin: 0 0 6px 0 !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
-        }
-        .drilldown-analysis-desc {
-          font-size: 15px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 0 12px 0 !important;
-        }
-        .drilldown-submetrics-grid {
-          display: grid !important;
-          grid-template-columns: repeat(3, 1fr) !important;
-          gap: 10px !important;
-        }
-        .drilldown-submetric-capsule {
-          background-color: #0b0f19 !important;
-          border: 1px solid #111827 !important;
-          border-radius: 6px !important;
-          padding: 10px !important;
-          text-align: center !important;
-        }
-        .capsule-label {
-          font-size: 13px !important;
-          color: #6b7280 !important;
-          text-transform: uppercase !important;
-          display: block !important;
-          margin-bottom: 3px !important;
-        }
-        .capsule-value {
-          font-size: 16px !important;
-          font-family: monospace !important;
-          display: block !important;
-        }
-
-        /* 6-Core Grid metrics layout */
-        .core-biometrics-grid {
-          display: grid !important;
-          grid-template-columns: repeat(3, 1fr) !important;
-          gap: 15px !important;
-        }
         .biometric-item-card {
           background-color: #0b0f19 !important;
           border: 1px solid #1f2937 !important;
@@ -3893,11 +3759,6 @@ export default function App() {
           border-color: #00ff88 !important;
           transform: translateY(-2px) !important;
           box-shadow: 0 6px 25px rgba(0, 255, 136, 0.15) !important;
-        }
-        .active-bio-card {
-          border-color: #00ff88 !important;
-          background: linear-gradient(135deg, #0b0f19 0%, rgba(0, 255, 136, 0.03) 100%) !important;
-          box-shadow: 0 0 20px rgba(0, 255, 136, 0.1) !important;
         }
         .bio-card-header {
           display: flex !important;
@@ -4910,24 +4771,6 @@ export default function App() {
           margin-top: 4px !important;
         }
 
-        /* Camera click choices */
-        .camera-mock-choice-btn {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          color: #ffffff !important;
-          padding: 10px !important;
-          border-radius: 6px !important;
-          cursor: pointer !important;
-          font-size: 15px !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          font-family: monospace !important;
-          transition: all 0.2s !important;
-        }
-        .camera-mock-choice-btn.hover-green:hover { border-color: #00ff88 !important; }
-        .camera-mock-choice-btn.hover-red:hover { border-color: #ff3b30 !important; }
-
         /* Compliance footer */
         .app-compliance-footer {
           border-top: 2px solid #1f2937 !important;
@@ -4950,28 +4793,14 @@ export default function App() {
           50% { opacity: 1; }
           100% { opacity: 0.4; }
         }
-        .live-pulse-dot {
-          width: 4px !important;
-          height: 4px !important;
-          background-color: #ff3b30 !important;
-          border-radius: 50% !important;
-          animation: syncPulse 1.2s infinite !important;
-        }
-
         /* 📱 Symmetrical Mobile Adaptation (Collapses seamlessly on smaller viewports) */
         @media (max-width: 1024px) {
           .vitals-dashboard-grid {
             grid-template-columns: 1fr !important;
           }
-          .core-biometrics-grid {
-            grid-template-columns: 1fr 1fr !important;
-          }
         }
 
         @media (max-width: 768px) {
-          .core-biometrics-grid {
-            grid-template-columns: 1fr !important;
-          }
           .floating-hud-camera-fab {
             bottom: 100px !important;
             right: 20px !important;
