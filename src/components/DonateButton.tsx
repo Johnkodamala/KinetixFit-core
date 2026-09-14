@@ -1,34 +1,27 @@
 import { Browser } from '@capacitor/browser';
-import { buildJustGivingDonationUrl, JUSTGIVING_CHARITY_ID } from '../utils/justgiving';
+import { buildJustGivingDonationUrl, JUSTGIVING_FUNDRAISING_PAGE_SLUG } from '../utils/justgiving';
 
 interface DonateButtonProps {
-  /** Suggested donation amount in GBP shown on the button and pre-filled at JustGiving. */
+  /** Shown on the button as a suggestion only — JustGiving's own page does not accept a
+   * pre-filled amount through this link, so the admin still enters it there themselves. */
   suggestedAmount: number;
-  /** Optional reference for reconciling this donation against internal records. */
-  donationId?: string;
   /** Optional label override; defaults to "Donate £{suggestedAmount}". */
   label?: string;
 }
 
-export default function DonateButton({ suggestedAmount, donationId, label }: DonateButtonProps) {
+export default function DonateButton({ suggestedAmount, label }: DonateButtonProps) {
   const handleDonate = async () => {
-    const url = buildJustGivingDonationUrl({
-      charityId: JUSTGIVING_CHARITY_ID,
-      amount: suggestedAmount,
-      donationId,
-      exitUrl: 'https://kinetixfit.co.uk/donate/complete'
-    });
-
+    const url = buildJustGivingDonationUrl({ fundraisingPageShortName: JUSTGIVING_FUNDRAISING_PAGE_SLUG });
     await Browser.open({ url });
   };
 
   return (
     <button
       onClick={handleDonate}
-      disabled={!JUSTGIVING_CHARITY_ID}
+      disabled={!JUSTGIVING_FUNDRAISING_PAGE_SLUG}
       className="primary-btn"
       style={{ width: '100%', padding: '12px' }}
-      title={!JUSTGIVING_CHARITY_ID ? 'Set JUSTGIVING_CHARITY_ID in src/utils/justgiving.ts before use' : undefined}
+      title={!JUSTGIVING_FUNDRAISING_PAGE_SLUG ? 'Set JUSTGIVING_FUNDRAISING_PAGE_SLUG in src/utils/justgiving.ts before use' : 'Opens the JustGiving page — enter the amount there'}
     >
       {label || `🎗️ Donate £${suggestedAmount.toFixed(2)}`}
     </button>

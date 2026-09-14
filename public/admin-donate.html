@@ -26,54 +26,43 @@
       <p style="margin:0"><strong>Internal use only.</strong> This page is unlisted (not linked from the app) but has no login gate — anyone with the URL can open it. Clicking Donate only redirects your own browser to JustGiving's payment page; it does not move money or touch app data by itself. Add real authentication before treating this as sensitive.</p>
     </div>
 
-    <label style="display:block;margin-top:24px;font-size:15px">Amount (£)
-      <input id="amount" type="number" min="1" step="0.01" value="10.00" style="display:block;width:100%;box-sizing:border-box;padding:10px;font-size:16px;margin-top:6px" />
-    </label>
-    <label style="display:block;margin-top:16px;font-size:15px">Reference (optional)
-      <input id="reference" type="text" placeholder="e.g. batch-2026-09" style="display:block;width:100%;box-sizing:border-box;padding:10px;font-size:16px;margin-top:6px" />
-    </label>
+    <p style="margin-top:24px;font-size:14px;color:#6b7280">
+      JustGiving's own donation page doesn't accept a pre-filled amount or a reconciliation
+      reference through this link — its query string is dropped before reaching the real
+      donation form. You'll choose the amount and enter any notes on JustGiving's page itself;
+      donations need to be reconciled manually via JustGiving's own reporting for now.
+    </p>
 
-    <button id="donate-btn" style="margin-top:24px;width:100%;padding:14px;font-size:16px;font-weight:600;background:#059669;color:#fff;border:none;border-radius:8px;cursor:pointer">
-      Donate
+    <button id="donate-btn" style="margin-top:16px;width:100%;padding:14px;font-size:16px;font-weight:600;background:#059669;color:#fff;border:none;border-radius:8px;cursor:pointer">
+      Open JustGiving to Donate
     </button>
     <p id="charity-warning" style="display:none;color:#b91c1c;margin-top:12px;font-size:14px">
-      JUSTGIVING_CHARITY_ID is not set yet — edit src/utils/justgiving.ts first.
+      JUSTGIVING_FUNDRAISING_PAGE_SLUG is not set yet — edit src/utils/justgiving.ts first.
     </p>
   </main>
 
   <script type="module">
     // Mirrors src/utils/justgiving.ts — kept in sync manually since this is a plain static page
     // outside the Vite/React build. If you change the util, update this too.
-    const JUSTGIVING_CHARITY_ID = ''; // TODO: fill in once a charity/cause is chosen
+    const JUSTGIVING_FUNDRAISING_PAGE_SLUG = 'kinetixfit-jn-global-ventures-ltd-1';
 
-    function buildJustGivingDonationUrl({ charityId, fundraisingPageShortName, amount, donationId, exitUrl }) {
-      const base = fundraisingPageShortName
-        ? `https://www.justgiving.com/fundraising/${encodeURIComponent(fundraisingPageShortName)}/donate`
-        : `https://www.justgiving.com/donation/direct/charity/${encodeURIComponent(charityId)}`;
-      const query = new URLSearchParams();
-      query.set('amount', amount.toFixed(2));
-      if (donationId) query.set('reference', donationId);
-      query.set('exitUrl', exitUrl);
-      return `${base}?${query.toString()}`;
+    function buildJustGivingDonationUrl({ charityId, fundraisingPageShortName }) {
+      if (fundraisingPageShortName) {
+        return `https://www.justgiving.com/page/${encodeURIComponent(fundraisingPageShortName)}/give`;
+      }
+      return `https://www.justgiving.com/donation/direct/charity/${encodeURIComponent(charityId)}`;
     }
 
     const donateBtn = document.getElementById('donate-btn');
     const warning = document.getElementById('charity-warning');
 
-    if (!JUSTGIVING_CHARITY_ID) {
+    if (!JUSTGIVING_FUNDRAISING_PAGE_SLUG) {
       donateBtn.disabled = true;
       warning.style.display = 'block';
     }
 
     donateBtn.addEventListener('click', () => {
-      const amount = parseFloat(document.getElementById('amount').value) || 0;
-      const donationId = document.getElementById('reference').value.trim() || undefined;
-      const url = buildJustGivingDonationUrl({
-        charityId: JUSTGIVING_CHARITY_ID,
-        amount,
-        donationId,
-        exitUrl: 'https://kinetixfit.co.uk/donate/complete'
-      });
+      const url = buildJustGivingDonationUrl({ fundraisingPageShortName: JUSTGIVING_FUNDRAISING_PAGE_SLUG });
       window.location.href = url;
     });
   </script>
