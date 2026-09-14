@@ -12,6 +12,10 @@
     {
       "source": "/terms-of-service",
       "destination": "/terms-of-service.html"
+    },
+    {
+      "source": "/donate/complete",
+      "destination": "/donate-complete.html"
     }
   ]
 }

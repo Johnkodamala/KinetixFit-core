@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thank You | KinetixFit</title>
+  <meta name="description" content="Thank you for your donation via KinetixFit." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 50'%3E%3Cpath d='M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z' stroke='%23059669' stroke-width='8' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/legal-pages.css" />
+</head>
+<body>
+  <header class="legal-header">
+    <div class="legal-header-inner">
+      <a href="/">
+        <svg width="28" height="14" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#059669" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        KinetixFit
+      </a>
+    </div>
+  </header>
+
+  <main class="legal-doc" style="text-align:center">
+    <h1>Thank you! 🎗️</h1>
+    <p id="donation-message" style="font-size:17px;margin-top:16px">Your donation is on its way to making a real difference.</p>
+    <p id="reference-line" style="display:none;color:#6b7280;font-size:14px;margin-top:24px"></p>
+    <p style="margin-top:40px"><a href="/">← Back to KinetixFit</a></p>
+  </main>
+
+  <script>
+    // Reads an optional donationId/reference from the URL query string for display/logging only —
+    // this page does not verify the donation with JustGiving, it just acknowledges the return trip.
+    const params = new URLSearchParams(window.location.search);
+    const donationId = params.get('donationId') || params.get('reference');
+    if (donationId) {
+      const el = document.getElementById('reference-line');
+      el.textContent = 'Reference: ' + donationId;
+      el.style.display = 'block';
+      console.log('Donation reference:', donationId);
+    }
+  </script>
+</body>
+</html>
