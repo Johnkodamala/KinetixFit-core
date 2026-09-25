@@ -13,6 +13,7 @@
 // where real verification isn't possible.
 import { Redis } from '@upstash/redis';
 import { logAuditEvent } from './_lib/auditLog.js';
+import { handleCors } from './_lib/cors.js';
 
 const redis = Redis.fromEnv();
 const MAX_EARN_EVENTS_PER_DAY = 20;
@@ -58,6 +59,8 @@ async function verifyQuest(appUserId, verificationType, today) {
 }
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

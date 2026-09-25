@@ -1,5 +1,7 @@
 // Private serverless endpoint: looks up a scanned barcode against Open Food Facts (free, no API
 // key). Returns real product data or an honest 404 — never fabricated fallback data.
+import { handleCors } from './_lib/cors.js';
+
 const ALLERGEN_TAG_MAP = {
   'en:peanuts': 'peanuts',
   'en:nuts': 'nuts',
@@ -29,6 +31,8 @@ function resolveServingGrams(product) {
 }
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

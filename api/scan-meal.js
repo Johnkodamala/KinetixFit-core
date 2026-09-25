@@ -5,6 +5,7 @@
 import { getRewardConfig } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { Redis } from '@upstash/redis';
+import { handleCors } from './_lib/cors.js';
 
 const redis = Redis.fromEnv();
 
@@ -116,6 +117,8 @@ function buildResult(foodName, estimatedGrams, nutrientValues, basisGrams) {
 }
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

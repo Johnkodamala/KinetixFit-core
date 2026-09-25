@@ -2,10 +2,13 @@
 // client's existing polling loop. This is the missing piece that makes server-side quest
 // verification possible at all — until now, synced health data never left the device.
 import { Redis } from '@upstash/redis';
+import { handleCors } from './_lib/cors.js';
 
 const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

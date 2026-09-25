@@ -2,6 +2,7 @@
 // Valid codes live server-side only (PROMO_CODES_JSON env var) — never in client code. Redis
 // (via Upstash) tracks which codes have already been redeemed so each one works exactly once.
 import { Redis } from '@upstash/redis';
+import { handleCors } from './_lib/cors.js';
 
 const redis = Redis.fromEnv();
 
@@ -11,6 +12,8 @@ const DURATION_BY_TIER = {
 };
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
