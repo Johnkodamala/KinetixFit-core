@@ -1,406 +1,203 @@
-# KinetixFit Core - Project Documentation
+# KinetixFit Core
 
-**Last Updated:** 2026-09-25  
-**Project:** KinetixFit Enterprise Biometric Portal  
-**Stack:** React 19 + TypeScript + Vite + Capacitor (iOS/Android)
+One React 19 + TypeScript + Vite codebase ships three products: the **website** (Vercel, live at
+https://www.kinetixfit.co.uk, which also hosts the `api/` serverless functions), and the **Android**
+and **iOS** apps (Capacitor 8 wraps the same `dist/` build in a WebView; native features — health
+data, barcode scanner, notifications, RevenueCat billing — come from Capacitor plugins).
 
----
+**Priority order: Android → iOS → website.** Android is the current focus and should be finished
+first, but all three share `src/` and `api/`, so every change must keep all three working — never
+fix one platform by breaking another. Work that unblocks several platforms (shared API, auth) is
+done once, in shared code.
 
-## 🚀 Quick Start
+- App ID: `com.jnglobalventures.kinetixfit` · App name: `KinetixFit`
+- Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
+- Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-### Prerequisites
-- Node.js 18+ (check: `node --version`)
-- npm 9+ (check: `npm --version`)
-- Git (repo already cloned to `/Users/sivadurga/KinetixFit-core`)
+## Current status (2026-09-25)
 
-### Setup & Development
+- **Deploys are on hold** (user's call). Don't push, deploy to Vercel, or commit unless asked.
+- Everything below is done locally and **uncommitted** on `initial-changes` (last commit `0113c1a`):
+  Android toolchain + `requirements.txt`, server URL + CORS work, Health Connect permission trim,
+  and the full frontend redesign. Lint (0 errors), `npm run build`, `cap sync` and `assembleDebug` all pass.
+- Not yet done: running the app on a real Android device or emulator.
+
+## Android toolchain
+
+Everything required is listed in `requirements.txt` (a comment-only checklist — the project has no
+Python deps) and installed by `./scripts/setup-android.sh`. Installed on this Mac as of 2026-09-25:
+
+| Tool | Version | Where |
+|---|---|---|
+| Node / npm | 26.0.0 / 11.12.1 | Homebrew |
+| JDK | 21 (openjdk@21) | `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home` |
+| Android SDK | platform 36, build-tools 36.0.0, platform-tools, emulator | `~/Library/Android/sdk` |
+| Android Studio | latest cask | `/Applications/Android Studio.app` |
+| Gradle / AGP | 8.14.3 / 8.13.0 | via `android/gradlew` wrapper |
+
+`JAVA_HOME`, `ANDROID_HOME` and PATH are exported in `~/.zshrc`. The system default `java` is JDK 11
+— **Gradle fails with JDK 11**, so if a build errors on Java version, the shell hasn't picked up
+`JAVA_HOME` (open a new terminal or `source ~/.zshrc`). `android/local.properties` (gitignored) holds
+`sdk.dir`; the setup script recreates it.
+
+## Commands
+
 ```bash
-cd /Users/sivadurga/KinetixFit-core
-
-# Install dependencies (first time only)
-npm install
-
-# Start development server (HMR enabled)
-npm run dev
-# → App opens at http://localhost:5173
-
-# Build for production
-npm run build
-
-# Lint code
+npm install                      # JS deps
+npm run dev                      # web dev server, http://localhost:5173 (fastest UI iteration)
+npm run build                    # tsc -b && vite build → dist/
 npm run lint
 
-# Preview production build
-npm preview
+# Android — always build web first, then sync, or the app ships stale JS
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug        # → android/app/build/outputs/apk/debug/app-debug.apk
+cd android && ./gradlew installDebug         # install on connected device / running emulator
+npx cap run android                          # build + deploy to a picked device
+npx cap open android                         # open in Android Studio
+adb devices                                  # check device connection
+adb logcat | grep -i -E "capacitor|chromium" # WebView console + plugin logs
 ```
 
----
+A clean `assembleDebug` takes ~6-7 min the first time (Gradle downloads deps); later builds are fast.
+Verified working on 2026-09-25. Debug WebView is inspectable at `chrome://inspect` in desktop Chrome.
 
-## 📁 Project Structure
+## How the apps reach the server (shared by all three)
+
+- Every server call and server-hosted link goes through `serverUrl(path)` (`src/lib/server.ts`). On
+  the website it returns the relative path; in the native apps it prefixes `VITE_SERVER_URL`
+  (default `https://www.kinetixfit.co.uk`). Never write a bare `fetch('/api/...')` or `href="/..."`
+  for a Vercel route — it silently breaks both apps, because their WebView origin is
+  `https://localhost` (Android) / `capacitor://localhost` (iOS).
+- Always use the **www** host: the apex domain 308-redirects and CORS preflights don't follow redirects.
+- Every `api/*.js` handler starts with `if (handleCors(req, res)) return;` (`api/_lib/cors.js`),
+  which answers preflight `OPTIONS` and allows only the two native origins. New endpoints need it too.
+- `api/` changes only reach the apps once deployed to Vercel. Before 2026-09-25's CORS change is
+  deployed, the live API answers preflights with 405 and **all native API calls fail**.
+
+## Roadmap / open work
+
+### Android (current focus)
+- [x] Toolchain installed, debug APK builds (2026-09-25)
+- [x] API calls + privacy/terms links point at the live server from the app; CORS added in `api/`
+- [x] Health Connect: plugin supplies the permissions-rationale activity and `health_connect_privacy_policy_url`
+      is set in `res/values/strings.xml`. The plugin declares 47 read/write health permissions; the app
+      manifest strips all but the 5 it reads (`tools:node="remove"`) — Play rejects unused health permissions.
+      If `requestAuthorization` in `App.tsx` gains a data type, delete that type's remove-line.
+- [ ] Deploy the `api/` CORS change to Vercel, then test every API feature on a device/emulator
+- [ ] Create an emulator (Android Studio → Device Manager; needs a system image download) or use a USB device
+- [ ] Release signing: upload keystore + `signingConfigs`. Keystores (`*.jks`, `*.keystore`) are gitignored
+      on purpose — losing the upload key means no more updates under this app ID. Play needs an AAB: `./gradlew bundleRelease`
+- [ ] Bump `versionCode` / `versionName` in `android/app/build.gradle` (currently 1 / "1.0") for every Play upload
+- [ ] Play Console: Health Connect data-use declaration, data-safety form, privacy policy URL
+- [ ] Google sign-in is disabled on native (`handleGoogleSignIn` — needs a deep-link return URL); email/password works
+- [x] Frontend redesign — one design system across onboarding + dashboard, light/dark, animations (see Design system)
+- [ ] Run on a device/emulator and check the redesign there (safe areas, keyboard over inputs, WebView font rendering)
+- [ ] Main JS chunk ~890 kB (Vite warning) — code-splitting `App.tsx` would speed WebView startup
+
+### iOS (next)
+- [x] HealthKit entitlement (`ios/App/App/App.entitlements`), Health + Camera usage strings in `Info.plist`
+- [x] Shares the server URL / CORS work above (`capacitor://localhost` is allowed)
+- [ ] Install full Xcode from the App Store (only Command Line Tools are installed), then
+      `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` and `sudo xcodebuild -license accept`
+- [ ] `npx cap sync ios && npx cap open ios`; set the signing team (Apple Developer account needed for HealthKit on device)
+- [ ] `ios/App/CapApp-SPM/Package.swift` must use `/` paths — it was once committed with Windows `\`
+      paths (breaks Xcode). Running `cap sync` on Windows reintroduces them; check the diff before committing.
+
+### Website
+- Live on Vercel at www.kinetixfit.co.uk (apex redirects to www); how it deploys (Git integration vs CLI) is not yet documented. Same `src/`, so
+  Android work generally ships to the web too — check `npm run dev` still works after native changes.
+- `vercel.json` rewrites `/privacy-policy`, `/terms-of-service`, `/donate/complete` to the HTML files in `public/`.
+
+## Structure
 
 ```
-KinetixFit-core/
-├── src/                          # React app source code
-│   ├── App.tsx                   # Main component (4,637 lines) — dashboard & onboarding
-│   ├── main.tsx                  # Vite entry point
-│   ├── index.css                 # Global styles
-│   ├── components/
-│   │   ├── BiometricTrendCard.tsx     # Health metrics visualization
-│   │   └── DonateButton.tsx           # Charity donation integration
-│   ├── lib/
-│   │   └── supabase.ts           # Supabase client initialization
-│   └── utils/
-│       └── justgiving.ts         # JustGiving charity API integration
-├── api/                          # Vercel serverless functions
-│   ├── scan-meal.js              # AI photo → food identification (Anthropic API)
-│   ├── verify-license.js         # Subscription verification (RevenueCat)
-│   ├── redeem-promo.js           # Promo code redemption (Redis + RevenueCat)
-│   ├── redeem-voucher.js         # Voucher redemption
-│   ├── lookup-barcode.js         # Barcode lookup
-│   ├── complete-quest.js         # Quest/challenge completion
-│   ├── sync-health-data.js       # Health data synchronization
-│   ├── donate-charity.js         # Charity donation backend
-│   └── _lib/
-│       ├── rewardConfig.js       # Reward tier definitions
-│       └── auditLog.js           # Audit logging
-├── android/                      # Android native code (Capacitor)
-├── ios/                          # iOS native code (Capacitor)
-├── public/                       # Static assets
-│   ├── donate-complete.html
-│   ├── privacy-policy.html
-│   ├── terms-of-service.html
-│   ├── admin-donate.html
-│   └── favicon.* 
-├── assets/                       # Images and media
-├── .env.example                  # Environment variables template
-├── package.json                  # Dependencies & npm scripts
-├── capacitor.config.ts           # Capacitor app configuration
-├── tsconfig.json                 # TypeScript config
-├── vite.config.ts                # Vite config
-├── eslint.config.js              # ESLint rules
-├── vercel.json                   # Vercel deployment config
-└── README.md                     # Project README
-
+src/App.tsx                 # ~3,100 lines — onboarding (steps 0-6), dashboard (DASHBOARD_STEP = 7), almost all logic + JSX
+src/main.tsx                # entry; RevenueCat setup; imports index.css + src/styles/*.css
+src/index.css               # design tokens (colour/type/motion), light + dark, keyframes, reduced-motion
+src/styles/app.css          # dashboard: shell, cards, controls, hero, tab bar, modals
+src/styles/onboarding.css   # onboarding screens (.ob-*)
+src/styles/onboarding-profile.css  # .primary-btn / .secondary-btn / .auth-input (shared with dashboard)
+src/components/             # BiometricTrendCard (Recharts trend card), Icons (SVG set), TrackLanes (hero art), DonateButton
+src/lib/supabase.ts         # Supabase client; exports isSupabaseConfigured
+src/lib/server.ts           # serverUrl() — relative on web, absolute Vercel URL in native apps
+src/utils/justgiving.ts     # JustGiving donate link
+api/                        # Vercel serverless functions (NOT bundled into the apps — reached via serverUrl())
+  _lib/cors.js              #   handleCors() — native-app origins + preflight; call first in every handler
+  scan-meal.js              #   photo → food ID (Anthropic API) → USDA FDC nutrition
+  verify-license.js         #   RevenueCat subscription check
+  redeem-promo.js           #   promo codes, redemption tracked in Upstash Redis
+  redeem-voucher.js, lookup-barcode.js, sync-health-data.js, complete-quest.js, donate-charity.js
+  _lib/rewardConfig.js, _lib/auditLog.js
+android/                    # Capacitor Android project (Gradle). android/app/src/main/assets/public is generated by `cap sync` — don't edit
+ios/                        # Capacitor iOS project
+public/                     # privacy-policy, terms-of-service, donate pages, favicons (Play listing needs the privacy policy URL)
+assets/                     # icon.png, icon-only.png, splash.png — source art for app icons/splash
+capacitor.config.ts         # appId, appName, webDir: 'dist'
+requirements.txt            # full toolchain + dependency checklist
+scripts/setup-android.sh    # installs requirements.txt and builds a debug APK
 ```
 
----
-
-## 🛠 Key Technologies
-
-### Frontend
-- **React 19.2.8** — Latest React with improved Server Components support
-- **TypeScript ~6.0.2** — Type-safe development
-- **Vite 8.2.0** — Lightning-fast build tool & dev server
-- **Recharts 3.10.1** — Data visualization (biometric trends)
-
-### Mobile & Native
-- **Capacitor 8.5.0** — Cross-platform iOS & Android wrapper
-- **@capacitor/barcode-scanner** — QR/barcode scanning
-- **@capacitor/local-notifications** — Push notifications
-- **@capgo/capacitor-health** — Health data integration (iOS HealthKit, Android Health Connect)
-
-### Backend & API
-- **Supabase 2.116.0** — PostgreSQL + Auth (JWT-based)
-- **Upstash Redis 1.38.3** — Distributed cache for promo codes
-- **RevenueCat** — In-app subscriptions & licensing
-- **Anthropic API** — AI food identification from photos
-- **USDA FDC API** — Nutrition facts lookup
-
-### Deployment
-- **Vercel** — Serverless hosting (Next.js-compatible)
-- **GitHub** — Version control & CI/CD
-
----
-
-## 🔐 Environment Configuration
-
-All secrets are in `.env` (gitignored). Template is `.env.example`:
-
-### Client-Side (Safe for Vite bundling, prefixed with `VITE_`)
-```bash
-# RevenueCat public SDK keys
-VITE_REVENUECAT_IOS_PUBLIC_KEY=<key>
-VITE_REVENUECAT_ANDROID_PUBLIC_KEY=<key>
-
-# Supabase public API (anon/public key, NOT service role)
-VITE_SUPABASE_URL=<url>
-VITE_SUPABASE_ANON_KEY=<key>
-```
-
-### Server-Side (Vercel only, never in .env template)
-```bash
-# Anthropic API (for food identification)
-ANTHROPIC_API_KEY=<key>
-
-# USDA nutrition data
-USDA_FDC_API_KEY=<key>
-
-# RevenueCat secret (verify licenses, redeem promos)
-REVENUECAT_API_KEY=<key>
-
-# Promo codes (JSON, set in Vercel, never committed)
-PROMO_CODES_JSON={"CODE-01":"lifetime","CODE-02":"30day"}
-
-# Upstash Redis (auto-injected by Vercel Marketplace)
-UPSTASH_REDIS_REST_URL=<url>
-UPSTASH_REDIS_REST_TOKEN=<token>
-```
-
-**Copy `.env.example` to `.env` for local development:**
-```bash
-cp .env.example .env
-# Then fill in real values (ask team for secrets)
-```
-
----
-
-## 🎯 Key Features & Code Sections
-
-### 1. Dashboard & Onboarding (`src/App.tsx`)
-- **Onboarding Flow:** Steps 0-7 (welcome → allergies)
-- **DASHBOARD_STEP = 7:** Point where real dashboard becomes visible
-- **Styles:** `ONBOARDING_STYLES` constant (Phase 1 design, light & trustworthy)
-- **TelemetryStream:** Real-time biometric data display (status: Optimal/Syncing/Calibrating/Critical)
-- **UserProfile Interface:** Height, weight, target, allergies, smart devices, cycle tracking
-
-### 2. Health Data Integration
-- **Capacitor Health Plugin:** Reads iOS HealthKit & Android Health Connect
-- **Biometric Trends:** `BiometricTrendCard.tsx` visualizes daily data points
-- **Data Sync:** `api/sync-health-data.js` → Supabase
-
-### 3. Nutrition & Food Scanning
-- **Food ID:** `api/scan-meal.js` uses Anthropic Vision API to identify food from photos
-- **Nutrition Lookup:** USDA FDC API for macro/micronutrient data
-- **Barcode:** `api/lookup-barcode.js` for quick product lookup
-
-### 4. Monetization & Subscriptions
-- **RevenueCat Integration:** Manages in-app purchases, subscriptions, trials
-- **License Verification:** `api/verify-license.js` checks active subscriptions
-- **Promo Codes:** `api/redeem-promo.js` with Redis rate-limiting (Upstash)
-- **Tier System:** Defined in `api/_lib/rewardConfig.js` (e.g., "lifetime", "30day")
-
-### 5. Charity Donations
-- **JustGiving Integration:** `src/utils/justgiving.ts` (partner charity integration)
-- **Donate Button:** `src/components/DonateButton.tsx`
-- **Backend:** `api/donate-charity.js` processes donations
-- **Completion Page:** `/donate-complete` HTML page after successful donation
-
-### 6. Quests & Gamification
-- **Complete Quest:** `api/complete-quest.js` logs quest completion
-- **Audit Log:** `api/_lib/auditLog.js` tracks all actions for compliance
-
----
-
-## 📋 API Endpoints
-
-All API endpoints are Vercel serverless functions in `/api`:
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/scan-meal` | POST | AI food photo identification + nutrition lookup |
-| `/api/verify-license` | POST | Check if user has active subscription |
-| `/api/redeem-promo` | POST | Apply promo code (rate-limited via Redis) |
-| `/api/redeem-voucher` | POST | Redeem voucher code |
-| `/api/lookup-barcode` | POST | Product info from barcode |
-| `/api/sync-health-data` | POST | Sync biometric data to Supabase |
-| `/api/complete-quest` | POST | Log quest completion |
-| `/api/donate-charity` | POST | Process charity donation |
-
----
-
-## 🏗 Component & Utils Overview
-
-### `src/components/BiometricTrendCard.tsx`
-- Displays health metric trends over time
-- Uses Recharts for visualization
-- Type: `DailyPoint[]` for time-series data
-- Props: health metric data, styling
-
-### `src/components/DonateButton.tsx`
-- Triggers charity donation flow
-- Integrates with JustGiving API
-- Redirects to donation completion page
-
-### `src/lib/supabase.ts`
-- Initializes Supabase client
-- Exports `supabase` instance (singleton)
-- Checks if Supabase is configured: `isSupabaseConfigured`
-- Used for auth, data storage, real-time subscriptions
-
-### `src/utils/justgiving.ts`
-- JustGiving API integration
-- Handles charity donation flows
-
----
-
-## 🎨 Design System & Styling
-
-### Phase 1 Onboarding Styles
-- **Color Palette:** Light, trustworthy (MyFitnessPal/Apple Health direction)
-- **Primary Blue:** `#2563EB`
-- **Background:** `#FAFAFA`
-- **Text:** `#1A1D1F`
-- **Border:** `#E5E7EB`
-- **Font Stack:** `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif`
-
-### Existing Dashboard
-- Keeps current look until Phase 3 rollout (no breaking changes planned)
-
----
-
-## 📱 Mobile Deployment
-
-### Capacitor Configuration (`capacitor.config.ts`)
-```typescript
-{
-  appId: 'com.jnglobalventures.kinetixfit',
-  appName: 'KinetixFit',
-  webDir: 'dist'  // Built React app
-}
-```
-
-### Build & Deploy to Mobile
-```bash
-# Build React for web
-npm run build
-
-# Sync to native projects
-npx cap sync
-
-# iOS
-npx cap open ios  # Opens Xcode, build from there
-
-# Android
-npx cap open android  # Opens Android Studio, build from there
-```
-
----
-
-## 🔄 Git Workflow
-
-### Current Branch
-- **`initial-changes`** — Your working branch (tracking `origin/initial-changes`)
-- All commits should go here
-- Push regularly: `git push`
-- Create PR when feature is complete: GitHub will show PR link after push
-
-### Commit Convention
-- Write clear, descriptive commit messages
-- Format: `<type>: <description>`
-  - `feat: add food scanning feature`
-  - `fix: correct health data sync bug`
-  - `refactor: simplify onboarding flow`
-  - `docs: update API documentation`
-
-### Branches
-- **`main`** — Production-ready, stable code (protected)
-- **`initial-changes`** — Your feature branch (PR → merge to main)
-
----
-
-## 🐛 Common Issues & Solutions
-
-### Issue: Supabase not configured
-**Solution:** Check `.env` file has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. The app checks `isSupabaseConfigured` and may disable certain features.
-
-### Issue: Health permissions denied
-**Solution:** On iOS, ensure you've added Health permissions to `info.plist`. On Android, request runtime permissions in app. The onboarding flow handles this at Step 3.
-
-### Issue: Promo codes not working locally
-**Solution:** Promo codes require `UPSTASH_REDIS_REST_URL` & `UPSTASH_REDIS_REST_TOKEN` (Vercel-only). Won't work locally unless Redis is configured.
-
-### Issue: Food identification slow
-**Solution:** `api/scan-meal.js` calls Anthropic API (may take 2-5 sec). Network latency is normal.
-
----
-
-## 📊 Monitoring & Logging
-
-- **Audit Log:** `api/_lib/auditLog.js` logs all reward/subscription events
-- **Vercel Logs:** Check Vercel dashboard for serverless function logs
-- **Supabase Logs:** Database queries and auth events in Supabase console
-- **Client Logs:** Browser DevTools console (check for any Vite/React warnings)
-
----
-
-## 🤝 Team Collaboration
-
-### Before Starting Work
-1. Pull latest changes: `git pull`
-2. Ensure `.env` has all required secrets (ask team if missing)
-3. Run `npm install` if `package.json` changed
-4. Test locally: `npm run dev`
-
-### While Working
-- Commit often with clear messages
-- Push to `initial-changes` regularly (backup)
-- Test on mobile: `npm run build && npx cap sync`
-
-### When Ready to Merge
-1. Ensure linting passes: `npm run lint`
-2. Ensure TypeScript has no errors: `npm run build`
-3. Push all commits: `git push`
-4. Create PR on GitHub (link provided after push)
-5. Request review from team
-6. Merge after approval
-
----
-
-## 📚 Key Files to Know
-
-| File | Purpose |
-|------|---------|
-| `src/App.tsx` | Main component—dashboard, onboarding, all core logic |
-| `capacitor.config.ts` | Mobile app metadata & build settings |
-| `.env.example` | Template for all required environment variables |
-| `package.json` | Dependencies & npm scripts |
-| `vercel.json` | Vercel routing & rewrite rules |
-| `api/verify-license.js` | Subscription gate—blocks features if not licensed |
-| `api/scan-meal.js` | AI food identification—most complex serverless function |
-
----
-
-## 🚨 Critical Notes
-
-1. **Never commit secrets** — `.env` is gitignored for a reason
-2. **Server-side APIs** — RevenueCat secret, Anthropic, USDA keys must stay server-side (`api/` folder, not bundled)
-3. **Health data privacy** — All health data is encrypted in transit (Supabase TLS, Capacitor plugins)
-4. **RevenueCat testing** — Use sandbox credentials when testing subscriptions locally
-5. **Mobile compliance** — App uses GDPR-compliant Supabase, NHS/FSA guidelines noted in code
-
----
-
-## 🎓 Useful Commands
-
-```bash
-# Development
-npm run dev          # Start dev server (http://localhost:5173)
-npm run build        # Build for production
-npm run lint         # Lint code
-npm run preview      # Preview production build locally
-
-# Mobile
-npx cap sync         # Sync web build to native projects
-npx cap open ios     # Open iOS in Xcode
-npx cap open android # Open Android in Android Studio
-
-# Git
-git status           # Current branch & changes
-git pull             # Fetch latest from origin
-git push             # Push current branch to origin
-git log --oneline    # View commit history
-git checkout main    # Switch to main branch
-```
-
----
-
-## 📞 Need Help?
-
-- **TypeScript Errors?** Check `src/` imports and types. Run `npm run build` to see full list.
-- **Build Fails?** Delete `node_modules` & `package-lock.json`, then `npm install`.
-- **Mobile Issues?** Clear Capacitor cache: `npx cap sync --no-sync` then `npx cap sync`.
-- **Team Secrets?** Ask team for `.env` values (never commit or share via chat).
-
----
-
-**Happy coding! 🚀**
+Capacitor plugins wired into Android (from `npx cap sync`): barcode-scanner 3.1.2, browser 8.0.4,
+local-notifications 8.3.1, @capgo/capacitor-health 8.10.6, @revenuecat/purchases-capacitor 13.4.1.
+After adding/removing a plugin, re-run `npx cap sync android`.
+
+Native-only code paths are guarded with `Capacitor.isNativePlatform()` / `Capacitor.getPlatform()`
+in `App.tsx` — health data, notifications, RevenueCat and scanning all no-op in the browser, so
+test those on a device or emulator, not with `npm run dev`.
+
+## Environment variables
+
+`.env` is gitignored; `.env.example` is the template with comments on where each key comes from.
+
+- **Bundled into the app (`VITE_` prefix, public by design):** `VITE_REVENUECAT_ANDROID_PUBLIC_KEY`,
+  `VITE_REVENUECAT_IOS_PUBLIC_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (anon key only, never service-role), `VITE_SERVER_URL` (optional).
+  These are baked in at `npm run build` time — rebuild + `cap sync` after changing them.
+- **Server-only (set in Vercel, never `VITE_`-prefixed):** `ANTHROPIC_API_KEY`, `USDA_FDC_API_KEY`,
+  `REVENUECAT_API_KEY`, `PROMO_CODES_JSON`, `UPSTASH_REDIS_REST_URL/TOKEN` (injected by Vercel Marketplace).
+
+## Frontend conventions
+
+- Tabs: `vitals` (shown as "Today"), `nourish`, `profile`, `hub`; order lives in `TAB_IDS` and drives the
+  sliding nav pill. The active tab is mirrored in the URL hash (`#nourish`).
+- Toasts: `setMotivationMessage(text)` + a `setTimeout` to clear it. The toast stays until cleared — keep
+  messages short, plain, no ALL CAPS.
+- Onboarding steps 0-4 render only when logged out; steps 5-6 render whenever `onboardingStep` is 5/6. To
+  screenshot steps 3-6 without Supabase keys, temporarily seed `onboardingStep` from a URL param and revert.
+- Logged-in state for local testing: set `localStorage.kinetix_logged_in = 'true'` (+ `kinetix_profile` JSON)
+  and reload. Without `.env` Supabase keys, the sign-up screen shows a "not configured" message — expected.
+- `Autonomic Recovery` is a stored `profile.target` value; show it to users as "Recovery", don't rename the value.
+- One pre-existing lint warning (`react-hooks/exhaustive-deps` on a `useMemo` in `App.tsx`) — not an error.
+
+## Rules
+
+- Never commit secrets, `.env`, keystores, or `google-services.json` with real credentials.
+- Server secrets stay in `api/`; anything under `src/` ships inside the APK and is readable by anyone.
+- Don't hand-edit generated Capacitor files (`android/app/src/main/assets/public`, `capacitor.build.gradle`,
+  `capacitor.settings.gradle`) — they're overwritten by `cap sync`.
+- Health data is sensitive: Play requires a Health Connect declaration and a privacy policy that covers it.
+- Commit style: `<type>: <description>` (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). Work on
+  `initial-changes`, run `npm run lint` and `npm run build` before pushing, PR into `main`.
+
+## Design system ("track day")
+
+Redesigned 2026-09-25. One light theme plus an automatic dark theme (`prefers-color-scheme`), shared
+by the web, Android and iOS builds.
+
+- **Tokens live in `src/index.css`** — colours (`--bg`, `--surface`, `--ink`…`--ink-4`, `--accent`,
+  semantic `--good/--warn/--danger/--info`), one fixed colour per health metric (`--m-steps`, `--m-heart`,
+  `--m-sleep`, `--m-stress`), radii, shadows, motion (`--ease-out`, `--ease-spring`, `--dur*`).
+  **Never hard-code a hex colour** in `App.tsx` or components — use `var(--token)`; dark mode depends on it.
+- **Stylesheets:** `src/styles/app.css` (dashboard), `onboarding.css`, `onboarding-profile.css`
+  (`.primary-btn`, `.secondary-btn`, `.auth-input`). Imported once in `src/main.tsx`. No `!important`:
+  inline styles intentionally win, so only use inline styles for genuinely per-element/dynamic values.
+- **Type:** Archivo (wide cut, `font-stretch: 125%`, 800) for display — greetings, big numbers, titles only;
+  Hanken Grotesk for everything else. Both are bundled via `@fontsource-variable/*` (work offline in the APK).
+- **Signature:** the dark "track" hero panel (`.vitals-hero-card` + `<TrackLanes />`) with lane lines that
+  draw in, and streak/workout counts as `.kx-lap` lap counters. Used on Today, Profile and the welcome screen.
+- **Motion:** tab content rises in with a stagger, the bottom-nav pill slides (`--tab-index` on the nav),
+  modals slide up as sheets on phones, progress bars fill like lanes. All disabled under reduced motion.
+- **Icons:** `src/components/Icons.tsx` (stroke SVGs, `currentColor`) — no emoji in UI chrome.
+- **Copy:** plain, sentence case, UK spelling (fibre). Describe what the user controls, not the system
+  ("Connect a device", not "Configure smart sensor links").
+- **Checking UI changes:** screenshot at 390×844 in light and dark (Playwright headless works well), and
+  check a wide viewport — the Today/Profile grids go two-column at ≥1024px for the website.
