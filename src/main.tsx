@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { Capacitor } from '@capacitor/core'
 import { Purchases } from '@revenuecat/purchases-capacitor'
 import './index.css'
+import './styles/onboarding.css'
+import './styles/onboarding-profile.css'
+import './styles/app.css'
 import App from './App.tsx'
 
 // RevenueCat's Capacitor SDK only supports native billing (App Store / Play Store) — configuring

@@ -5,8 +5,11 @@ import { Purchases, type CustomerInfo } from '@revenuecat/purchases-capacitor';
 import { Health } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { serverUrl } from './lib/server';
 import type { Session } from '@supabase/supabase-js';
 import BiometricTrendCard, { type DailyPoint } from './components/BiometricTrendCard';
+import { StepsIcon, HeartIcon, SleepIcon, StressIcon, CameraIcon, RewardIcon, BellIcon } from './components/Icons';
+import TrackLanes from './components/TrackLanes';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -50,137 +53,10 @@ interface UserProfile {
 // 2 Sign up/Log in, 3 Health permission, 4 Notifications permission, 5 Profile, 6 Allergies.
 const DASHBOARD_STEP = 7;
 
-// Phase 1 design tokens — clean, light, trustworthy (MyFitnessPal/Apple Health direction),
-// used by the new onboarding screens. Existing dashboard tabs keep their current look until
-// the Phase 3 rollout retrofits them.
-const ONBOARDING_STYLES = `
-  .ob-container {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
-    background-color: #FAFAFA;
-    color: #1A1D1F;
-    width: 100%;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 24px;
-    box-sizing: border-box;
-  }
-  .ob-card {
-    width: 100%;
-    max-width: 420px;
-    background-color: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 16px;
-    padding: 32px 24px;
-    box-sizing: border-box;
-  }
-  .ob-logo { display: flex; justify-content: center; margin-bottom: 24px; }
-  .ob-title { font-size: 24px; font-weight: 700; margin: 0 0 8px 0; text-align: center; color: #1A1D1F; }
-  .ob-body { font-size: 16px; color: #6B7280; line-height: 1.6; text-align: center; margin: 0 0 24px 0; }
-  .ob-label { font-size: 14px; color: #374151; font-weight: 600; display: block; margin-bottom: 6px; }
-  .ob-input {
-    width: 100%; background-color: #FFFFFF; border: 1px solid #E5E7EB; color: #1A1D1F;
-    padding: 12px 14px; font-size: 16px; border-radius: 8px; outline: none;
-    box-sizing: border-box; font-family: inherit; margin-bottom: 16px;
-  }
-  .ob-input:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
-  .ob-btn-primary {
-    width: 100%; background-color: #2563EB; color: #FFFFFF; font-weight: 600; font-size: 16px;
-    border: none; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
-    transition: background-color 0.15s;
-  }
-  .ob-btn-primary:hover { background-color: #1D4ED8; }
-  .ob-btn-primary:disabled { background-color: #93C5FD; cursor: not-allowed; }
-  .ob-btn-secondary {
-    width: 100%; background-color: #FFFFFF; color: #374151; font-weight: 600; font-size: 16px;
-    border: 1px solid #E5E7EB; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
-  }
-  .ob-btn-secondary:hover { background-color: #F3F4F6; }
-  .ob-btn-google {
-    width: 100%; background-color: #FFFFFF; color: #1A1D1F; font-weight: 600; font-size: 16px;
-    border: 1px solid #E5E7EB; padding: 14px; border-radius: 8px; cursor: pointer; font-family: inherit;
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-  }
-  .ob-btn-google:hover { background-color: #F3F4F6; }
-  .ob-btn-row { display: flex; gap: 12px; margin-top: 8px; }
-  .ob-link { color: #2563EB; font-weight: 600; cursor: pointer; background: none; border: none; font-size: 14px; font-family: inherit; padding: 0; }
-  .ob-link:hover { text-decoration: underline; }
-  .ob-error { color: #DC2626; font-size: 14px; text-align: center; margin: -8px 0 16px 0; }
-  .ob-success { color: #059669; font-size: 14px; text-align: center; margin: -8px 0 16px 0; }
-  .ob-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #9CA3AF; font-size: 13px; }
-  .ob-divider::before, .ob-divider::after { content: ''; flex: 1; height: 1px; background-color: #E5E7EB; }
-  .ob-dots { display: flex; justify-content: center; gap: 6px; margin-top: 24px; }
-  .ob-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #E5E7EB; }
-  .ob-dot.active { background-color: #2563EB; }
-  .ob-footnote { font-size: 13px; color: #9CA3AF; text-align: center; line-height: 1.6; margin-top: 20px; }
-  .ob-footnote a { color: #6B7280; }
-`;
+// Bottom-nav order; the sliding indicator's position is this index.
+const TAB_IDS = ['vitals', 'nourish', 'profile', 'hub'];
 
-// Shared styles for the two reused/renumbered profile-setup steps (5: profile, 6: allergies),
-// which keep their original dark theme pending the Phase 3 design-system rollout.
-const ONBOARDING_PROFILE_STYLES = `
-  .auth-input {
-    width: 100% !important;
-    background-color: #030712 !important;
-    border: 1px solid #374151 !important;
-    color: #ffffff !important;
-    padding: 10px !important;
-    margin-top: 6px !important;
-    font-size: 17px !important;
-    font-family: monospace !important;
-    border-radius: 4px !important;
-    outline: none !important;
-    box-sizing: border-box !important;
-  }
-  .auth-input:focus {
-    border-color: #00ff88 !important;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
-  }
-  .auth-input-select {
-    width: 100% !important;
-    background-color: #030712 !important;
-    border: 1px solid #374151 !important;
-    color: #ffffff !important;
-    padding: 8px !important;
-    margin-top: 4px !important;
-    font-family: monospace !important;
-    border-radius: 4px !important;
-    outline: none !important;
-    box-sizing: border-box !important;
-  }
-  .auth-input-select option {
-    background-color: #0b0f19 !important;
-    color: #ffffff !important;
-  }
-  .primary-btn {
-    background-color: #00ff88 !important;
-    color: #000000 !important;
-    font-weight: bold !important;
-    border: none !important;
-    padding: 10px !important;
-    cursor: pointer !important;
-    border-radius: 4px !important;
-    font-size: 17px !important;
-    font-family: monospace !important;
-    transition: all 0.2s !important;
-  }
-  .primary-btn:hover {
-    box-shadow: 0 0 15px rgba(0, 255, 136, 0.4) !important;
-    transform: translateY(-1px) !important;
-  }
-  .secondary-btn {
-    background-color: #1f2937 !important;
-    color: #ffffff !important;
-    border: 1px solid #374151 !important;
-    padding: 10px !important;
-    cursor: pointer !important;
-    border-radius: 4px !important;
-    font-size: 16px !important;
-    font-family: monospace !important;
-  }
-`;
+
 
 // How many days of history the 7/30-day trend graphs fetch/keep. Health Connect and HealthKit
 // both hold far more than this; 30 is just the widest range the UI currently offers.
@@ -629,7 +505,7 @@ export default function App() {
 
         // Push this reading to the server so quest completion can be verified against it —
         // previously this data never left the device at all.
-        fetch('/api/sync-health-data', {
+        fetch(serverUrl('/api/sync-health-data'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -717,8 +593,8 @@ export default function App() {
         title: 'Step Details',
         description: 'Tracks your daily steps and filters out fake step-counting from shaking your phone.',
         subMetrics: [
-          { label: 'Steps', value: '--', color: '#6b7280' },
-          { label: 'Max Speed Limit', value: '350 SPM', color: '#ff9500' }
+          { label: 'Steps', value: '--', color: 'var(--ink-3)' },
+          { label: 'Max Speed Limit', value: '350 SPM', color: 'var(--warn)' }
         ]
       }
     },
@@ -733,9 +609,9 @@ export default function App() {
         title: 'Heart Rate Details',
         description: 'Tracks your heart rate and HRV (a marker of recovery) throughout the day.',
         subMetrics: [
-          { label: 'Resting Heart Rate', value: '--', color: '#ff3b30' },
-          { label: 'HRV', value: '--', color: '#00bfff' },
-          { label: 'Recovery', value: '--', color: '#00ff88' }
+          { label: 'Resting Heart Rate', value: '--', color: 'var(--danger)' },
+          { label: 'HRV', value: '--', color: 'var(--info)' },
+          { label: 'Recovery', value: '--', color: 'var(--accent)' }
         ]
       }
     },
@@ -750,8 +626,8 @@ export default function App() {
         title: 'Sleep Details',
         description: 'Tracks your overall sleep quality from your connected device.',
         subMetrics: [
-          { label: 'Time Asleep', value: '--', color: '#6b7280' },
-          { label: 'Sleep Quality', value: '--', color: '#6b7280' }
+          { label: 'Time Asleep', value: '--', color: 'var(--ink-3)' },
+          { label: 'Sleep Quality', value: '--', color: 'var(--ink-3)' }
         ]
       }
     },
@@ -766,7 +642,7 @@ export default function App() {
         title: 'Stress Details',
         description: 'Estimates your stress from your HRV — this app has no way to directly measure stress hormones.',
         subMetrics: [
-          { label: 'Stress Level', value: '--', color: '#6b7280' }
+          { label: 'Stress Level', value: '--', color: 'var(--ink-3)' }
         ]
       }
     },
@@ -804,7 +680,7 @@ export default function App() {
           description: 'Calculated from your logged last period start date and average cycle length — not a fixed value.',
           subMetrics: [
             { label: 'Current Phase', value: phase, color: '#ec4899' },
-            { label: 'Cycle Day', value: `Day ${dayOfCycle} of ${profile.averageCycleLength}`, color: '#00bfff' }
+            { label: 'Cycle Day', value: `Day ${dayOfCycle} of ${profile.averageCycleLength}`, color: 'var(--info)' }
           ]
         }
       };
@@ -838,9 +714,9 @@ export default function App() {
           title: 'Recovery & Stress Load',
           description: 'This app has no way to directly measure hormone levels — this card is a recovery/stress-load estimate built from your existing HRV, heart rate and sleep data instead.',
           subMetrics: [
-            { label: 'HRV', value: `${liveHrv} ms`, color: '#00bfff' },
-            { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-            { label: 'Sleep Quality', value: liveSleepQualityPercent !== null ? `${liveSleepQualityPercent}%` : '--', color: '#00ff88' }
+            { label: 'HRV', value: `${liveHrv} ms`, color: 'var(--info)' },
+            { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: 'var(--danger)' },
+            { label: 'Sleep Quality', value: liveSleepQualityPercent !== null ? `${liveSleepQualityPercent}%` : '--', color: 'var(--accent)' }
           ]
         }
       };
@@ -860,7 +736,7 @@ export default function App() {
             reading: 'Not connected',
             status: 'Calibrating' as const,
             behavior: 'Connect a device in Profile to see your real steps',
-            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: 'var(--ink-3)' }, ...item.details.subMetrics.slice(1)] }
           };
         }
         if (liveSteps === null) {
@@ -869,14 +745,14 @@ export default function App() {
             reading: 'Waiting for data…',
             status: 'Calibrating' as const,
             behavior: 'No step data from your device yet today',
-            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+            details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: 'var(--ink-3)' }, ...item.details.subMetrics.slice(1)] }
           };
         }
         return {
           ...item,
           reading: `${liveSteps} steps today`,
           behavior: 'Synced from your device',
-          details: { ...item.details, subMetrics: [{ label: 'Steps Today', value: `${liveSteps}`, color: '#00ff88' }, ...item.details.subMetrics.slice(1)] }
+          details: { ...item.details, subMetrics: [{ label: 'Steps Today', value: `${liveSteps}`, color: 'var(--accent)' }, ...item.details.subMetrics.slice(1)] }
         };
       }
       if (item.id === 'BIO-2') {
@@ -889,8 +765,8 @@ export default function App() {
             details: {
               ...item.details,
               subMetrics: [
-                { label: 'Resting Heart Rate', value: '--', color: '#6b7280' },
-                { label: 'HRV', value: '--', color: '#6b7280' }
+                { label: 'Resting Heart Rate', value: '--', color: 'var(--ink-3)' },
+                { label: 'HRV', value: '--', color: 'var(--ink-3)' }
               ]
             }
           };
@@ -903,17 +779,17 @@ export default function App() {
           details: {
             ...item.details,
             subMetrics: [
-              { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: '#ff3b30' },
-              { label: 'HRV', value: `${liveHrv} ms`, color: '#00bfff' },
-              { label: 'Recovery', value: liveBpm > 100 ? 'Caution' : 'Good', color: liveBpm > 100 ? '#ff3b30' : '#00ff88' }
+              { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: 'var(--danger)' },
+              { label: 'HRV', value: `${liveHrv} ms`, color: 'var(--info)' },
+              { label: 'Recovery', value: liveBpm > 100 ? 'Caution' : 'Good', color: liveBpm > 100 ? 'var(--danger)' : 'var(--accent)' }
             ]
           }
         };
       }
       if (item.id === 'BIO-4') {
         const emptySleepSubMetrics = [
-          { label: 'Time Asleep', value: '--', color: '#6b7280' },
-          { label: 'Sleep Quality', value: '--', color: '#6b7280' }
+          { label: 'Time Asleep', value: '--', color: 'var(--ink-3)' },
+          { label: 'Sleep Quality', value: '--', color: 'var(--ink-3)' }
         ];
         if (!isLiveHealthData) {
           return {
@@ -940,8 +816,8 @@ export default function App() {
           details: {
             ...item.details,
             subMetrics: [
-              { label: 'Time Asleep', value: liveSleepMinutes !== null ? formatMinutesAsHoursMinutes(liveSleepMinutes) : '--', color: '#00ff88' },
-              { label: 'Sleep Quality', value: `${liveSleepQualityPercent}%`, color: '#00bfff' }
+              { label: 'Time Asleep', value: liveSleepMinutes !== null ? formatMinutesAsHoursMinutes(liveSleepMinutes) : '--', color: 'var(--accent)' },
+              { label: 'Sleep Quality', value: `${liveSleepQualityPercent}%`, color: 'var(--info)' }
             ]
           }
         };
@@ -953,7 +829,7 @@ export default function App() {
             reading: 'Waiting for data…',
             status: 'Calibrating' as const,
             behavior: isLiveHealthData ? 'No recent HRV data from your device yet' : 'Connect a device to see a stress estimate',
-            details: { ...item.details, subMetrics: [{ label: 'Stress Level', value: '--', color: '#6b7280' }, ...item.details.subMetrics.slice(1)] }
+            details: { ...item.details, subMetrics: [{ label: 'Stress Level', value: '--', color: 'var(--ink-3)' }, ...item.details.subMetrics.slice(1)] }
           };
         }
         const stressLabel = liveHrv > 60 ? 'Low' : liveHrv > 45 ? 'Moderate' : 'High';
@@ -966,7 +842,7 @@ export default function App() {
             ...item.details,
             description: 'Estimates your stress from your HRV — this app has no way to directly measure stress hormones.',
             subMetrics: [
-              { label: 'Stress Level', value: stressLabel, color: stressLabel === 'High' ? '#ff3b30' : '#00ff88' },
+              { label: 'Stress Level', value: stressLabel, color: stressLabel === 'High' ? 'var(--danger)' : 'var(--accent)' },
               ...item.details.subMetrics.slice(1)
             ]
           }
@@ -995,7 +871,7 @@ export default function App() {
 
     setCompletingTaskId(id);
     try {
-      const response = await fetch('/api/complete-quest', {
+      const response = await fetch(serverUrl('/api/complete-quest'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1057,14 +933,6 @@ export default function App() {
     } finally {
       setCompletingTaskId(null);
     }
-  };
-
-  const getStreakFlameDisplay = (s: number): { emoji: string; tierClass: string } => {
-    if (s >= 14) return { emoji: '🔥🔥🔥', tierClass: 'streak-tier-4' };
-    if (s >= 7) return { emoji: '🔥🔥🔥', tierClass: 'streak-tier-3' };
-    if (s >= 3) return { emoji: '🔥🔥', tierClass: 'streak-tier-2' };
-    if (s >= 1) return { emoji: '🔥', tierClass: 'streak-tier-1' };
-    return { emoji: '💤', tierClass: 'streak-tier-0' };
   };
 
   // Regenerate today's quest set whenever the user's fitness target changes, OR a new calendar
@@ -1209,22 +1077,22 @@ export default function App() {
   const [isRedeemingVoucher, setIsRedeemingVoucher] = useState<boolean>(false);
 
   const ukCharities = [
-    { id: 'CHAR-NHS', name: 'NHS Charities Together', mission: 'Supporting frontline health staff, clinical equipment, and patient recovery schemes.', desc: 'Strengthen local health ecosystems.' },
-    { id: 'CHAR-BHF', name: 'British Heart Foundation', mission: 'Funding cardiovascular health research, clinical trials, and life-saving tech.', desc: 'Support clinical science research.' },
-    { id: 'CHAR-TRUSSELL', name: 'The Trussell Trust', mission: 'Stopping hunger and supporting local food banks to end poverty in the UK.', desc: 'Direct societal food security relief.' }
+    { id: 'CHAR-NHS', name: 'NHS Charities Together', mission: 'Supporting frontline health staff, clinical equipment, and patient recovery schemes.', desc: 'Health care' },
+    { id: 'CHAR-BHF', name: 'British Heart Foundation', mission: 'Funding cardiovascular health research, clinical trials, and life-saving tech.', desc: 'Heart research' },
+    { id: 'CHAR-TRUSSELL', name: 'The Trussell Trust', mission: 'Stopping hunger and supporting local food banks to end poverty in the UK.', desc: 'Food banks' }
   ];
 
   const handleDonateToCharity = async (charityId: string, charityName: string) => {
     const requiredPoints = 1000;
 
     if (totalVoucherPoints < requiredPoints) {
-      alert(`⚠️ INSUFFICIENT BALANCE: Point donation threshold is ${requiredPoints} points. Continue completing active quests to accumulate balance!`);
+      alert(`You need ${requiredPoints} points to donate. Complete more quests to earn them.`);
       return;
     }
 
     setIsDonating(true);
     try {
-      const response = await fetch('/api/donate-charity', {
+      const response = await fetch(serverUrl('/api/donate-charity'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ charityId, charityName, pointsValue: requiredPoints, appUserId: profile.email })
@@ -1255,7 +1123,7 @@ export default function App() {
       localStorage.setItem('kinetix_charity_donations', updatedDonationsTotal.toString());
 
       setVouchers([newTx, ...vouchers]);
-      setMotivationMessage(`🎗️ SOCIAL VALUE LOGGED: Donation pledge to ${charityName} recorded successfully.`);
+      setMotivationMessage(`💛 Donation to ${charityName} recorded. Thank you!`);
       setTimeout(() => setMotivationMessage(null), 7000);
     } catch {
       setMotivationMessage('⚠️ Could not reach the donation server. Please try again.');
@@ -1493,13 +1361,12 @@ export default function App() {
 
   const handleSimulateSteps = (cadence: number) => {
     if (cadence > 350) {
-      setMotivationMessage("🚨 FRAUD WARNING: Locomotive device oscillation frequency is physically impossible (>350 SPM). Activity dropped.");
-      alert("⚠️ ANTI-CHEAT INTERCEPT: Device oscillation frequency exceeds human locomotion velocity threshold (350 SPM). Payload dropped. Financial transaction blocked.");
+      setMotivationMessage("⚠️ That's faster than anyone can step (over 350 a minute), so no points were added.");
       setTimeout(() => setMotivationMessage(null), 7000);
       return;
     }
     const updated = [...biometrics];
-    updated[0].reading = `${cadence} SPM`;
+    updated[0].reading = `${cadence} steps/min`;
     setBiometrics(updated);
     setCaloriesBurned(prev => prev + Math.round(cadence * 0.4));
 
@@ -1510,7 +1377,7 @@ export default function App() {
       return nextPts;
     });
 
-    setMotivationMessage(`🏃 Locomotion verified! Step cadence synced at ${cadence} SPM. Earned +${pointsEarned} Points.`);
+    setMotivationMessage(`🏃 Steps counted at ${cadence} a minute · +${pointsEarned} points`);
     setTimeout(() => setMotivationMessage(null), 5000);
   };
 
@@ -1533,8 +1400,8 @@ export default function App() {
       : personalChecks.filter(allergen => foodName.toLowerCase().includes(allergen));
 
     if (flagged.length > 0) {
-      const recommendation = `❌ DIETARY EXCLUSION INGESTION TRIGGERED: Your personal food hazard list flagged (${flagged.join(', ')}) in this formulation scan. Ingest target rejected. Recommending organic plant-protein alternative formulation containing 12g fiber to satisfy your ${profile.target} target.`;
-      setMotivationMessage(`⚠️ INGESTION WARNING: Personal allergen hazard detected in your scan!`);
+      const recommendation = `Contains ${flagged.join(', ')}, which you've marked as an allergen. Try something else — the meal ideas on this page leave your allergens out.`;
+      setMotivationMessage('⚠️ Heads up: this contains one of your allergens.');
       setTimeout(() => setMotivationMessage(null), 6000);
 
       setScanResult({
@@ -1556,15 +1423,15 @@ export default function App() {
 
     let recommendation: string;
     if (profile.target === 'Weight Loss') {
-      recommendation = `📉 METABOLIC CALIBRATION MATRIX APPROVED. High-fiber indices confirmed. Consuming this meal requires +22g of clean, lean protein substrates in your next training block to defend skeletal muscle fibers from caloric deficit exhaustion. Ingest +500ml of hydration to optimize metabolic transport and satisfy your strict daily NHS fiber guidelines.`;
+      recommendation = `A good fit for weight loss. Add some lean protein later today and drink a glass of water to help you stay full.`;
     } else if (profile.target === 'Weight Gain') {
-      recommendation = `📈 HYPER-TROPHIC ANABOLIC CALIBRATION APPROVED. Mass accumulation threshold logged. Carbohydrate metrics cleared. Recommending an immediate secondary baseline boost of +35g carbohydrates and +15g amino acid substrates to satisfy continuous metabolic tissue restoration. Ensure continuous hydration syncing.`;
+      recommendation = `Logged towards your weight-gain goal. A carb-rich snack with some protein later will help you reach today's calories.`;
     } else if (profile.target === 'Cardio Endurance') {
-      recommendation = `⚡ CARDIOVASCULAR OXIDATION CALIBRATION APPROVED. Glycogen reserves successfully replenished. Estimated metabolic oxidation coefficient verified at optimal efficiency. Ensure a high-density hydration protocol of +750ml containing essential mineral matrices to support cardiovascular pulse load and low autonomic stress during high-workload locomotion.`;
+      recommendation = `Good fuel for cardio. Drink plenty of water before and after your next session.`;
     } else { // Autonomic Recovery
-      recommendation = `🌱 AUTONOMIC RESTORATION MATRIX APPROVED. Low glycemic response confirmed. To help schedule active stress thresholds and keep resting cardiovascular heart rate low, supplement this formulation with +12g of essential healthy lipids and drink +450ml of alkaline hydration to speed vagal tone restoration.`;
+      recommendation = `A steady, balanced choice for a recovery day. Add some healthy fats and keep sipping water through the day.`;
     }
-    setMotivationMessage(`✅ Scan approved! +${macros.fiber}g dietary fiber logged toward your NHS Goal!`);
+    setMotivationMessage(`✅ Logged · +${macros.fiber}g fibre towards today's 30g`);
     setTimeout(() => setMotivationMessage(null), 5000);
 
     setScanResult({
@@ -1596,7 +1463,7 @@ export default function App() {
 
     setIsScanLoading(true);
     try {
-      const response = await fetch('/api/scan-meal', {
+      const response = await fetch(serverUrl('/api/scan-meal'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ foodText: userInput, appUserId: profile.email })
@@ -1622,7 +1489,7 @@ export default function App() {
   const handleMealScanFromPhoto = async (base64Image: string, mimeType: string) => {
     setIsCameraScanning(true);
     try {
-      const response = await fetch('/api/scan-meal', {
+      const response = await fetch(serverUrl('/api/scan-meal'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64Image, mimeType, appUserId: profile.email })
@@ -1656,7 +1523,7 @@ export default function App() {
       if (!barcode) return;
 
       setIsCameraScanning(true);
-      const response = await fetch('/api/lookup-barcode', {
+      const response = await fetch(serverUrl('/api/lookup-barcode'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ barcode })
@@ -1733,7 +1600,7 @@ export default function App() {
 
   const handleConnectHealthSource = async () => {
     if (!Capacitor.isNativePlatform()) {
-      setMotivationMessage('📱 Live biometric sync requires the iOS or Android app. Open KinetixFit on your phone to connect Apple Health or Health Connect.');
+      setMotivationMessage('📱 Live health sync needs the iOS or Android app. Open KinetixFit on your phone to connect.');
       setTimeout(() => setMotivationMessage(null), 7000);
       return;
     }
@@ -1760,7 +1627,7 @@ export default function App() {
       const sourceName = Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect';
       saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
       setShowDeviceSyncModal(false);
-      setMotivationMessage(`🔋 Connected to ${sourceName}! Live telemetry syncing now — this can take a moment to appear.`);
+      setMotivationMessage(`✅ Connected to ${sourceName}. Your data can take a moment to appear.`);
       setTimeout(() => setMotivationMessage(null), 6000);
     } catch (err) {
       console.warn('Health connection failed:', err);
@@ -1777,7 +1644,7 @@ export default function App() {
 
     setIsRedeemingPromo(true);
     try {
-      const response = await fetch('/api/redeem-promo', {
+      const response = await fetch(serverUrl('/api/redeem-promo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, appUserId: profile.email })
@@ -1802,20 +1669,20 @@ export default function App() {
 
   const triggerRewardVaultSettlement = async () => {
     if (tasksCompletedTodayCount < requiredTaskCountForRedeem) {
-      alert(`⚠️ REWARDS LOCK: You have only completed ${tasksCompletedTodayCount}/${requiredTaskCountForRedeem} today's target tasks. Physical effort required.`);
-      setMotivationMessage("🔒 SECURITY LOCK: Complete at least 2 active quests today to authorize points redemption!");
+      alert(`Finish at least ${requiredTaskCountForRedeem} of today's quests to redeem — you've done ${tasksCompletedTodayCount} so far.`);
+      setMotivationMessage("🔒 Finish 2 of today's quests to unlock redeeming.");
       setTimeout(() => setMotivationMessage(null), 6000);
       return;
     }
 
     if (totalVoucherPoints < 2500) {
-      alert("⚠️ INSUFFICIENT BALANCE: You need at least 2,500 points to redeem a voucher. Keep completing quests to earn more!");
+      alert("You need 2,500 points to redeem a voucher. Keep completing quests to earn more.");
       return;
     }
 
     const currentTime = Date.now();
     if (currentTime - lastRedemptionTime < 86400000) {
-      alert("🔒 COOL-DOWN LIMIT: You can only redeem 1 reward every 24 hours.");
+      alert("You can redeem one reward every 24 hours.");
       return;
     }
 
@@ -1839,7 +1706,7 @@ export default function App() {
 
     setIsRedeemingVoucher(true);
     try {
-      const response = await fetch('/api/redeem-voucher', {
+      const response = await fetch(serverUrl('/api/redeem-voucher'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1897,22 +1764,25 @@ export default function App() {
 
   const getPersonalizedWelcome = () => {
     const hours = new Date().getHours();
-    let timeGreeting = "Good Morning";
-    if (hours >= 12 && hours < 17) timeGreeting = "Good Afternoon";
-    if (hours >= 17) timeGreeting = "Good Evening";
+    let timeGreeting = "Good morning";
+    if (hours >= 12 && hours < 17) timeGreeting = "Good afternoon";
+    if (hours >= 17) timeGreeting = "Good evening";
+
+    const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
     return (
-      <div style={{ marginBottom: '10px' }}>
-        <h2 style={{ fontSize: '22px', color: '#00ff88', margin: '0 0 5px 0', fontWeight: 'bold', fontFamily: 'monospace' }}>
-          {timeGreeting}, {profile.name || 'there'}
-        </h2>
-        <span style={{ fontSize: '15px', color: '#9ca3af', fontFamily: 'monospace' }}>
-          {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Connect a device to see your live stats.'}
-        </span>
-        <p style={{ fontSize: '14px', color: '#00bfff', fontStyle: 'italic', margin: '10px 0 0 0', lineHeight: '1.5' }}>
-          "{getDailyQuote()}"
-        </p>
-      </div>
+      <>
+        <div>
+          <p className="kx-hero-eyebrow">{today}</p>
+          <h2 className="kx-hero-greeting">
+            {timeGreeting},<br /><em>{profile.name || 'there'}</em>
+          </h2>
+          <p className="kx-hero-status">
+            {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Connect a device to see your live stats.'}
+          </p>
+        </div>
+        <p className="kx-hero-quote">{getDailyQuote()}</p>
+      </>
     );
   };
 
@@ -1925,16 +1795,20 @@ export default function App() {
       <div className="workspace-container">
         <div className="app-viewport-container">
           <div className="ob-container">
-            <div className="ob-card">
-              <div className="ob-logo">
-                <svg width="56" height="28" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#2563EB" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+            <div className="ob-card ob-card-hero">
+              <div className="ob-hero-panel">
+                <TrackLanes />
+                <div className="ob-logo">
+                  <svg width="44" height="22" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="var(--accent)" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="ob-wordmark">KINETIXFIT</span>
+                </div>
+                <h1 className="ob-hero-title">Welcome to<br /><em>KinetixFit</em></h1>
               </div>
-              <h1 className="ob-title">Welcome to KinetixFit</h1>
               <p className="ob-body">Track your fitness, nutrition, and progress — all in one place.</p>
               <button onClick={() => setOnboardingStep(1)} className="ob-btn-primary">
-                Get Started
+                Get started
               </button>
               <div className="ob-dots">
                 <span className="ob-dot active"></span>
@@ -1943,8 +1817,7 @@ export default function App() {
             </div>
           </div>
         </div>
-        <style>{ONBOARDING_STYLES}</style>
-      </div>
+              </div>
     );
   }
 
@@ -1956,26 +1829,26 @@ export default function App() {
           <div className="ob-container">
             <div className="ob-card">
               <h1 className="ob-title">What you can do</h1>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0 28px 0' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '20px' }}>❤️</span>
+              <div className="ob-features">
+                <div className="ob-feature" style={{ ['--metric' as string]: 'var(--m-heart)' }}>
+                  <span className="ob-feature-icon"><HeartIcon /></span>
                   <div>
-                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Health tracking</strong>
-                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>See your real steps, heart rate, and sleep from your device.</p>
+                    <strong>Health tracking</strong>
+                    <p>See your real steps, heart rate, and sleep from your device.</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '20px' }}>🍽️</span>
+                <div className="ob-feature" style={{ ['--metric' as string]: 'var(--m-steps)' }}>
+                  <span className="ob-feature-icon"><CameraIcon /></span>
                   <div>
-                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Food scanner</strong>
-                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>Scan a barcode or photo to check nutrition and allergens.</p>
+                    <strong>Food scanner</strong>
+                    <p>Scan a barcode or photo to check nutrition and allergens.</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: '20px' }}>🎁</span>
+                <div className="ob-feature" style={{ ['--metric' as string]: 'var(--m-stress)' }}>
+                  <span className="ob-feature-icon"><RewardIcon /></span>
                   <div>
-                    <strong style={{ fontSize: '16px', color: '#1A1D1F' }}>Rewards</strong>
-                    <p style={{ fontSize: '14px', color: '#6B7280', margin: '2px 0 0 0' }}>Earn points for healthy habits, redeem for vouchers or donations.</p>
+                    <strong>Rewards</strong>
+                    <p>Earn points for healthy habits, redeem for vouchers or donations.</p>
                   </div>
                 </div>
               </div>
@@ -1990,8 +1863,7 @@ export default function App() {
             </div>
           </div>
         </div>
-        <style>{ONBOARDING_STYLES}</style>
-      </div>
+              </div>
     );
   }
 
@@ -2063,14 +1935,13 @@ export default function App() {
                 )}
               </p>
               <p className="ob-footnote">
-                By continuing, you agree to our <a href="/privacy-policy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="/terms-of-service" target="_blank" rel="noopener noreferrer">Terms of Service</a>.
+                By continuing, you agree to our <a href={serverUrl('/privacy-policy')} target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href={serverUrl('/terms-of-service')} target="_blank" rel="noopener noreferrer">Terms of Service</a>.
               </p>
               <button type="button" onClick={() => setOnboardingStep(1)} className="ob-link" style={{ display: 'block', margin: '16px auto 0 auto' }}>Back</button>
             </div>
           </div>
         </div>
-        <style>{ONBOARDING_STYLES}</style>
-      </div>
+              </div>
     );
   }
 
@@ -2081,25 +1952,24 @@ export default function App() {
         <div className="app-viewport-container">
           <div className="ob-container">
             <div className="ob-card">
-              <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '8px' }}>❤️</div>
+              <div className="ob-badge" style={{ ['--metric' as string]: 'var(--m-heart)' }}><HeartIcon size={30} /></div>
               <h1 className="ob-title">See your real stats</h1>
               <p className="ob-body">
                 We use {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'} to show your real steps, heart rate, and sleep — no guessing, no placeholder numbers. You can disconnect at any time in Profile.
               </p>
-              <button onClick={handleConnectHealthSource} disabled={isConnectingHealth} className="ob-btn-primary" style={{ marginBottom: '12px' }}>
+              <button onClick={handleConnectHealthSource} disabled={isConnectingHealth} className="ob-btn-primary" style={{ marginBottom: '10px' }}>
                 {isConnectingHealth ? 'Connecting…' : `Connect ${Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}`}
               </button>
               <button onClick={() => setOnboardingStep(4)} className="ob-btn-secondary">
                 {profile.smartDeviceConnected ? 'Continue' : 'Skip for now'}
               </button>
               {!Capacitor.isNativePlatform() && (
-                <p className="ob-footnote">📱 Live sync requires the iOS or Android app — you can skip this on web.</p>
+                <p className="ob-footnote">Live sync needs the iOS or Android app — you can skip this on the website.</p>
               )}
             </div>
           </div>
         </div>
-        <style>{ONBOARDING_STYLES}</style>
-      </div>
+              </div>
     );
   }
 
@@ -2110,7 +1980,7 @@ export default function App() {
         <div className="app-viewport-container">
           <div className="ob-container">
             <div className="ob-card">
-              <div style={{ fontSize: '40px', textAlign: 'center', marginBottom: '8px' }}>🔔</div>
+              <div className="ob-badge" style={{ ['--metric' as string]: 'var(--m-sleep)' }}><BellIcon size={30} /></div>
               <h1 className="ob-title">Stay on track</h1>
               <p className="ob-body">
                 We'll send helpful reminders — hydration during your work hours, and a nudge if you forget to log a meal. Only if you want them — you can turn these off anytime in Profile.
@@ -2118,16 +1988,15 @@ export default function App() {
               <button
                 onClick={async () => { await ensureNotificationPermission(); setOnboardingStep(5); }}
                 className="ob-btn-primary"
-                style={{ marginBottom: '12px' }}
+                style={{ marginBottom: '10px' }}
               >
-                Enable Notifications
+                Turn on reminders
               </button>
               <button onClick={() => setOnboardingStep(5)} className="ob-btn-secondary">Skip for now</button>
             </div>
           </div>
         </div>
-        <style>{ONBOARDING_STYLES}</style>
-      </div>
+              </div>
     );
   }
 
@@ -2137,25 +2006,25 @@ export default function App() {
       <div className="workspace-container">
         <div className="app-viewport-container">
 
-          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 1 OF 3: PROFILE DEPLOYMENT</span>
-              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Tell Us About You</h2>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Your Display Name
+          <div className="ob-container">
+            <div className="ob-card">
+              <span className="ob-step">Step 1 of 2</span>
+              <h1 className="ob-title">About you</h1>
+              <p className="ob-body" style={{ marginBottom: '18px' }}>We use this to set your calorie and protein targets.</p>
+              <div className="ob-form">
+                <label className="ob-label">Your name
                   <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Height (cm)
+                <label className="ob-label">Height (cm)
                   <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Weight (kg)
+                <label className="ob-label">Weight (kg)
                   <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Age
+                <label className="ob-label">Age
                   <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="auth-input" />
                 </label>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Biological Sex
+                <label className="ob-label">Sex
                   <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="auth-input-select">
                     <option value="">Prefer not to say</option>
                     <option value="male">Male</option>
@@ -2164,38 +2033,37 @@ export default function App() {
                 </label>
                 {profile.sex === 'female' && (
                   <>
-                    <label style={{ fontSize: '16px', color: '#9ca3af' }}>Last Period Start Date
+                    <label className="ob-label">Last period started
                       <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="auth-input" />
                     </label>
-                    <label style={{ fontSize: '16px', color: '#9ca3af' }}>Average Cycle Length (days)
+                    <label className="ob-label">Cycle length (days)
                       <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="auth-input" />
                     </label>
                   </>
                 )}
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Activity Level
+                <label className="ob-label">Activity level
                   <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="auth-input-select">
                     <option value="sedentary">Sedentary (little to no exercise)</option>
                     <option value="light">Light (exercise 1-3x/week)</option>
                     <option value="moderate">Moderate (exercise 3-5x/week)</option>
                     <option value="active">Active (exercise 6-7x/week)</option>
-                    <option value="very_active">Very Active (hard exercise/physical job)</option>
+                    <option value="very_active">Very active (hard exercise or physical job)</option>
                   </select>
                 </label>
-                <label style={{ fontSize: '16px', color: '#9ca3af' }}>Primary Fitness Target
+                <label className="ob-label">Main goal
                   <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="auth-input-select">
-                    <option value="Autonomic Recovery">Autonomic Recovery</option>
+                    <option value="Autonomic Recovery">Recovery</option>
                     <option value="Weight Loss">Weight Loss</option>
                     <option value="Weight Gain">Weight Gain</option>
                     <option value="Cardio Endurance">Cardio Endurance</option>
                   </select>
                 </label>
-                <button onClick={() => setOnboardingStep(6)} className="primary-btn" style={{ marginTop: '10px' }}>
-                  Confirm & Continue
+                <button onClick={() => setOnboardingStep(6)} className="primary-btn" style={{ marginTop: '6px' }}>
+                  Continue
                 </button>
               </div>
             </div>
-            <style>{ONBOARDING_PROFILE_STYLES}</style>
-          </div>
+                      </div>
         </div>
       </div>
     );
@@ -2207,50 +2075,40 @@ export default function App() {
       <div className="workspace-container">
         <div className="app-viewport-container">
 
-          <div style={{ backgroundColor: '#030712', color: '#ffffff', flex: 1, fontFamily: 'monospace', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-            <div style={{ width: '100%', backgroundColor: '#0b0f19', border: '1px solid #1f2937', borderRadius: '12px', padding: '25px', boxSizing: 'border-box' }}>
-              <span style={{ fontSize: '14px', color: '#00ff88', display: 'block', marginBottom: '5px' }}>STEP 2 OF 3: FOOD EXCLUSION CONFIGURATION</span>
-              <h2 style={{ fontSize: '20px', margin: '0 0 15px 0', borderBottom: '1px solid #1f2937', paddingBottom: '10px', color: '#fff' }}>Set Personal Allergen Prohibitions</h2>
-              <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginBottom: '15px', margin: '0 0 15px 0' }}>
-                Select any food allergens you're sensitive to. The scanner will flag these when you scan a barcode or photo.
+          <div className="ob-container">
+            <div className="ob-card">
+              <span className="ob-step">Step 2 of 2</span>
+              <h1 className="ob-title">Any food allergies?</h1>
+              <p className="ob-body" style={{ marginBottom: '18px' }}>
+                Tap any you're allergic to. We'll flag them when you check a food.
               </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px', marginBottom: '15px' }}>
+              <div className="kx-chip-wrap" style={{ marginBottom: '24px' }}>
                 {the14Allergens.map(allergen => {
                   const active = profile.personalAllergens.includes(allergen);
                   return (
                     <button
                       key={allergen}
+                      type="button"
                       onClick={() => handleTogglePersonalAllergen(allergen)}
-                      style={{
-                        backgroundColor: active ? 'rgba(0, 255, 136, 0.08)' : '#030712',
-                        border: `1px solid ${active ? '#00ff88' : '#374151'}`,
-                        color: active ? '#00ff88' : '#ffffff',
-                        padding: '6px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '15px',
-                        textAlign: 'left',
-                        fontFamily: 'monospace'
-                      }}
+                      className={`kx-chip ${active ? 'kx-chip-on' : ''}`}
+                      aria-pressed={active}
                     >
-                      {active ? '✓ ' : '+ '} {allergen.toUpperCase()}
+                      {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
                     </button>
                   );
                 })}
               </div>
-
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={() => setOnboardingStep(5)} className="secondary-btn" style={{ flex: 1 }}>
                   Back
                 </button>
-                <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.5 }}>
-                  Confirm Allergens
+                <button onClick={handleCompleteOnboarding} className="primary-btn" style={{ flex: 1.6 }}>
+                  {profile.personalAllergens.length ? 'Finish' : 'None — finish'}
                 </button>
               </div>
             </div>
-            <style>{ONBOARDING_PROFILE_STYLES}</style>
-          </div>
+                      </div>
         </div>
       </div>
     );
@@ -2282,7 +2140,7 @@ export default function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className="glowing-logo">
                 <svg width="40" height="20" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="var(--accent)" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
               <div>
@@ -2298,23 +2156,23 @@ export default function App() {
 
               {/* Welcome banner */}
               <div className="vitals-hero-card">
-                <div style={{ flex: 1.2 }}>
-                  {getPersonalizedWelcome()}
+                <TrackLanes />
+                {getPersonalizedWelcome()}
+                <div className="kx-hero-foot">
+                  <p className="kx-hero-hint">Tap a card below to see your 7-day trend.</p>
                   {streak > 0 && (
-                    <p style={{ fontSize: '14px', color: '#9ca3af', margin: '8px 0 0 0' }}>
-                      {getStreakFlameDisplay(streak).emoji} {streak}-day streak
-                    </p>
+                    <div className="kx-lap" aria-label={`${streak}-day streak`}>
+                      <span className="kx-lap-num">{streak}</span>
+                      <span className="kx-lap-label">day streak</span>
+                    </div>
                   )}
-                  <p style={{ fontSize: '16px', color: '#9ca3af', lineHeight: '1.6', marginTop: '10px', margin: '10px 0 0 0' }}>
-                    Tap a card below to see your real 7-day trend.
-                  </p>
                 </div>
               </div>
 
               {/* 7-Day Health Trends — real device history, honest empty states when disconnected */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <BiometricTrendCard
-                  icon="🚶"
+                  icon={<StepsIcon />}
                   title="Steps"
                   status={stepsBio.status}
                   behavior={stepsBio.behavior}
@@ -2322,7 +2180,7 @@ export default function App() {
                   subMetrics={stepsBio.details.subMetrics}
                   trend={healthTrends.steps}
                   unit=""
-                  color="#2563EB"
+                  color="var(--m-steps)"
                   chartType="bar"
                   isTrackable={isLiveHealthData}
                   disconnectedMessage="Connect a device in Profile to see your 7-day steps trend."
@@ -2333,7 +2191,7 @@ export default function App() {
                   onRangeChange={setTrendRangeDays}
                 />
                 <BiometricTrendCard
-                  icon="❤️"
+                  icon={<HeartIcon />}
                   title="Heart Rate"
                   status={heartRateBio.status}
                   behavior={heartRateBio.behavior}
@@ -2341,7 +2199,7 @@ export default function App() {
                   subMetrics={heartRateBio.details.subMetrics}
                   trend={healthTrends.heartRate}
                   unit=" bpm"
-                  color="#DC2626"
+                  color="var(--m-heart)"
                   chartType="line"
                   isTrackable={isLiveHealthData}
                   disconnectedMessage="Connect a device to see your 7-day heart rate trend."
@@ -2352,7 +2210,7 @@ export default function App() {
                   onRangeChange={setTrendRangeDays}
                 />
                 <BiometricTrendCard
-                  icon="😴"
+                  icon={<SleepIcon />}
                   title="Sleep"
                   status={sleepBio.status}
                   behavior={sleepBio.behavior}
@@ -2360,7 +2218,7 @@ export default function App() {
                   subMetrics={sleepBio.details.subMetrics}
                   trend={healthTrends.sleep}
                   unit="%"
-                  color="#7C3AED"
+                  color="var(--m-sleep)"
                   chartType="bar"
                   isTrackable={isLiveHealthData}
                   disconnectedMessage="Connect a device in Profile to see your 7-day sleep trend."
@@ -2371,7 +2229,7 @@ export default function App() {
                   onRangeChange={setTrendRangeDays}
                 />
                 <BiometricTrendCard
-                  icon="🧘"
+                  icon={<StressIcon />}
                   title="Stress (HRV estimate)"
                   status={stressBio.status}
                   behavior={stressBio.behavior}
@@ -2379,7 +2237,7 @@ export default function App() {
                   subMetrics={stressBio.details.subMetrics}
                   trend={healthTrends.stress}
                   unit=" ms HRV"
-                  color="#D97706"
+                  color="var(--m-stress)"
                   chartType="line"
                   isTrackable={isLiveHealthData || hasStressHistory}
                   disconnectedMessage="Connect a device to start tracking your stress trend."
@@ -2395,13 +2253,13 @@ export default function App() {
 
               {/* Workout logging — a real log entry, independent of live heart rate/HRV data */}
               <div className="ecg-module-card">
-                <h3 className="ecg-title" style={{ margin: '0 0 10px 0' }}>Log a Workout</h3>
+                <h3 className="ecg-title">Log a workout</h3>
                 <div className="sport-workload-bar">
                   {[
-                    { id: 'rest', label: '🧘 Rest & Recovery' },
-                    { id: 'run', label: '🏃 Cardio Run' },
-                    { id: 'cycle', label: '🚴 Cycle Sprint' },
-                    { id: 'swim', label: '🏊 Swim Laps' }
+                    { id: 'rest', label: 'Rest & recovery' },
+                    { id: 'run', label: 'Run' },
+                    { id: 'cycle', label: 'Cycle' },
+                    { id: 'swim', label: 'Swim' }
                   ].map(mode => (
                     <button
                       key={mode.id}
@@ -2412,8 +2270,8 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <button onClick={handleLogWorkout} className="primary-btn" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
-                  ✅ Log This Workout
+                <button onClick={handleLogWorkout} className="primary-btn">
+                  Log workout
                 </button>
               </div>
 
@@ -2421,15 +2279,11 @@ export default function App() {
 
               <div className="vitals-right-panel">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className="section-header" style={{ margin: 0 }}>Connection Status</h3>
-                  <span style={{
-                    fontSize: '12px', fontWeight: 'bold', padding: '3px 8px', borderRadius: '10px', letterSpacing: '0.5px',
-                    color: isLiveHealthData ? '#00ff88' : '#ff9500',
-                    backgroundColor: isLiveHealthData ? 'rgba(0, 255, 136, 0.08)' : 'rgba(255, 149, 0, 0.08)',
-                    border: `1px solid ${isLiveHealthData ? '#00ff88' : '#ff9500'}`
-                  }}>
-                    {isLiveHealthData ? `🟢 LIVE — ${profile.smartDeviceConnected}` : '🔌 NOT CONNECTED'}
+                <div className="kx-row-between">
+                  <h3 className="section-header">Device</h3>
+                  <span className={`kx-live-pill ${isLiveHealthData ? 'kx-live-on' : ''}`}>
+                    <span className="kx-live-dot" />
+                    {isLiveHealthData ? `Live · ${profile.smartDeviceConnected}` : 'Not connected'}
                   </span>
                 </div>
                 {sexCard && (
@@ -2442,9 +2296,7 @@ export default function App() {
                     </div>
                     <h4 className="bio-metric-title">{sexCard.metric}</h4>
                     <p className="bio-metric-reading">{sexCard.reading}</p>
-                    <span className="bio-behavior-log">
-                      Behavior: {sexCard.behavior}
-                    </span>
+                    <span className="bio-behavior-log">{sexCard.behavior}</span>
                   </div>
                 )}
               </div>
@@ -2452,7 +2304,7 @@ export default function App() {
               {/* Device connection shortcut — editing your details lives in Profile now, not duplicated here */}
               <div className="profile-actions-row">
                 <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
-                  🔌 Connect a Device
+                  {isLiveHealthData ? 'Manage device' : 'Connect a device'}
                 </button>
               </div>
 
@@ -2466,17 +2318,18 @@ export default function App() {
 
               {/* Daily macro counters */}
               <div className="nourish-summary-card">
-                <span className="vitals-label">NHS GUIDELINE DIETARY BALANCE</span>
-                <h3 className="nourish-calories-remaining" style={{ color: caloriesRemaining > 0 ? '#00ff88' : '#ff3b30' }}>
-                  {caloriesRemaining > 0 ? `${caloriesRemaining} kcal Remaining` : `${Math.abs(caloriesRemaining)} kcal Deficit Over`}
+                <span className="vitals-label">Today · NHS guidelines</span>
+                <h3 className="nourish-calories-remaining" style={{ color: caloriesRemaining > 0 ? 'var(--ink)' : 'var(--danger)' }}>
+                  {Math.abs(caloriesRemaining).toLocaleString('en-GB')}
+                  <span className="kx-unit">{caloriesRemaining > 0 ? 'kcal left' : 'kcal over'}</span>
                 </h3>
 
                 {/* Macro progress meters */}
                 <div className="macro-meters-stack">
                   <div className="macro-progress-bar">
                     <div className="macro-bar-header">
-                      <span>Dietary Fiber (NHS Goal: 30g)</span>
-                      <strong style={{ color: '#00ff88' }}>{dailyConsumables.fiber}g / 30g</strong>
+                      <span>Fibre</span>
+                      <strong>{dailyConsumables.fiber}g <span className="kx-of">/ 30g</span></strong>
                     </div>
                     <div className="progress-track">
                       <div className="progress-fill green-fill" style={{ width: `${Math.min(100, (dailyConsumables.fiber / 30) * 100)}%` }}></div>
@@ -2484,8 +2337,8 @@ export default function App() {
                   </div>
                   <div className="macro-progress-bar">
                     <div className="macro-bar-header">
-                      <span>Protein Index</span>
-                      <strong style={{ color: '#00bfff' }}>{dailyConsumables.protein}g / {nhsTargets.protein}g</strong>
+                      <span>Protein</span>
+                      <strong>{dailyConsumables.protein}g <span className="kx-of">/ {nhsTargets.protein}g</span></strong>
                     </div>
                     <div className="progress-track">
                       <div className="progress-fill blue-fill" style={{ width: `${Math.min(100, (dailyConsumables.protein / nhsTargets.protein) * 100)}%` }}></div>
@@ -2497,16 +2350,16 @@ export default function App() {
               {/* Suggested Next Meal — generic food ideas fitted to what's actually left today */}
               {mealSuggestions.length > 0 && (
                 <div className="scanner-module-card">
-                  <h3 className="card-header-title">🍽️ Suggested Next Meal</h3>
+                  <h3 className="card-header-title">Ideas for your next meal</h3>
                   <p className="card-header-desc">
-                    Based on what you have left today, filtered against your personal allergens.
+                    Picked to fit what you have left today, with your allergens left out.
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                  <div className="kx-meal-list">
                     {mealSuggestions.map((s, idx) => (
-                      <div key={idx} style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px 12px', fontSize: '16px', color: '#ffffff', lineHeight: '1.6' }}>
-                        {s.text}
-                        <span style={{ display: 'block', fontSize: '13px', color: '#9ca3af', marginTop: '4px' }}>
-                          ~{s.calories} kcal · {s.protein}g protein · {s.fiber}g fiber
+                      <div key={idx} className="kx-meal">
+                        <span className="kx-meal-name">{s.text}</span>
+                        <span className="kx-meal-meta">
+                          <span>{s.calories} kcal</span><span>{s.protein}g protein</span><span>{s.fiber}g fibre</span>
                         </span>
                       </div>
                     ))}
@@ -2516,25 +2369,25 @@ export default function App() {
 
               {/* Food Scanner */}
               <div className="scanner-module-card">
-                <h3 className="card-header-title">Food Scanner</h3>
+                <h3 className="card-header-title">Check a food</h3>
                 <p className="card-header-desc">
-                  Check foods against your personal allergy preferences.
+                  Type a food or scan it to see its nutrition and whether it contains your allergens.
                 </p>
 
                 {/* Scanner Input Row with Camera Trigger */}
                 <div className="scanner-input-row">
                   <input
                     type="text"
-                    placeholder="Enter formulation ingredients (e.g. Tomato Pasta)"
+                    placeholder="e.g. tomato pasta"
                     value={mealInput}
                     onChange={(e) => setMealInput(e.target.value)}
                     className="scanner-text-input"
                   />
-                  <button onClick={() => setShowCameraModal(true)} className="scanner-camera-trigger" title="Simulate Camera OCR Scan">
-                    📷
+                  <button onClick={() => setShowCameraModal(true)} className="scanner-camera-trigger" title="Scan with camera" aria-label="Scan with camera">
+                    <CameraIcon />
                   </button>
                   <button onClick={() => handleMealScan()} disabled={isScanLoading} className="scanner-submit-btn">
-                    {isScanLoading ? 'Scanning…' : 'Scan'}
+                    {isScanLoading ? 'Checking…' : 'Check'}
                   </button>
                 </div>
 
@@ -2542,7 +2395,7 @@ export default function App() {
                 {scanResult && (
                   <div className={`scan-outcome-panel border-${scanResult.complianceStatus.toLowerCase()}`}>
                     <div className="scan-outcome-header">
-                      <span>Formulation Ingestion Scan</span>
+                      <span>Result</span>
                       <span className={`compliance-badge badge-${scanResult.complianceStatus.toLowerCase()}`}>
                         {scanResult.complianceStatus}
                       </span>
@@ -2555,14 +2408,14 @@ export default function App() {
 
                     <div className="scan-macros-micros-grid">
                       <div>
-                        <strong className="panel-sub-label">MACRO METRICS:</strong>
+                        <strong className="panel-sub-label">Macros</strong>
                         <p>• Calories: {scanResult.calories} kcal</p>
                         <p>• Carbs: {scanResult.macros.carbs}g</p>
                         <p>• Protein: {scanResult.macros.protein}g</p>
-                        <p style={{ color: '#00ff88', fontWeight: 'bold' }}>• Fiber: +{scanResult.macros.fiber}g logged</p>
+                        <p style={{ color: 'var(--good)', fontWeight: 650 }}>• Fibre: +{scanResult.macros.fiber}g logged</p>
                       </div>
                       <div>
-                        <strong className="panel-sub-label">MICRO INDICES:</strong>
+                        <strong className="panel-sub-label">Minerals</strong>
                         <p>• Sodium: {scanResult.micros.sodium}</p>
                         <p>• Potassium: {scanResult.micros.potassium}</p>
                         <p>• Iron: {scanResult.micros.iron}</p>
@@ -2571,7 +2424,7 @@ export default function App() {
                     </div>
 
                     <div className="scan-clinical-recommendation">
-                      <strong>AI BIOMETRIC HEALTH STRATEGY:</strong>
+                      <strong>What this means for you</strong>
                       <p>{scanResult.dietaryRecommendation}</p>
                     </div>
                   </div>
@@ -2586,69 +2439,66 @@ export default function App() {
             <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
 
               {/* Symmetrical Dual-Grid Dashboard for Profile Overview on Desktop */}
-              <div className="vitals-dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '25px', alignItems: 'start' }}>
+              <div className="vitals-dashboard-grid">
 
                 {/* LEFT PROFILE PANEL */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
 
                   {/* Bio Athlete Holographic Status Card */}
-                  <div className="vitals-hero-card" style={{ position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ flex: 1.2 }}>
-                      <span className="vitals-label font-bold" style={{ color: '#00ff88', letterSpacing: '2px', fontSize: '14px', textTransform: 'uppercase' }}>🛡️ ATHLETE PROFILE</span>
-                      <h2 style={{ fontSize: '24px', color: '#fff', margin: '12px 0 6px 0', fontWeight: '900', fontFamily: 'monospace', letterSpacing: '1px' }}>
-                        {profile.name || 'ANONYMOUS ATHLETE'}
-                      </h2>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-                        <span className="bio-status-badge status-optimal" style={{ fontSize: '12px', padding: '2px 8px' }}>STREAK: {getStreakFlameDisplay(streak).emoji} {streak}-Day</span>
-                        <span className="bio-status-badge status-syncing" style={{ fontSize: '12px', padding: '2px 8px' }}>CONDITION: PEAK ATHLETE</span>
-                      </div>
+                  <div className="vitals-hero-card kx-profile-hero">
+                    <TrackLanes />
+                    <div>
+                      <span className="kx-hero-eyebrow">Level {level} · {xp} XP</span>
+                      <h2 className="kx-hero-greeting">{profile.name || 'Your profile'}</h2>
+                      <p className="kx-hero-status">Goal: {profile.target === 'Autonomic Recovery' ? 'Recovery' : profile.target}</p>
                     </div>
-                    <div className="glowing-logo" style={{ opacity: 0.15, transform: 'scale(1.1)' }}>
-                      <svg width="60" height="30" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z" stroke="#00ff88" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                    <div className="kx-hero-foot">
+                      <div className="kx-stat-row">
+                        <div className="kx-lap"><span className="kx-lap-num">{streak}</span><span className="kx-lap-label">day streak</span></div>
+                        <div className="kx-lap"><span className="kx-lap-num">{profile.workoutsLogged.length}</span><span className="kx-lap-label">workouts</span></div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Smart Point balances Tracker */}
                   <div className="rewards-summary-card">
-                    <span className="vitals-label font-bold" style={{ letterSpacing: '1px', fontSize: '13px' }}>YOUR WALLET • LEVEL {level} ({xp} XP)</span>
-                    <h3 className="rewards-wallet-balance" style={{ fontSize: '28px', margin: '4px 0', color: '#00ff88', fontWeight: 'bold' }}>{totalVoucherPoints} Points</h3>
-                    <p style={{ fontSize: '15px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
+                    <span className="vitals-label">Your points</span>
+                    <h3 className="rewards-wallet-balance">{totalVoucherPoints.toLocaleString('en-GB')}<span className="kx-unit">pts</span></h3>
+                    <p style={{ fontSize: '15px', color: 'var(--ink-2)', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
                       Complete quests to earn points, then redeem them for coffee vouchers or charity donations.
                     </p>
                   </div>
 
                   {/* Active Wearable Sensor Integration Panel */}
                   <div className="biopoint-validator-card">
-                    <span className="validator-label" style={{ fontSize: '13px', letterSpacing: '1px' }}>🔋 CONNECTED DEVICES</span>
-                    <p className="validator-desc" style={{ fontSize: '15px', lineHeight: '1.6' }}>
+                    <span className="vitals-label">Connected devices</span>
+                    <p className="validator-desc">
                       Connect your wearable device to sync your activity, heart rate, and sleep data automatically.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '15px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                        🔌 Configure Smart Sensor Links
+                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
+                        {profile.smartDeviceConnected ? `Manage ${profile.smartDeviceConnected}` : 'Connect a device'}
                       </button>
                     </div>
                   </div>
 
                   {/* Configure Biological Benchmarks Form */}
                   <div className="hub-support-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>⚙️ PHYSICAL PERFORMANCE PARAMETERS</span>
-                    <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Display Name
+                    <h3 className="card-header-title">Your details</h3>
+                    <div className="drawer-form-grid">
+                      <label className="drawer-label">Name
                         <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Height (cm)
+                      <label className="drawer-label">Height (cm)
                         <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Weight (kg)
+                      <label className="drawer-label">Weight (kg)
                         <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Age
+                      <label className="drawer-label">Age
                         <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Biological Sex
+                      <label className="drawer-label">Sex
                         <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="">Prefer not to say</option>
                           <option value="male">Male</option>
@@ -2657,26 +2507,26 @@ export default function App() {
                       </label>
                       {profile.sex === 'female' && (
                         <>
-                          <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Last Period Start Date
+                          <label className="drawer-label">Last period started
                             <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                           </label>
-                          <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Average Cycle Length (days)
+                          <label className="drawer-label">Cycle length (days)
                             <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
                           </label>
                         </>
                       )}
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Activity Level
+                      <label className="drawer-label">Activity level
                         <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           <option value="sedentary">Sedentary</option>
                           <option value="light">Light</option>
                           <option value="moderate">Moderate</option>
                           <option value="active">Active</option>
-                          <option value="very_active">Very Active</option>
+                          <option value="very_active">Very active</option>
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Fitness Target
+                      <label className="drawer-label">Goal
                         <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          <option value="Autonomic Recovery">Autonomic Recovery</option>
+                          <option value="Autonomic Recovery">Recovery</option>
                           <option value="Weight Loss">Weight Loss</option>
                           <option value="Weight Gain">Weight Gain</option>
                           <option value="Cardio Endurance">Cardio Endurance</option>
@@ -2687,30 +2537,22 @@ export default function App() {
 
                   {/* Natasha's Law Exclusions selection list */}
                   <div className="scanner-module-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1.5px', display: 'block', marginBottom: '4px' }}>🥗 FOOD ALLERGY PREFERENCES</span>
-                    <p className="card-header-desc" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
-                      Select food allergies. These dynamically update the 1-Tap formulation scanning engines and suggest custom protein target alternatives.
+                    <h3 className="card-header-title">Food allergies</h3>
+                    <p className="card-header-desc">
+                      Tap any you have. The food check flags them and meal ideas leave them out.
                     </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '5px' }}>
+                    <div className="kx-chip-wrap">
                       {the14Allergens.map(allergen => {
                         const active = profile.personalAllergens.includes(allergen);
                         return (
                           <button
                             key={allergen}
+                            type="button"
                             onClick={() => handleTogglePersonalAllergen(allergen)}
-                            style={{
-                              backgroundColor: active ? 'rgba(0, 255, 136, 0.08)' : '#030712',
-                              border: `1px solid ${active ? '#00ff88' : '#374151'}`,
-                              color: active ? '#00ff88' : '#ffffff',
-                              padding: '6px',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '15px',
-                              textAlign: 'left',
-                              fontFamily: 'monospace'
-                            }}
+                            className={`kx-chip ${active ? 'kx-chip-on' : ''}`}
+                            aria-pressed={active}
                           >
-                            {active ? '✓ ' : '+ '} {allergen.toUpperCase()}
+                            {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
                           </button>
                         );
                       })}
@@ -2719,8 +2561,8 @@ export default function App() {
 
                   {/* Notification Settings */}
                   <div className="hub-support-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>🔔 NOTIFICATION SETTINGS</span>
-                    <label className="demo-toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#ffffff', cursor: 'pointer', marginBottom: '10px' }}>
+                    <h3 className="card-header-title">Reminders</h3>
+                    <label className="demo-toggle-label">
                       <input
                         type="checkbox"
                         checked={hydrationRemindersEnabled}
@@ -2729,40 +2571,39 @@ export default function App() {
                           localStorage.setItem('kinetix_hydration_enabled', e.target.checked.toString());
                         }}
                         className="demo-toggle-checkbox"
-                        style={{ accentColor: '#00ff88', width: '13px', height: '13px' }}
                       />
-                      💧 Hydration reminders during my active hours
+                      Remind me to drink water during my active hours
                     </label>
-                    <div className="drawer-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Work Hours Start
+                    <div className="drawer-form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                      <label className="drawer-label">Active from
                         <select value={shiftStartHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Work Hours End
+                      <label className="drawer-label">Until
                         <select value={shiftEndHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
                         </select>
                       </label>
-                      <label className="drawer-label" style={{ fontSize: '14px', color: '#9ca3af' }}>Every
+                      <label className="drawer-label">Every
                         <select value={hydrationIntervalHours} onChange={(e) => { const v = parseInt(e.target.value); setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
                           {[1, 2, 3, 4].map(h => <option key={h} value={h}>{h}h</option>)}
                         </select>
                       </label>
                     </div>
-                    <p style={{ fontSize: '13px', color: '#6b7280', margin: '10px 0 0 0', lineHeight: '1.6' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--ink-3)', margin: '10px 0 0 0', lineHeight: '1.6' }}>
                       Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
                     </p>
                   </div>
 
                   {/* Account */}
                   <div className="hub-support-card">
-                    <span className="vitals-label font-bold" style={{ fontSize: '13px', color: '#00ff88', letterSpacing: '1px', display: 'block', marginBottom: '8px' }}>👤 ACCOUNT</span>
+                    <h3 className="card-header-title">Account</h3>
                     {(session?.user?.email || profile.email) && (
-                      <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0 0 12px 0' }}>Signed in as <strong style={{ color: '#ffffff' }}>{session?.user?.email || profile.email}</strong></p>
+                      <p style={{ fontSize: '14px', color: 'var(--ink-2)', margin: '0 0 12px 0' }}>Signed in as <strong style={{ color: 'var(--ink)' }}>{session?.user?.email || profile.email}</strong></p>
                     )}
-                    <button onClick={handleLogout} className="connect-wearable-btn" style={{ width: '100%', padding: '10px', borderRadius: '8px', fontSize: '15px', fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                      Log Out
+                    <button onClick={handleLogout} className="edit-bio-btn" style={{ width: '100%' }}>
+                      Log out
                     </button>
                   </div>
 
@@ -2773,11 +2614,11 @@ export default function App() {
 
                   {/* Today's Gamified Quests list */}
                   <div className="quests-card">
-                    <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
-                      <h3 className="quests-title" style={{ fontSize: '17px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🔥 Daily Active Quests</h3>
-                      <span style={{ fontSize: '15px', color: '#9ca3af', fontWeight: 'bold' }}>{tasksCompletedTodayCount} Completed</span>
+                    <div className="quests-header">
+                      <h3 className="quests-title">Today's quests</h3>
+                      <span className="kx-count">{tasksCompletedTodayCount} of {todayTasks.length} done</span>
                     </div>
-                    <div className="quests-list-stack" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="quests-list-stack">
                       {todayTasks.map(t => {
                         const isVerifying = completingTaskId === t.id;
                         return (
@@ -2785,27 +2626,13 @@ export default function App() {
                             key={t.id}
                             onClick={() => toggleTask(t.id)}
                             className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
-                            style={{
-                              background: t.completed ? 'rgba(0, 255, 136, 0.03)' : '#030712',
-                              border: `1px solid ${t.completed ? '#00ff88' : '#1f2937'}`,
-                              padding: '12px',
-                              borderRadius: '8px',
-                              cursor: t.completed || isVerifying ? 'default' : 'pointer',
-                              opacity: isVerifying ? 0.6 : 1,
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              fontSize: '15px',
-                              transition: 'all 0.25s'
-                            }}
+                            style={{ cursor: t.completed || isVerifying ? 'default' : 'pointer', opacity: isVerifying ? 0.6 : 1 }}
                           >
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                              <span style={{ color: t.completed ? '#00ff88' : '#6b7280' }}>{t.completed ? '●' : '○'}</span>
-                              <span style={{ textDecoration: t.completed ? 'line-through' : 'none', color: t.completed ? '#00ff88' : '#ffffff', lineHeight: '1.5' }}>
-                                {isVerifying ? 'Verifying…' : t.text}
-                              </span>
+                            <div className="kx-quest-main">
+                              <span className="kx-check" aria-hidden="true" />
+                              <span className="kx-quest-text">{isVerifying ? 'Checking…' : t.text}</span>
                             </div>
-                            <strong style={{ color: t.completed ? '#00ff88' : '#9ca3af', minWidth: '55px', textAlign: 'right' }}>+{t.pointsValue} pts</strong>
+                            <strong className="kx-quest-pts">+{t.pointsValue}</strong>
                           </div>
                         );
                       })}
@@ -2814,8 +2641,8 @@ export default function App() {
 
                   {/* Achievements / Badges Gallery — computed live from existing tracked data */}
                   <div className="quests-card">
-                    <div className="quests-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
-                      <h3 className="quests-title" style={{ fontSize: '17px', color: '#00ff88', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🏅 Achievements</h3>
+                    <div className="quests-header">
+                      <h3 className="quests-title">Achievements</h3>
                     </div>
                     <div className="badges-gallery-grid">
                       {[
@@ -2837,115 +2664,54 @@ export default function App() {
 
                   {/* Accrued Point Validator Accelerometer controls */}
                   <div className="biopoint-validator-card">
-                    <span className="validator-label" style={{ fontSize: '13px', letterSpacing: '1.5px' }}>⚡ BIOMECHANICAL STEP VELOCIMETER</span>
-                    <p className="validator-desc" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
-                      Enforce locomotive anti-cheat boundaries. Steps below 350 SPM velocity ceilings accrue point balances. Mechanical phone shakers are intercepted.
+                    <h3 className="card-header-title">How step points work</h3>
+                    <p className="validator-desc">
+                      Steps only earn points at a real walking or running pace (under 350 steps a minute). Shaking the phone doesn't count. Try both:
                     </p>
                     <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer' }}>
-                        🏃 Locomotion (120 SPM)
+                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal">
+                        Walk · 120/min
                       </button>
-                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert" style={{ flex: 1, padding: '10px', borderRadius: '6px', fontSize: '15px', cursor: 'pointer' }}>
-                        🚨 Fraud Shake (420 SPM)
+                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert">
+                        Shake · 420/min
                       </button>
                     </div>
                   </div>
 
                   {/* Kinetix Rewards Vault Card (Gateway selection) */}
                   <div className="rewards-redemption-card">
-                    <div className="rewards-redemption-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #1f2937', paddingBottom: '10px' }}>
+                    <div className="rewards-redemption-header">
                       <div>
-                        <h3 className="redemption-title" style={{ fontSize: '18px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>Kinetix Rewards Vault</h3>
-                        <span style={{ fontSize: '12px', color: '#6b7280' }}>REDEEM YOUR POINTS</span>
+                        <h3 className="redemption-title">Rewards</h3>
+                        <span className="charity-subtitle">Swap points for vouchers</span>
                       </div>
-                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn" style={{ padding: '8px 16px', borderRadius: '20px', fontSize: '16px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                        {isRedeemingVoucher ? 'Processing…' : '🎟️ Cash Out Voucher (2,500 Pts)'}
+                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn">
+                        {isRedeemingVoucher ? 'Redeeming…' : 'Redeem · 2,500 pts'}
                       </button>
                     </div>
 
-                    {/* Integrated Gateway Selector (disabled until live provider approval is confirmed) */}
-                    <div style={{ backgroundColor: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px', marginBottom: '15px' }}>
-                      <span style={{ fontSize: '12px', color: '#6b7280', display: 'block', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>Select Rewards Settlement Gateway:</span>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                        <button
-                          disabled
-                          style={{
-                            backgroundColor: '#0b0f19',
-                            border: '1px solid #1f2937',
-                            color: '#4b5563',
-                            fontSize: '14px',
-                            padding: '6px 2px',
-                            fontFamily: 'monospace',
-                            borderRadius: '4px',
-                            cursor: 'not-allowed',
-                            fontWeight: 'normal',
-                            opacity: 0.5
-                          }}
-                        >
-                          KTX Global
-                        </button>
-                        <button
-                          disabled
-                          style={{
-                            backgroundColor: '#0b0f19',
-                            border: '1px solid #1f2937',
-                            color: '#4b5563',
-                            fontSize: '14px',
-                            padding: '6px 2px',
-                            fontFamily: 'monospace',
-                            borderRadius: '4px',
-                            cursor: 'not-allowed',
-                            fontWeight: 'normal',
-                            opacity: 0.5
-                          }}
-                        >
-                          Direct API
-                        </button>
-                        <button
-                          disabled
-                          style={{
-                            backgroundColor: '#0b0f19',
-                            border: '1px solid #1f2937',
-                            color: '#4b5563',
-                            fontSize: '14px',
-                            padding: '6px 2px',
-                            fontFamily: 'monospace',
-                            borderRadius: '4px',
-                            cursor: 'not-allowed',
-                            fontWeight: 'normal',
-                            opacity: 0.5
-                          }}
-                        >
-                          Local Claim
-                        </button>
-                      </div>
-
-                      {/* Honest status message shown regardless of gateway state */}
-                      <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px', display: 'block', lineHeight: '1.5' }}>
-                        Rewards redemption is launching soon — check back shortly.
-                      </span>
-                    </div>
+                    <p className="kx-note">Voucher redemption is launching soon — check back shortly.</p>
 
                     {/* Active vouchers history ledger */}
                     <div className="ledger-table-container">
-                      <table className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <table className="ledger-table">
                         <thead>
-                          <tr style={{ borderBottom: '1px solid #1f2937' }}>
-                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>TXID</th>
-                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>REWARD TYPE</th>
-                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>VALUE</th>
-                            <th style={{ textAlign: 'left', padding: '4px', color: '#6b7280' }}>STATUS</th>
+                          <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                            <th>Ref</th>
+                            <th>Reward</th>
+                            <th>Value</th>
+                            <th>Status</th>
                           </tr>
                         </thead>
                         <tbody>
                           {vouchers.map(v => (
-                            <tr key={v.id} style={{ borderBottom: '1px solid #111827' }}>
-                              <td style={{ color: '#00bfff', padding: '6px 4px' }}>{v.id}</td>
-                              <td style={{ padding: '6px 4px' }}>{v.provider}</td>
-                              <td style={{ color: '#00ff88', fontWeight: 'bold', padding: '6px 4px' }}>{v.value}</td>
-                              <td style={{ padding: '6px 4px' }}>
-                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`} style={{ fontSize: '12px', padding: '1px 5px', borderRadius: '3px' }}>
-                                  {v.state.toUpperCase()}
+                            <tr key={v.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                              <td style={{ color: 'var(--ink-3)' }}>{v.id}</td>
+                              <td>{v.provider}</td>
+                              <td style={{ fontWeight: 700 }}>{v.value}</td>
+                              <td>
+                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`}>
+                                  {v.state}
                                 </span>
                               </td>
                             </tr>
@@ -2957,24 +2723,24 @@ export default function App() {
 
                   {/* UK Social Philanthropy match portal */}
                   <div className="charity-matching-card">
-                    <div className="charity-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2937', paddingBottom: '8px', marginBottom: '12px' }}>
+                    <div className="charity-card-header">
                       <div>
-                        <h3 className="charity-title" style={{ fontSize: '17px', color: '#ffffff', margin: 0, textTransform: 'uppercase', letterSpacing: '1px' }}>🎗️ UK Social Philanthropy Portal</h3>
-                        <span className="charity-subtitle" style={{ fontSize: '12px', color: '#9ca3af' }}>Turn your points into real charity donations.</span>
+                        <h3 className="charity-title">Give to charity</h3>
+                        <span className="charity-subtitle">Turn points into a real donation to a UK charity.</span>
                       </div>
-                      <span className="donations-count-pill" style={{ fontSize: '14px', color: '#00ff88', fontWeight: 'bold' }}>Issued: {charityDonations}</span>
+                      <span className="donations-count-pill">{charityDonations} given</span>
                     </div>
 
-                    <div className="charity-options-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="charity-options-grid">
                       {ukCharities.map(charity => (
-                        <div key={charity.id} className="charity-item-subcard" style={{ background: '#030712', border: '1px solid #1f2937', borderRadius: '8px', padding: '12px' }}>
+                        <div key={charity.id} className="charity-item-subcard">
                           <div>
-                            <span className="charity-item-tag" style={{ fontSize: '12px', color: '#00bfff', textTransform: 'uppercase', fontWeight: 'bold' }}>{charity.desc}</span>
-                            <h4 className="charity-item-name" style={{ fontSize: '16px', color: '#ffffff', margin: '2px 0' }}>{charity.name}</h4>
-                            <p className="charity-item-mission" style={{ fontSize: '14px', color: '#9ca3af', lineHeight: '1.5', margin: 0 }}>{charity.mission}</p>
+                            <span className="charity-item-tag">{charity.desc}</span>
+                            <h4 className="charity-item-name">{charity.name}</h4>
+                            <p className="charity-item-mission">{charity.mission}</p>
                           </div>
-                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn" style={{ marginTop: '10px', width: '100%', padding: '6px', fontSize: '14px' }}>
-                            {isDonating ? 'Processing…' : '🎗️ Donate 1,000 Pts (£2.50)'}
+                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn">
+                            {isDonating ? 'Donating…' : 'Donate 1,000 pts · £2.50'}
                           </button>
                         </div>
                       ))}
@@ -2994,49 +2760,47 @@ export default function App() {
 
               {/* Subscription Status & Trial details */}
               <div className="hub-billing-card">
-                <span className="vitals-label font-bold">REVENUE SERVICES TRANSPARENCY</span>
-                <p className="billing-status-title">
-                  Licensing: <span style={{ color: '#00ff88' }}>{revenueCatStatus}</span>
-                </p>
+                <span className="vitals-label">Subscription</span>
+                <p className="billing-status-title">{revenueCatStatus}</p>
                 <p className="billing-disclaimer">
-                  KinetixFit endpoints are configured as premium accounts matching <strong style={{ color: '#00ff88' }}>£14.99 per subscriber per month</strong>. All newly initialized corporate endpoints begin with an introductory <strong style={{ color: '#00ff88' }}>7-Day Free Trial</strong> prior to transaction settlement steps.
+                  KinetixFit Premium is <strong>£14.99 a month</strong> and starts with a <strong>7-day free trial</strong>.
                 </p>
                 <button
                   onClick={handleManageSubscription}
                   className="edit-bio-btn"
-                  style={{ width: '100%', marginBottom: '12px' }}
+                 
                 >
-                  🔧 Manage Subscription
+                  Manage subscription
                 </button>
 
                 {/* Allocations columns */}
                 <div className="billing-stats-row">
                   <div className="billing-stat-box">
-                    <span>SEAT CAPACITY</span>
-                    <strong>Unlimited Access</strong>
-                    <p>Configured for complete active multi-user sync.</p>
+                    <span>Price</span>
+                    <strong>£14.99 / month</strong>
+                    <p>Billed through your app store account.</p>
                   </div>
                   <div className="billing-stat-box">
-                    <span>HANDSHAKE ENVIRONMENT</span>
-                    <strong>Native Sandbox</strong>
-                    <p>Encrypted limits protect baseline variables.</p>
+                    <span>Free trial</span>
+                    <strong>7 days</strong>
+                    <p>Manage or cancel from the button above.</p>
                   </div>
                 </div>
 
                 {/* Promo Code Input Panel */}
                 <div className="promo-input-box">
-                  <span className="promo-box-title">🔑 Partner Override Codes</span>
-                  <p className="promo-box-desc">Activate lifetime promo passes and priority test allocations.</p>
+                  <span className="promo-box-title">Have a promo code?</span>
+                  <p className="promo-box-desc">Enter it here to unlock your pass.</p>
                   <div className="promo-input-row">
                     <input
                       type="text"
-                      placeholder="PROMO-CODE-HERE"
+                      placeholder="Promo code"
                       value={promoCodeInput}
                       onChange={(e) => setPromoCodeInput(e.target.value)}
                       className="promo-text-input"
                     />
                     <button onClick={applyPromoCode} disabled={isRedeemingPromo || !promoCodeInput.trim()} className="promo-submit-btn">
-                      {isRedeemingPromo ? 'Activating…' : 'Activate'}
+                      {isRedeemingPromo ? 'Applying…' : 'Apply'}
                     </button>
                   </div>
                   {promoMessage && (
@@ -3057,24 +2821,24 @@ export default function App() {
                 </div>
 
                 <div className="legal-block-card">
-                  <h3 className="legal-card-title">🔒 Autonomic Data Shield</h3>
+                  <h3 className="legal-card-title">Your data</h3>
                   <p className="legal-card-text">
-                    All continuous biometric streams, ingestion records, and reward logs are encrypted strictly at-rest using secure local schemas. Operated securely under strict compliance with the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
+                    Your health readings, meal checks and rewards history are handled under the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
                   </p>
                 </div>
               </div>
 
               {/* Corporate Help Desk Widget */}
               <div className="hub-support-card">
-                <h3 className="support-card-title">✉️ Contact Support</h3>
+                <h3 className="support-card-title">Contact support</h3>
 
                 {contactSuccess ? (
                   <div className="support-success-banner">
-                    🚀 Message received! We'll respond within 12 hours.
+                    Message sent. We reply within 12 hours.
                   </div>
                 ) : (
                   <form onSubmit={handleSendContact} className="support-form-stack">
-                    <label className="support-field-label">Your Name
+                    <label className="support-field-label">Your name
                       <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} className="support-input" />
                     </label>
                     <label className="support-field-label">Email
@@ -3083,15 +2847,15 @@ export default function App() {
                     <label className="support-field-label">Message
                       <textarea rows={3} required value={contactMsg} onChange={(e) => setContactMsg(e.target.value)} className="support-textarea" />
                     </label>
-                    <button type="submit" className="primary-btn" style={{ width: '100%', marginTop: '5px' }}>
-                      Send Message
+                    <button type="submit" className="primary-btn">
+                      Send message
                     </button>
                   </form>
                 )}
 
                 <div className="support-emails-box">
-                  <span>General Support: <a href="mailto:info@kinetixfit.co.uk">info@kinetixfit.co.uk</a></span>
-                  <span>Enterprise Deals: <a href="mailto:partnerships@kinetixfit.co.uk">partnerships@kinetixfit.co.uk</a></span>
+                  <span>Support: <a href="mailto:info@kinetixfit.co.uk">info@kinetixfit.co.uk</a></span>
+                  <span>Partnerships: <a href="mailto:partnerships@kinetixfit.co.uk">partnerships@kinetixfit.co.uk</a></span>
                 </div>
               </div>
 
@@ -3100,8 +2864,8 @@ export default function App() {
 
           {/* ==================== FOOTER STATEMENT ==================== */}
           <footer className="app-compliance-footer">
-            <h4 style={{ color: '#fff', fontSize: '15px', textTransform: 'uppercase', marginBottom: '4px' }}>Not a Medical Device</h4>
-            <p style={{ lineHeight: '1.6' }}>
+            <h4 className="kx-footer-title">Not a medical device</h4>
+            <p>
               KinetixFit is a fitness and nutrition tracking app, not a certified medical device. It doesn't replace professional medical advice — always consult a doctor before starting a new fitness or diet plan.
             </p>
           </footer>
@@ -3115,19 +2879,20 @@ export default function App() {
             setShowCameraModal(true);
           }}
           className="floating-hud-camera-fab"
-          title="Scan Food"
+          title="Scan food"
+          aria-label="Scan food"
         >
-          📷
+          <CameraIcon size={24} />
         </button>
 
         {/* --- STICKY BOTTOM NAVIGATION BAR --- */}
-        <nav className="phone-bottom-nav">
+        <nav className="phone-bottom-nav" aria-label="Main" style={{ ['--tab-index' as string]: Math.max(0, TAB_IDS.indexOf(activeTab)) }}>
           {[
             {
               id: 'vitals',
               label: 'Today',
               icon: (
-                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
               )
@@ -3136,8 +2901,8 @@ export default function App() {
               id: 'nourish',
               label: 'Nourish',
               icon: (
-                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 11h18a9 9 0 0 1-18 0Z" /><path d="M7 21h10" /><path d="M12 7c0-2 1.5-3.5 3.5-4" /><path d="M9 7.5c-.5-1.5-.2-3 .8-4" />
                 </svg>
               )
             },
@@ -3145,7 +2910,7 @@ export default function App() {
               id: 'profile',
               label: 'Profile',
               icon: (
-                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
@@ -3155,7 +2920,7 @@ export default function App() {
               id: 'hub',
               label: 'Hub',
               icon: (
-                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'all 0.25s' }}>
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
                   <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
                   <line x1="6" y1="6" x2="6.01" y2="6" />
@@ -3172,15 +2937,10 @@ export default function App() {
                   handleTabChange(tab.id);
                 }}
                 className={`nav-item-btn ${active ? 'nav-item-active' : ''}`}
-                style={{ position: 'relative', overflow: 'hidden' }}
+                aria-current={active ? 'page' : undefined}
               >
-                <span className="nav-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: active ? '#00ff88' : '#6b7280' }}>
-                  {tab.icon}
-                </span>
-                <span className="nav-label" style={{ fontSize: '14px', fontWeight: active ? 'bold' : 'normal', color: active ? '#ffffff' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  {tab.label}
-                </span>
-                {active && <span style={{ position: 'absolute', bottom: '0', width: '12px', height: '2px', backgroundColor: '#00ff88', borderRadius: '10px' }}></span>}
+                <span className="nav-icon">{tab.icon}</span>
+                <span className="nav-label">{tab.label}</span>
               </button>
             );
           })}
@@ -3191,18 +2951,18 @@ export default function App() {
       {/* --- SPECTACULAR NEON LEVEL UP CELEBRATION MODAL --- */}
       {showLevelUpModal && (
         <div className="portal-overlay-modal" style={{ zIndex: 15000 }}>
-          <div className="modal-content-card levelup-celebration-card" style={{ border: '2px solid #00ff88', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+          <div className="modal-content-card levelup-celebration-card" style={{ border: '2px solid var(--accent)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
             <span className="levelup-sparkle levelup-sparkle-1">✨</span>
             <span className="levelup-sparkle levelup-sparkle-2">✨</span>
             <span className="levelup-sparkle levelup-sparkle-3">✨</span>
             <span className="levelup-trophy-icon" style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
-            <h2 className="modal-title" style={{ color: '#00ff88', fontSize: '24px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+            <h2 className="modal-title">
               Level Up!
             </h2>
-            <p className="modal-desc" style={{ color: '#ffffff', fontSize: '17px', marginTop: '10px', lineHeight: '1.6' }}>
+            <p className="modal-desc">
               You've reached
               <br/>
-              <strong style={{ color: '#00bfff', display: 'block', margin: '10px 0', fontSize: '20px' }}>
+              <strong style={{ color: 'var(--info)', display: 'block', margin: '10px 0', fontSize: '20px' }}>
                 Level {level + 1}
               </strong>
               Here's a bonus for sticking with it.
@@ -3227,9 +2987,9 @@ export default function App() {
       {showDeviceSyncModal && (
         <div className="portal-overlay-modal">
           <div className="modal-content-card">
-            <h3 className="modal-title">🔋 Smart Wearable Link</h3>
+            <h3 className="modal-title">Connect a device</h3>
             <p className="modal-desc">
-              Synchronize raw continuous telemetry datasets cleanly with our active clearinghouse pipelines.
+              KinetixFit reads your steps, heart rate and sleep from your phone's health app.
             </p>
             <div className="modal-options-stack">
               <button
@@ -3237,27 +2997,23 @@ export default function App() {
                 disabled={isConnectingHealth}
                 className="modal-sync-option-btn"
               >
-                <span>⚡ {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
-                <span style={{ color: '#00ff88' }}>{isConnectingHealth ? 'Connecting...' : 'Link Sensor'}</span>
+                <span>{Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{isConnectingHealth ? 'Connecting…' : 'Connect'}</span>
               </button>
             </div>
             {!Capacitor.isNativePlatform() && (
-              <p style={{ fontSize: '14px', color: '#9ca3af', marginTop: '10px' }}>
-                📱 Live sync requires the iOS or Android app — desktop/web can't connect Apple Health or Health Connect.
+              <p className="kx-note" style={{ marginTop: '12px' }}>
+                Live sync needs the iOS or Android app — the website can't connect to Apple Health or Health Connect.
               </p>
             )}
 
             {/* Real-time Syncing Educational Diagnostics Panel */}
-            <div className="sync-diagnostics-card" style={{ marginTop: '15px', backgroundColor: '#030712', border: '1px solid #1f2937', padding: '12px', borderRadius: '8px', fontSize: '14px', color: '#9ca3af', textAlign: 'left', lineHeight: '1.6' }}>
-              <span style={{ color: '#00bfff', fontWeight: 'bold', display: 'block', marginBottom: '5px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                📡 Telemetry Sync Protocol: How it Works
-              </span>
-              KinetixFit connects directly to your phone's health app — Apple Health or Health Connect — instead of 50 individual devices.
-              <br/><br/>
-              Whether you are syncing locomotive steps from a wristband, cardiac HRV streams from an ECG chest strap, or restorative deep sleep stages from a circadian ring, your smartphone aggregates them into a central feed. KinetixFit reads this central feed with a single click, instantly validating points in real-time!
+            <div className="kx-how">
+              <span className="vitals-label">How it works</span>
+              <p>Your watch, ring or chest strap already sends its data to Apple Health or Health Connect. KinetixFit reads it from there, so one connection covers every device you own.</p>
             </div>
             <button onClick={() => setShowDeviceSyncModal(false)} className="modal-close-btn">
-              Cancel Sync
+              Not now
             </button>
           </div>
         </div>
@@ -3267,26 +3023,25 @@ export default function App() {
       {showCameraModal && (
         <div className="portal-overlay-modal">
           <div className="modal-content-card">
-            <h3 className="modal-title">📷 AI Spectral Ingestion Scanner</h3>
+            <h3 className="modal-title">Scan food</h3>
 
             {isCameraScanning ? (
               <div className="camera-viewfinder-scanning" style={{ height: '240px' }}>
                 <div className="laser-beam"></div>
-                <span className="scanner-status-text" style={{ textShadow: '0 0 10px #00ff88', marginTop: '5px' }}>Looking up product…</span>
+                <span className="scanner-status-text" style={{ marginTop: '5px' }}>Looking up product…</span>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <p className="modal-desc">
-                  Scan a barcode, snap or upload a photo for AI-powered food identification, or pick a quick option below.
+                  Scan a barcode, take a photo, or type the ingredients.
                 </p>
 
                 {/* Real barcode scan */}
                 <button
                   onClick={handleBarcodeScan}
                   className="primary-btn"
-                  style={{ width: '100%', padding: '12px' }}
                 >
-                  🔍 Scan Barcode
+                  Scan barcode
                 </button>
 
                 {/* Real photo capture */}
@@ -3303,35 +3058,35 @@ export default function App() {
                 />
                 <button
                   onClick={() => photoFileInputRef.current?.click()}
-                  className="primary-btn"
-                  style={{ width: '100%', padding: '12px' }}
+                  className="secondary-btn"
+                  style={{ width: '100%' }}
                 >
-                  📷 Take / Upload Photo
+                  Take or upload a photo
                 </button>
 
                 {/* OCR text custom capture box */}
-                <div style={{ borderTop: '1px solid #1f2937', paddingTop: '15px' }}>
-                  <label className="drawer-label" style={{ marginBottom: '6px', display: 'block' }}>Custom Formulation Viewfinder Capture</label>
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: '16px' }}>
+                  <label className="drawer-label" htmlFor="kx-ingredients">Or type the ingredients</label>
                   <textarea
                     rows={2}
-                    placeholder="Type or paste custom formulation ingredients (e.g. wheat, milk, eggs, peanuts) to run simulated AI character recognition scanner..."
+                    id="kx-ingredients"
+                    placeholder="e.g. wheat, milk, eggs, peanuts"
                     value={mealInput}
                     onChange={(e) => setMealInput(e.target.value)}
                     className="support-textarea"
-                    style={{ fontSize: '16px', background: '#030712', color: '#00ff88', border: '1px solid #00ff88', fontFamily: 'monospace', padding: '10px' }}
                   />
                   <button
                     onClick={() => triggerCameraScan(mealInput)}
                     disabled={!mealInput.trim()}
-                    className="primary-btn"
-                    style={{ width: '100%', marginTop: '10px', padding: '12px' }}
+                    className="secondary-btn"
+                    style={{ width: '100%', marginTop: '10px' }}
                   >
-                    📷 RUN CUSTOM OCR SCANNER CAPTURE
+                    Check ingredients
                   </button>
                 </div>
 
                 <button onClick={() => setShowCameraModal(false)} className="modal-close-btn">
-                  Close Viewfinder
+                  Close
                 </button>
               </div>
             )}
@@ -3339,1298 +3094,6 @@ export default function App() {
         </div>
       )}
 
-      {/* =========================================================================
-          🎨 ADVANCED SYSTEM STYLESHEET (FIXES CONTRAST, ALIGNMENT, AND SCALING)
-          ========================================================================= */}
-      <style>{`
-        /* =========================================================================
-            🌌 KINETIXFIT CINEMATIC FLUID HUD DESIGN SYSTEM (V14 ULTIMATE COCKPIT)
-           ========================================================================= */
-
-        /* Prevent default scrolling on body to maintain tactical app feel */
-        body {
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important;
-          background-color: #030712 !important;
-        }
-
-        /* Core Desktop Workspace Container */
-        .workspace-container {
-          background-color: #030712 !important;
-          background-image:
-            linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px) !important;
-          background-size: 30px 30px !important;
-          color: #ffffff !important;
-          min-height: 100dvh !important; height: -webkit-fill-available !important;
-          font-family: monospace !important;
-          display: flex !important;
-          justify-content: center !important;
-          align-items: center !important;
-          padding: 0 !important;
-          box-sizing: border-box !important;
-          overflow: hidden !important;
-        }
-
-        /* 🖥️ Responsive Cinematic Layout Frame */
-        /* On desktop, this expands into a full-screen high-tech command center. No outer phone shell clipping! */
-        .app-viewport-container {
-          width: 100vw !important;
-          max-width: 1440px !important;
-          height: 100dvh !important; height: -webkit-fill-available !important;
-          background-color: rgba(3, 7, 18, 0.95) !important;
-          backdrop-filter: blur(10px) !important;
-          border: none !important;
-          border-radius: 0px !important;
-          box-shadow: none !important;
-          position: relative !important;
-          display: flex !important;
-          flex-direction: column !important;
-          overflow: hidden !important;
-          box-sizing: border-box !important;
-        }
-
-        /* Scrollable body of app - restructured as a gorgeous dashboard grid on desktop */
-        .app-scroll-body {
-          position: absolute !important;
-          top: 0 !important; /* Header scrolls as the first item inside this container, not fixed above it */
-          bottom: 95px !important; /* Height of bottom nav + spacing */
-          left: 0 !important;
-          right: 0 !important;
-          overflow-y: auto !important;
-          overflow-x: hidden !important;
-          padding: 20px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 25px !important;
-          box-sizing: border-box !important;
-          -webkit-overflow-scrolling: touch !important; /* iOS momentum scroll */
-          touch-action: pan-y !important; /* Force touch gesture scrolling */
-        }
-        /* Thin beautiful custom scrollbars */
-        .app-scroll-body::-webkit-scrollbar {
-          width: 4px !important;
-        }
-        .app-scroll-body::-webkit-scrollbar-thumb {
-          background-color: rgba(0, 255, 136, 0.2) !important;
-          border-radius: 10px !important;
-        }
-
-        /* App Branding header */
-        .app-brand-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          padding: 15px 30px !important;
-          background-color: #0b0f19 !important;
-          border-bottom: 2px solid #1f2937 !important;
-          z-index: 50 !important;
-        }
-        .glowing-logo {
-          filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.5)) !important;
-        }
-        .app-brand-title {
-          font-size: 24px !important;
-          font-weight: 900 !important;
-          color: #ffffff !important;
-          margin: 0 !important;
-          letter-spacing: 2px !important;
-          text-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
-        }
-        /* Alert Notification banner */
-        .alert-ticker {
-          background-color: rgba(0, 255, 136, 0.08) !important;
-          border-bottom: 1px solid rgba(0, 255, 136, 0.25) !important;
-          color: #00ff88 !important;
-          padding: 8px 15px !important;
-          font-size: 15px !important;
-          text-align: center !important;
-          font-weight: bold !important;
-          z-index: 100 !important;
-        }
-
-        /* Tab fade effect */
-        .tab-fade-in {
-          animation: fadeEffect 0.3s ease !important;
-        }
-        @keyframes fadeEffect {
-          from { opacity: 0; transform: translateY(5px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Headers of sections */
-        .section-header {
-          font-size: 17px !important;
-          color: #9ca3af !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
-          margin: 0 !important;
-          border-left: 3px solid #00ff88 !important;
-          padding-left: 8px !important;
-        }
-
-        /* Grid layout for Desktop Tab 1 (Vitals) to look like a Sci-Fi Operations Room */
-        .vitals-dashboard-grid {
-          display: grid !important;
-          grid-template-columns: 1fr 1.5fr !important;
-          gap: 25px !important;
-          align-items: start !important;
-        }
-
-        .vitals-left-panel {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 25px !important;
-        }
-
-        .vitals-right-panel {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 25px !important;
-        }
-
-        .badges-gallery-grid {
-          display: grid !important;
-          grid-template-columns: repeat(3, 1fr) !important;
-          gap: 10px !important;
-        }
-        .badge-tile {
-          position: relative !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 6px !important;
-          padding: 12px 6px !important;
-          border-radius: 10px !important;
-          text-align: center !important;
-          transition: all 0.3s ease !important;
-        }
-        .badge-icon { font-size: 26px !important; }
-        .badge-label { font-size: 12px !important; text-transform: uppercase; letter-spacing: 0.3px !important; line-height: 1.5 !important; }
-        .badge-unlocked {
-          background-color: rgba(0, 255, 136, 0.06) !important;
-          border: 1px solid #00ff88 !important;
-          box-shadow: 0 0 10px rgba(0, 255, 136, 0.25) !important;
-        }
-        .badge-unlocked .badge-label { color: #00ff88 !important; }
-        .badge-locked {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          filter: grayscale(1) !important;
-          opacity: 0.45 !important;
-        }
-        .badge-locked .badge-label { color: #6b7280 !important; }
-        .badge-lock-overlay {
-          position: absolute !important;
-          top: 4px !important;
-          right: 6px !important;
-          font-size: 14px !important;
-        }
-        /* Athletic Sport Selector Styling */
-        .sport-workload-bar {
-          display: grid !important;
-          grid-template-columns: repeat(4, 1fr) !important;
-          gap: 8px !important;
-          margin-bottom: 12px !important;
-        }
-        .sport-mode-btn {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          color: #9ca3af !important;
-          padding: 8px !important;
-          font-family: monospace !important;
-          font-size: 14px !important;
-          font-weight: bold !important;
-          cursor: pointer !important;
-          border-radius: 6px !important;
-          transition: all 0.25s !important;
-          text-align: center !important;
-        }
-        .sport-mode-btn:hover {
-          color: #ffffff !important;
-          background-color: #0b0f19 !important;
-        }
-        .active-sport-btn {
-          background-color: rgba(0, 255, 136, 0.05) !important;
-          color: #ffffff !important;
-          box-shadow: 0 0 10px rgba(0, 255, 136, 0.15) !important;
-        }
-
-        /* Hero vitals layout */
-        .vitals-hero-card {
-          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          gap: 20px !important;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
-        }
-        /* Workout logger card (reuses the old ECG card's shell/title styles) */
-        .ecg-module-card {
-          background: linear-gradient(135deg, #0b0f19 0%, #030712 100%) !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 15px !important;
-          position: relative !important;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
-        }
-        .ecg-title {
-          font-size: 20px !important;
-          font-weight: bold !important;
-          color: #ffffff !important;
-          letter-spacing: 0.5px !important;
-        }
-
-        .biometric-item-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 12px !important;
-          padding: 15px !important;
-          cursor: pointer !important;
-          transition: all 0.25s ease !important;
-          position: relative !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: space-between !important;
-          min-height: 135px !important;
-          box-sizing: border-box !important;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-        }
-        .biometric-item-card:hover {
-          border-color: #00ff88 !important;
-          transform: translateY(-2px) !important;
-          box-shadow: 0 6px 25px rgba(0, 255, 136, 0.15) !important;
-        }
-        .bio-card-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          margin-bottom: 6px !important;
-        }
-        .bio-system-label {
-          font-size: 12px !important;
-          color: #6b7280 !important;
-          font-weight: bold !important;
-          text-transform: uppercase !important;
-          letter-spacing: 0.5px !important;
-        }
-        .bio-status-badge {
-          font-size: 12px !important;
-          padding: 2px 6px !important;
-          border-radius: 10px !important;
-          font-weight: bold !important;
-          letter-spacing: 0.5px !important;
-        }
-        .status-optimal { background-color: rgba(0, 255, 136, 0.08) !important; color: #00ff88 !important; }
-        .status-syncing { background-color: rgba(0, 191, 255, 0.08) !important; color: #00bfff !important; }
-        .status-calibrating { background-color: rgba(255, 149, 0, 0.08) !important; color: #ff9500 !important; }
-        .status-critical { background-color: rgba(255, 59, 48, 0.08) !important; color: #ff3b30 !important; }
-        .bio-metric-title {
-          font-size: 17px !important;
-          color: #ffffff !important;
-          margin: 0 !important;
-          font-weight: normal !important;
-          letter-spacing: 0.5px !important;
-        }
-        .bio-metric-reading {
-          font-size: 20px !important;
-          font-weight: bold !important;
-          color: #00ff88 !important;
-          margin: 6px 0 !important;
-          font-family: monospace !important;
-          text-shadow: 0 0 10px rgba(0, 255, 136, 0.2) !important;
-        }
-        .bio-behavior-log {
-          font-size: 12px !important;
-          color: #9ca3af !important;
-          display: block !important;
-          border-top: 1px solid #111827 !important;
-          padding-top: 6px !important;
-          margin-top: 6px !important;
-          white-space: nowrap !important;
-          overflow: hidden !important;
-          text-overflow: ellipsis !important;
-        }
-        .active-glow-indicator {
-          font-size: 12px !important;
-          color: #00ff88 !important;
-          font-weight: bold !important;
-          position: absolute !important;
-          bottom: 3px !important;
-          right: 10px !important;
-          letter-spacing: 0.5px !important;
-        }
-
-        /* Action Buttons Row */
-        .profile-actions-row {
-          display: flex !important;
-          gap: 12px !important;
-          margin-top: 10px !important;
-        }
-        .connect-wearable-btn {
-          flex: 1.2 !important;
-          background-color: #00bfff !important;
-          color: #000000 !important;
-          font-weight: bold !important;
-          border: none !important;
-          padding: 10px !important;
-          border-radius: 20px !important;
-          cursor: pointer !important;
-          font-size: 16px !important;
-          font-family: monospace !important;
-          transition: all 0.2s ease !important;
-        }
-        .connect-wearable-btn:hover {
-          box-shadow: 0 0 15px rgba(0, 191, 255, 0.4) !important;
-          transform: translateY(-1px) !important;
-        }
-        .edit-bio-btn {
-          flex: 1 !important;
-          background-color: #1f2937 !important;
-          color: #ffffff !important;
-          border: 1px solid #374151 !important;
-          padding: 10px !important;
-          border-radius: 20px !important;
-          cursor: pointer !important;
-          font-size: 16px !important;
-          font-family: monospace !important;
-          transition: all 0.2s ease !important;
-        }
-        .edit-bio-btn:hover {
-          background-color: #374151 !important;
-        }
-
-        .drawer-form-grid {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 15px !important;
-        }
-        .drawer-label {
-          font-size: 15px !important;
-          color: #9ca3af !important;
-        }
-        .drawer-input {
-          width: 100% !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 8px !important;
-          margin-top: 4px !important;
-          font-family: monospace !important;
-          font-size: 16px !important;
-          border-radius: 4px !important;
-          outline: none !important;
-          box-sizing: border-box !important;
-        }
-        .drawer-select {
-          width: 100% !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 8px !important;
-          margin-top: 4px !important;
-          font-family: monospace !important;
-          font-size: 16px !important;
-          border-radius: 4px !important;
-          outline: none !important;
-          box-sizing: border-box !important;
-        }
-        .drawer-select option {
-          background-color: #0b0f19 !important;
-          color: #ffffff !important;
-        }
-
-        /* NOURISH SCREEN STYLES */
-        .nourish-summary-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .nourish-calories-remaining {
-          font-size: 24px !important;
-          font-weight: bold !important;
-          margin: 6px 0 !important;
-        }
-        .macro-meters-stack {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 12px !important;
-          margin-top: 15px !important;
-          border-top: 1px solid #1f2937 !important;
-          padding-top: 15px !important;
-        }
-        .macro-progress-bar {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 4px !important;
-        }
-        .macro-bar-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          font-size: 15px !important;
-          color: #9ca3af !important;
-        }
-        .progress-track {
-          width: 100% !important;
-          height: 8px !important;
-          background-color: #030712 !important;
-          border-radius: 4px !important;
-          overflow: hidden !important;
-        }
-        .progress-fill {
-          height: 100% !important;
-          transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-        .green-fill { background-color: #00ff88 !important; }
-        .blue-fill { background-color: #00bfff !important; }
-
-        /* Scanner component card */
-        .scanner-module-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .card-header-title {
-          font-size: 18px !important;
-          color: #ffffff !important;
-          margin: 0 0 6px 0 !important;
-          border-left: 3px solid #00ff88 !important;
-          padding-left: 10px !important;
-          text-transform: uppercase !important;
-          letter-spacing: 1px !important;
-        }
-        .card-header-desc {
-          font-size: 16px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 0 15px 0 !important;
-        }
-        .scanner-input-row {
-          display: flex !important;
-          gap: 10px !important;
-        }
-        .scanner-text-input {
-          flex: 1 !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 12px !important;
-          font-size: 17px !important;
-          font-family: monospace !important;
-          border-radius: 6px !important;
-          outline: none !important;
-        }
-        .scanner-text-input:focus {
-          border-color: #00ff88 !important;
-        }
-        .scanner-camera-trigger {
-          background-color: rgba(0, 255, 136, 0.08) !important;
-          border: 1px solid #00ff88 !important;
-          color: #00ff88 !important;
-          padding: 0 15px !important;
-          font-size: 21px !important;
-          cursor: pointer !important;
-          border-radius: 6px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          transition: all 0.2s ease !important;
-        }
-        .scanner-camera-trigger:hover {
-          box-shadow: 0 0 10px rgba(0, 255, 136, 0.3) !important;
-        }
-        .scanner-submit-btn {
-          background-color: #00ff88 !important;
-          color: #000000 !important;
-          font-weight: bold !important;
-          border: none !important;
-          padding: 0 20px !important;
-          font-size: 17px !important;
-          font-family: monospace !important;
-          cursor: pointer !important;
-          border-radius: 6px !important;
-        }
-
-        /* Scan Outcome Panel */
-        .scan-outcome-panel {
-          background-color: #030712 !important;
-          border-radius: 10px !important;
-          padding: 15px !important;
-          margin-top: 20px !important;
-          border: 1px solid #1f2937 !important;
-        }
-        .border-cleared { border-color: #00ff88 !important; }
-        .border-hazard_detected { border-color: #ff3b30 !important; }
-        .scan-outcome-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          border-bottom: 1px solid #1f2937 !important;
-          padding-bottom: 10px !important;
-          margin-bottom: 12px !important;
-          font-size: 17px !important;
-        }
-        .compliance-badge {
-          font-size: 14px !important;
-          padding: 3px 10px !important;
-          border-radius: 4px !important;
-          font-weight: bold !important;
-        }
-        .badge-cleared { background-color: rgba(0, 255, 136, 0.1) !important; color: #00ff88 !important; }
-        .badge-hazard_detected { background-color: rgba(255, 59, 48, 0.1) !important; color: #ff3b30 !important; }
-        .estimated-portion-badge {
-          display: inline-block !important;
-          font-size: 13px !important;
-          color: #9ca3af !important;
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          padding: 2px 8px !important;
-          border-radius: 10px !important;
-          margin-bottom: 12px !important;
-        }
-        .scan-macros-micros-grid {
-          display: grid !important;
-          grid-template-columns: 1.1fr 0.9fr !important;
-          gap: 12px !important;
-          font-size: 15px !important;
-          color: #9ca3af !important;
-          margin-bottom: 10px !important;
-        }
-        .panel-sub-label {
-          color: #ffffff !important;
-          display: block !important;
-          font-size: 14px !important;
-          margin-bottom: 4px !important;
-        }
-        .scan-clinical-recommendation {
-          border-top: 1px solid #111827 !important;
-          padding-top: 8px !important;
-          font-size: 14px !important;
-          line-height: 1.6 !important;
-        }
-        .scan-clinical-recommendation strong {
-          color: #ffffff !important;
-          display: block !important;
-          margin-bottom: 3px !important;
-        }
-
-        /* REWARDS SCREEN STYLES */
-        .rewards-summary-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .rewards-wallet-balance {
-          font-size: 28px !important;
-          font-weight: bold !important;
-          color: #00ff88 !important;
-          margin: 4px 0 !important;
-        }
-        .demo-toggle-label {
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-          font-size: 14px !important;
-          color: #ff9500 !important;
-          cursor: pointer !important;
-        }
-        .demo-toggle-checkbox {
-          accent-color: #ff9500 !important;
-          width: 14px !important;
-          height: 14px !important;
-        }
-
-        /* Speed Cadence anti-cheat panel */
-        .biopoint-validator-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .validator-label {
-          font-size: 13px !important;
-          color: #6b7280 !important;
-          letter-spacing: 1px !important;
-          display: block !important;
-          margin-bottom: 4px !important;
-        }
-        .validator-desc {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 0 12px 0 !important;
-        }
-        .cadence-btn-normal {
-          flex: 1 !important;
-          background-color: rgba(0, 255, 136, 0.08) !important;
-          border: 1px solid #00ff88 !important;
-          color: #00ff88 !important;
-          padding: 8px !important;
-          font-size: 15px !important;
-          cursor: pointer !important;
-          border-radius: 4px !important;
-          font-family: monospace !important;
-          font-weight: bold !important;
-        }
-        .cadence-btn-alert {
-          flex: 1 !important;
-          background-color: rgba(255, 59, 48, 0.08) !important;
-          border: 1px solid #ff3b30 !important;
-          color: #ff3b30 !important;
-          padding: 8px !important;
-          font-size: 15px !important;
-          cursor: pointer !important;
-          border-radius: 4px !important;
-          font-family: monospace !important;
-          font-weight: bold !important;
-        }
-
-        /* Quests list card */
-        .quests-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .quests-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          border-bottom: 1px solid #1f2937 !important;
-          padding-bottom: 8px !important;
-          margin-bottom: 12px !important;
-        }
-        .quests-title {
-          font-size: 18px !important;
-          color: #00ff88 !important;
-          margin: 0 !important;
-          text-transform: uppercase !important;
-        }
-        .quests-list-stack {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 8px !important;
-        }
-        .quest-item-pill {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          padding: 12px !important;
-          border-radius: 8px !important;
-          cursor: pointer !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          font-size: 16px !important;
-          transition: border-color 0.2s !important;
-        }
-        .quest-item-completed {
-          background-color: rgba(0, 255, 136, 0.03) !important;
-          border-color: #00ff88 !important;
-        }
-
-        /* Rewards Settlement Vault card */
-        .rewards-redemption-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 20px !important;
-        }
-        .rewards-redemption-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          margin-bottom: 12px !important;
-        }
-        .redemption-title {
-          font-size: 18px !important;
-          color: #ffffff !important;
-          margin: 0 !important;
-          border-left: 3px solid #00ff88 !important;
-          padding-left: 10px !important;
-          text-transform: uppercase !important;
-        }
-        .redeem-rewards-btn {
-          background-color: #00ff88 !important;
-          color: #000000 !important;
-          font-weight: bold !important;
-          border: none !important;
-          padding: 6px 12px !important;
-          border-radius: 15px !important;
-          cursor: pointer !important;
-          font-size: 15px !important;
-          font-family: monospace !important;
-        }
-        .redemption-description {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 0 12px 0 !important;
-        }
-        .ledger-table-container {
-          overflow-x: auto !important;
-        }
-        .ledger-table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-          font-size: 14px !important;
-          text-align: left !important;
-        }
-        .ledger-table th {
-          border-bottom: 1px solid #1f2937 !important;
-          color: #6b7280 !important;
-          padding: 4px 6px !important;
-          font-weight: normal !important;
-        }
-        .ledger-table td {
-          padding: 8px 6px !important;
-          border-bottom: 1px solid #111827 !important;
-        }
-        .ledger-status-pill {
-          font-size: 12px !important;
-          padding: 1px 4px !important;
-          border-radius: 3px !important;
-          font-weight: bold !important;
-        }
-        .ledger-status-pill.status-settled { background-color: rgba(0, 255, 136, 0.08) !important; color: #00ff88 !important; }
-        .ledger-status-pill.status-donated { background-color: rgba(0, 191, 255, 0.08) !important; color: #00bfff !important; }
-
-        /* Social Charity Card */
-        .charity-matching-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 15px !important;
-        }
-        .charity-card-header {
-          display: flex !important;
-          justify-content: space-between !important;
-          align-items: center !important;
-          border-bottom: 1px solid #1f2937 !important;
-          padding-bottom: 8px !important;
-          margin-bottom: 12px !important;
-        }
-        .charity-title {
-          font-size: 17px !important;
-          color: #ffffff !important;
-          margin: 0 !important;
-          text-transform: uppercase !important;
-        }
-        .charity-subtitle {
-          font-size: 13px !important;
-          color: #9ca3af !important;
-          display: block !important;
-        }
-        .donations-count-pill {
-          font-size: 14px !important;
-          color: #00ff88 !important;
-          font-weight: bold !important;
-        }
-        .charity-options-grid {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 10px !important;
-        }
-        .charity-item-subcard {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 8px !important;
-          padding: 12px !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: space-between !important;
-          gap: 10px !important;
-        }
-        .charity-item-tag {
-          font-size: 12px !important;
-          color: #00bfff !important;
-          text-transform: uppercase !important;
-          font-weight: bold !important;
-          display: block !important;
-        }
-        .charity-item-name {
-          font-size: 17px !important;
-          color: #ffffff !important;
-          margin: 2px 0 !important;
-        }
-        .charity-item-mission {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-          line-height: 1.5 !important;
-          margin: 0 !important;
-        }
-        .donate-points-btn {
-          width: 100% !important;
-          background-color: rgba(0, 191, 255, 0.08) !important;
-          border: 1px solid #00bfff !important;
-          color: #00bfff !important;
-          font-weight: bold !important;
-          padding: 6px !important;
-          cursor: pointer !important;
-          border-radius: 4px !important;
-          font-size: 14px !important;
-          font-family: monospace !important;
-        }
-
-        /* HUB STYLES */
-        .hub-billing-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 16px !important;
-          padding: 15px !important;
-        }
-        .billing-status-title {
-          font-size: 19px !important;
-          font-weight: bold !important;
-          margin: 4px 0 !important;
-        }
-        .billing-disclaimer {
-          font-size: 14px !important;
-          color: #6b7280 !important;
-          line-height: 1.6 !important;
-          margin: 5px 0 12px 0 !important;
-        }
-        .billing-stats-row {
-          display: grid !important;
-          grid-template-columns: 1fr 1fr !important;
-          gap: 10px !important;
-        }
-        .billing-stat-box {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 6px !important;
-          padding: 10px !important;
-        }
-        .billing-stat-box span {
-          font-size: 12px !important;
-          color: #6b7280 !important;
-          display: block !important;
-        }
-        .billing-stat-box strong {
-          font-size: 17px !important;
-          color: #00ff88 !important;
-          display: block !important;
-          margin: 2px 0 !important;
-        }
-        .billing-stat-box p {
-          font-size: 12px !important;
-          color: #9ca3af !important;
-          margin: 0 !important;
-          line-height: 1.5 !important;
-        }
-        .promo-input-box {
-          margin-top: 15px !important;
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 8px !important;
-          padding: 12px !important;
-        }
-        .promo-box-title {
-          font-size: 14px !important;
-          color: #00bfff !important;
-          font-weight: bold !important;
-          display: block !important;
-        }
-        .promo-box-desc {
-          font-size: 13px !important;
-          color: #9ca3af !important;
-          margin: 2px 0 8px 0 !important;
-        }
-        .promo-input-row {
-          display: flex !important;
-          gap: 8px !important;
-        }
-        .promo-text-input {
-          flex: 1 !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 6px !important;
-          font-size: 16px !important;
-          font-family: monospace !important;
-          border-radius: 4px !important;
-          outline: none;
-        }
-        .promo-text-input:focus {
-          border-color: #00bfff !important;
-        }
-        .promo-submit-btn {
-          background-color: #00bfff !important;
-          color: #000000 !important;
-          font-weight: bold !important;
-          border: none !important;
-          padding: 0 12px !important;
-          font-size: 15px !important;
-          font-family: monospace !important;
-          cursor: pointer !important;
-          border-radius: 4px !important;
-        }
-        .promo-response-msg {
-          font-size: 14px !important;
-          margin-top: 6px !important;
-        }
-        .response-error { color: #ff3b30 !important; }
-        .response-success { color: #00ff88 !important; }
-
-        /* Legal cards block */
-        .hub-legal-stack {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 12px !important;
-        }
-        .legal-block-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 12px !important;
-          padding: 12px !important;
-        }
-        .legal-card-title {
-          font-size: 16px !important;
-          color: #ffffff !important;
-          margin: 0 0 6px 0 !important;
-        }
-        .legal-card-text {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 !important;
-        }
-
-        /* Support module card */
-        .hub-support-card {
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 12px !important;
-          padding: 15px !important;
-        }
-        .support-card-title {
-          font-size: 17px !important;
-          color: #ffffff !important;
-          margin: 0 0 10px 0 !important;
-        }
-        .support-success-banner {
-          background-color: rgba(0, 255, 136, 0.08) !important;
-          border: 1px solid #00ff88 !important;
-          color: #00ff88 !important;
-          padding: 12px !important;
-          border-radius: 6px !important;
-          font-size: 15px !important;
-          text-align: center !important;
-        }
-        .support-form-stack {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 10px !important;
-        }
-        .support-field-label {
-          font-size: 14px !important;
-          color: #9ca3af !important;
-        }
-        .support-input {
-          width: 100% !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 6px !important;
-          margin-top: 3px !important;
-          font-family: monospace !important;
-          font-size: 15px !important;
-          border-radius: 4px !important;
-          outline: none !important;
-          box-sizing: border-box !important;
-        }
-        .support-textarea {
-          width: 100% !important;
-          background-color: #030712 !important;
-          border: 1px solid #374151 !important;
-          color: #ffffff !important;
-          padding: 6px !important;
-          margin-top: 3px !important;
-          font-family: monospace !important;
-          font-size: 15px !important;
-          border-radius: 4px !important;
-          outline: none !important;
-          resize: none !important;
-          box-sizing: border-box !important;
-        }
-        .support-emails-box {
-          border-top: 1px solid #111827 !important;
-          margin-top: 12px !important;
-          padding-top: 10px !important;
-          font-size: 14px !important;
-          color: #9ca3af !important;
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 4px !important;
-        }
-        .support-emails-box a {
-          color: #00ff88 !important;
-          text-decoration: none !important;
-        }
-
-        /* Sticky Phone Navigation panel - redesigned as floating glass tab bar */
-        .phone-bottom-nav {
-          position: fixed !important;
-          bottom: 15px !important;
-          left: 50% !important;
-          transform: translateX(-50%) !important;
-          width: 92% !important;
-          max-width: 480px !important;
-          height: 65px !important;
-          background-color: rgba(11, 15, 25, 0.9) !important;
-          backdrop-filter: blur(20px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.1) !important;
-          border-radius: 40px !important;
-          display: flex !important;
-          justify-content: space-around !important;
-          align-items: center !important;
-          z-index: 100 !important;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 136, 0.05) !important;
-        }
-        .nav-item-btn {
-          background: none !important;
-          border: none !important;
-          color: #6b7280 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          cursor: pointer !important;
-          font-family: monospace !important;
-          font-size: 15px !important;
-          font-weight: bold !important;
-          gap: 4px !important;
-          transition: all 0.25s ease !important;
-        }
-        .nav-item-active {
-          color: #00ff88 !important;
-        }
-        .nav-icon {
-          font-size: 21px !important;
-        }
-        .nav-item-active .nav-icon {
-          filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.3)) !important;
-        }
-
-        /* Floating Tactical Quantum Scanner FAB */
-        .floating-hud-camera-fab {
-          position: fixed !important;
-          bottom: 110px !important;
-          right: 40px !important;
-          width: 56px !important;
-          height: 56px !important;
-          border-radius: 50% !important;
-          background: radial-gradient(circle, #0b0f19 0%, #030712 100%) !important;
-          border: 2px solid #00ff88 !important;
-          color: #00ff88 !important;
-          font-size: 26px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          cursor: pointer !important;
-          box-shadow: 0 0 25px rgba(0, 255, 136, 0.4) !important;
-          z-index: 99 !important;
-          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-        }
-        .floating-hud-camera-fab:hover {
-          transform: scale(1.15) rotate(15deg) !important;
-          box-shadow: 0 0 35px rgba(0, 255, 136, 0.7) !important;
-          border-color: #ffffff !important;
-        }
-
-        /* Overlay modal generic */
-        .portal-overlay-modal {
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          background-color: rgba(3, 7, 18, 0.95) !important;
-          backdrop-filter: blur(8px) !important;
-          display: flex !important;
-          justify-content: center !important;
-          align-items: center !important;
-          z-index: 1000 !important;
-          padding: 20px !important;
-        }
-        .modal-content-card {
-          width: 100% !important;
-          max-width: 420px !important;
-          background-color: #0b0f19 !important;
-          border: 1px solid #1f2937 !important;
-          border-radius: 20px !important;
-          padding: 25px !important;
-          box-shadow: 0 15px 40px rgba(0, 255, 136, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
-        }
-        .levelup-celebration-card {
-          animation: levelUpEntrance 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-        }
-        .levelup-celebration-card::before {
-          content: '' !important;
-          position: absolute !important;
-          top: 50% !important;
-          left: 50% !important;
-          width: 140% !important;
-          height: 140% !important;
-          transform: translate(-50%, -50%) !important;
-          background: radial-gradient(circle, rgba(0, 255, 136, 0.18) 0%, rgba(0, 255, 136, 0) 65%) !important;
-          animation: levelUpGlowPulse 2.2s ease-in-out infinite !important;
-          pointer-events: none !important;
-        }
-        @keyframes levelUpEntrance {
-          0% { opacity: 0; transform: scale(0.8) translateY(12px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes levelUpGlowPulse {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-        .levelup-trophy-icon {
-          animation: levelUpTrophyPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both !important;
-        }
-        @keyframes levelUpTrophyPop {
-          0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
-          100% { opacity: 1; transform: scale(1) rotate(0deg); }
-        }
-        .levelup-sparkle {
-          position: absolute !important;
-          font-size: 21px !important;
-          opacity: 0 !important;
-          animation: levelUpSparkleTwinkle 2.4s ease-in-out infinite !important;
-          pointer-events: none !important;
-        }
-        .levelup-sparkle-1 { top: 12% !important; left: 15% !important; animation-delay: 0s !important; }
-        .levelup-sparkle-2 { top: 20% !important; right: 12% !important; animation-delay: 0.7s !important; font-size: 17px !important; }
-        .levelup-sparkle-3 { bottom: 18% !important; left: 22% !important; animation-delay: 1.3s !important; font-size: 18px !important; }
-        @keyframes levelUpSparkleTwinkle {
-          0%, 100% { opacity: 0; transform: scale(0.6); }
-          50% { opacity: 1; transform: scale(1.1); }
-        }
-        .modal-title {
-          font-size: 19px !important;
-          color: #ffffff !important;
-          margin: 0 0 4px 0 !important;
-        }
-        .modal-desc {
-          font-size: 15px !important;
-          color: #9ca3af !important;
-          line-height: 1.6 !important;
-          margin: 0 0 15px 0 !important;
-        }
-        .modal-options-stack {
-          display: flex !important;
-          flex-direction: column !important;
-          gap: 8px !important;
-        }
-        .modal-sync-option-btn {
-          background-color: #030712 !important;
-          border: 1px solid #1f2937 !important;
-          color: #ffffff !important;
-          padding: 10px !important;
-          border-radius: 6px !important;
-          cursor: pointer !important;
-          font-size: 15px !important;
-          display: flex !important;
-          justify-content: space-between !important;
-          font-family: monospace !important;
-        }
-        .modal-close-btn {
-          width: 100% !important;
-          background-color: #1f2937 !important;
-          color: #ffffff !important;
-          border: 1px solid #374151 !important;
-          padding: 8px !important;
-          border-radius: 6px !important;
-          cursor: pointer !important;
-          font-size: 15px !important;
-          font-family: monospace !important;
-          margin-top: 12px !important;
-        }
-
-        /* Camera scan window design */
-        .camera-viewfinder-scanning {
-          height: 180px !important;
-          background-color: #030712 !important;
-          border-radius: 10px !important;
-          border: 1px solid #1f2937 !important;
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: center !important;
-          justify-content: center !important;
-          position: relative !important;
-          overflow: hidden !important;
-        }
-        .laser-beam {
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          height: 3px !important;
-          background-color: #00ff88 !important;
-          box-shadow: 0 0 10px #00ff88 !important;
-          animation: laserTravel 1.8s infinite linear !important;
-        }
-        @keyframes laserTravel {
-          0% { top: 0; }
-          50% { top: 180px; }
-          100% { top: 0; }
-        }
-        .scanner-timer {
-          font-size: 28px !important;
-          animation: rotationSpin 2s infinite linear !important;
-        }
-        @keyframes rotationSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .scanner-status-text {
-          font-size: 14px !important;
-          color: #00ff88 !important;
-          font-weight: bold !important;
-          margin-top: 10px !important;
-          text-align: center !important;
-        }
-        .scanner-subtext {
-          font-size: 12px !important;
-          color: #6b7280 !important;
-          margin-top: 4px !important;
-        }
-
-        /* Compliance footer */
-        .app-compliance-footer {
-          border-top: 2px solid #1f2937 !important;
-          margin-top: 15px !important;
-          padding-top: 15px !important;
-          font-size: 13px !important;
-          color: #6b7280 !important;
-        }
-
-        /* 📱 Symmetrical Mobile Adaptation (Collapses seamlessly on smaller viewports) */
-        @media (max-width: 1024px) {
-          .vitals-dashboard-grid {
-            grid-template-columns: 1fr !important;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .floating-hud-camera-fab {
-            bottom: 100px !important;
-            right: 20px !important;
-            width: 50px !important;
-            height: 50px !important;
-            font-size: 22px !important;
-          }
-        }
-      `}</style>
 
     </div>
   );
