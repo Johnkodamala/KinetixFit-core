@@ -16,10 +16,12 @@ done once, in shared code.
 
 ## Current status (2026-09-25)
 
-- **Deploys are on hold** (user's call). Don't push, deploy to Vercel, or commit unless asked.
-- Everything below is done locally and **uncommitted** on `initial-changes` (last commit `0113c1a`):
-  Android toolchain + `requirements.txt`, server URL + CORS work, Health Connect permission trim,
-  and the full frontend redesign. Lint (0 errors), `npm run build`, `cap sync` and `assembleDebug` all pass.
+- Merged `initial-changes` → `main` and deployed to production: Android toolchain + `requirements.txt`,
+  server URL + CORS work, Health Connect permission trim, and the full frontend redesign.
+  Lint (0 errors), `npm run build`, `cap sync` and `assembleDebug` all pass.
+- Restore point: tag `pre-redesign` = `a900b56`, the last production deploy before the redesign.
+  Roll back by reverting the merge commit (Vercel redeploys `main`) or Vercel → Deployments → Instant Rollback.
+- Only commit, push or merge to `main` when the user asks — a push to `main` deploys to production.
 - Not yet done: running the app on a real Android device or emulator.
 
 ## Android toolchain
