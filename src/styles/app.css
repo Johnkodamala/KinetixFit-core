@@ -1,0 +1,1085 @@
+/* =============================================================================
+   KinetixFit — main app (dashboard) styles
+   Colours, type and motion all come from tokens in src/index.css; nothing here hard-codes a colour.
+   Inline styles in App.tsx win over these rules, so layout tweaks on a single element stay local.
+   ============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   Shell
+   --------------------------------------------------------------------------- */
+
+.workspace-container {
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.app-viewport-container {
+  width: 100%;
+  max-width: 1120px;
+  height: 100dvh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.app-scroll-body {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 112px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+.app-scroll-body::-webkit-scrollbar { display: none; }
+
+/* Brand header: quiet, so the hero below carries the energy */
+.app-brand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 4px 2px;
+}
+.glowing-logo { display: grid; color: var(--accent); }
+.glowing-logo svg path { stroke: currentColor; }
+.app-brand-title {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* Transient message ("Welcome back!", "Workout logged") — drops in as a floating pill */
+.alert-ticker {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  max-width: calc(100% - 32px);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 11px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  width: max-content;
+  line-height: 1.4;
+  animation: kx-toast-in 420ms var(--ease-spring) both;
+  pointer-events: none;
+}
+/* Stays until the app clears the message (it sets its own timeout per message) */
+@keyframes kx-toast-in {
+  from { opacity: 0; transform: translate(-50%, -16px) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* Tab entrance: each block of the tab rises in, one after another */
+.tab-fade-in,
+.vitals-left-panel,
+.vitals-right-panel { display: flex; flex-direction: column; gap: 16px; }
+.tab-fade-in > *,
+.vitals-left-panel > *,
+.vitals-right-panel > * {
+  animation: kx-rise var(--dur-slow) var(--ease-out) both;
+}
+.tab-fade-in > *:nth-child(2), .vitals-left-panel > *:nth-child(2), .vitals-right-panel > *:nth-child(1) { animation-delay: 70ms; }
+.tab-fade-in > *:nth-child(3), .vitals-left-panel > *:nth-child(3), .vitals-right-panel > *:nth-child(2) { animation-delay: 140ms; }
+.tab-fade-in > *:nth-child(4), .vitals-left-panel > *:nth-child(4), .vitals-right-panel > *:nth-child(3) { animation-delay: 210ms; }
+.tab-fade-in > *:nth-child(5), .vitals-left-panel > *:nth-child(5), .vitals-right-panel > *:nth-child(4) { animation-delay: 280ms; }
+.tab-fade-in > *:nth-child(n+6), .vitals-left-panel > *:nth-child(n+6), .vitals-right-panel > *:nth-child(n+5) { animation-delay: 340ms; }
+/* The Today grid itself shouldn't animate as a block — its panels do */
+.vitals-dashboard-grid.tab-fade-in > * { animation: none; }
+
+.vitals-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .vitals-dashboard-grid { grid-template-columns: 1fr 1.25fr; gap: 24px; }
+  .app-scroll-body { padding-left: 32px; padding-right: 32px; }
+}
+
+/* Small uppercase label above a group */
+.section-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 8px 2px 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Shared card + control language
+   --------------------------------------------------------------------------- */
+
+.ecg-module-card,
+.nourish-summary-card,
+.scanner-module-card,
+.rewards-summary-card,
+.biopoint-validator-card,
+.quests-card,
+.rewards-redemption-card,
+.charity-matching-card,
+.hub-billing-card,
+.hub-support-card,
+.legal-block-card,
+.sync-diagnostics-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  position: relative;
+}
+.legal-block-card { border-radius: var(--r-md); padding: 16px; }
+
+.card-header-title,
+.redemption-title,
+.charity-title,
+.quests-title,
+.support-card-title,
+.ecg-title,
+.legal-card-title {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 750;
+  font-size: 18px;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  margin: 0 0 6px 0;
+  text-transform: none;
+}
+.legal-card-title { font-size: 16px; }
+.card-header-desc,
+.redemption-description,
+.validator-desc,
+.legal-card-text,
+.billing-disclaimer,
+.modal-desc {
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin: 0 0 14px 0;
+}
+.legal-card-text { margin: 0; font-size: 14px; }
+
+/* Inputs: recessed fill, ring on focus */
+.drawer-input,
+.drawer-select,
+.scanner-text-input,
+.promo-text-input,
+.support-input,
+.support-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  color: var(--ink);
+  padding: 12px 14px;
+  margin-top: 6px;
+  font-size: 16px;
+  border-radius: var(--r-sm);
+  outline: none;
+  transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.drawer-select, .drawer-input { min-height: 46px; }
+.drawer-input:focus,
+.drawer-select:focus,
+.scanner-text-input:focus,
+.promo-text-input:focus,
+.support-input:focus,
+.support-textarea:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.support-textarea { resize: none; min-height: 96px; }
+.drawer-select option { background: var(--surface); color: var(--ink); }
+.drawer-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.drawer-label, .support-field-label, .validator-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* Buttons: one filled accent style, one quiet style, both press down */
+.connect-wearable-btn,
+.scanner-submit-btn,
+.redeem-rewards-btn,
+.promo-submit-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  border: none;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 12px 20px;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--accent) 80%, transparent);
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.connect-wearable-btn { flex: 1.2; padding: 15px 20px; font-size: 16px; }
+.promo-submit-btn { padding: 0 18px; }
+.scanner-submit-btn { padding: 0 20px; white-space: nowrap; }
+.redeem-rewards-btn { padding: 8px 14px; font-size: 14px; }
+.connect-wearable-btn:hover,
+.scanner-submit-btn:hover,
+.redeem-rewards-btn:hover,
+.promo-submit-btn:hover { background: var(--accent-press); }
+.connect-wearable-btn:active,
+.scanner-submit-btn:active,
+.redeem-rewards-btn:active,
+.promo-submit-btn:active,
+.edit-bio-btn:active,
+.modal-close-btn:active,
+.donate-points-btn:active,
+.cadence-btn-normal:active,
+.cadence-btn-alert:active,
+.sport-mode-btn:active,
+.modal-sync-option-btn:active { transform: scale(0.97); }
+
+.edit-bio-btn,
+.modal-close-btn {
+  flex: 1;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: none;
+  padding: 13px 18px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 650;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast);
+}
+.edit-bio-btn:hover, .modal-close-btn:hover { background: var(--line); }
+.modal-close-btn { width: 100%; margin-top: 12px; }
+.profile-actions-row { display: flex; gap: 10px; margin-top: 10px; }
+
+/* ---------------------------------------------------------------------------
+   Today: hero (the signature piece — see .kx-lanes in App.tsx)
+   --------------------------------------------------------------------------- */
+
+.vitals-hero-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--hero-bg);
+  color: var(--hero-ink);
+  border-radius: var(--r-lg);
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-md);
+}
+.kx-lanes {
+  position: absolute;
+  inset: auto -20px -30px auto;
+  width: 78%;
+  max-width: 360px;
+  z-index: -1;
+  pointer-events: none;
+}
+.kx-lanes path {
+  fill: none;
+  stroke: var(--hero-lane);
+  stroke-width: 1.5;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
+  animation: kx-lane-draw 1.6s var(--ease-out) forwards;
+}
+.kx-lanes path:nth-child(2) { animation-delay: 90ms; }
+.kx-lanes path:nth-child(3) { animation-delay: 180ms; }
+.kx-lanes path:nth-child(4) { animation-delay: 270ms; }
+.kx-lanes path:nth-child(5) { animation-delay: 360ms; }
+.kx-lanes .kx-lane-accent {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 60 900;
+  stroke-dashoffset: 60;
+  animation: kx-lane-run 5.5s var(--ease-out) 0.5s infinite;
+}
+@keyframes kx-lane-run {
+  0%   { stroke-dashoffset: 60; opacity: 0; }
+  8%   { opacity: 1; }
+  70%  { stroke-dashoffset: -760; opacity: 1; }
+  80%, 100% { stroke-dashoffset: -760; opacity: 0; }
+}
+
+.kx-hero-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--hero-ink-2);
+  margin: 0;
+}
+.kx-hero-greeting {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: clamp(26px, 7.4vw, 34px);
+  line-height: 1.02;
+  letter-spacing: -0.015em;
+  margin: 6px 0 0;
+  color: var(--hero-ink);
+}
+.kx-hero-greeting em { font-style: normal; color: var(--accent); }
+.kx-hero-status { font-size: 14px; color: var(--hero-ink-2); margin: 8px 0 0; }
+.kx-hero-quote {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--hero-ink);
+  opacity: 0.86;
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent);
+  max-width: 34ch;
+}
+.kx-hero-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.kx-hero-hint { font-size: 13px; color: var(--hero-ink-2); margin: 0; max-width: 22ch; line-height: 1.45; }
+
+/* Streak as a lap counter */
+.kx-lap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 14px 8px 12px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--hero-ink) 8%, transparent);
+  animation: kx-pop var(--dur-slow) var(--ease-spring) 0.35s both;
+}
+.kx-lap-num {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.kx-lap-label { font-size: 12px; font-weight: 600; color: var(--hero-ink-2); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* Legacy biometric tiles (still used for cycle tracking) */
+.biometric-item-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 16px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.biometric-item-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.biometric-item-card:active { transform: scale(0.99); }
+.bio-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.bio-system-label { font-size: 11px; color: var(--ink-3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+.bio-status-badge { font-size: 11px; padding: 3px 9px; border-radius: var(--r-pill); font-weight: 650; }
+.status-optimal     { background: color-mix(in srgb, var(--good) 12%, transparent);   color: var(--good); }
+.status-syncing     { background: color-mix(in srgb, var(--info) 12%, transparent);   color: var(--info); }
+.status-calibrating { background: color-mix(in srgb, var(--warn) 12%, transparent);   color: var(--warn); }
+.status-critical    { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+.bio-metric-title { font-size: 15px; color: var(--ink); margin: 0; font-weight: 650; }
+.bio-metric-reading {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 20px;
+  font-weight: 750;
+  color: var(--ink);
+  margin: 2px 0;
+}
+.bio-behavior-log {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: block;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.active-glow-indicator { font-size: 11px; color: var(--accent); font-weight: 700; position: absolute; bottom: 6px; right: 12px; }
+
+/* Workout logger */
+.ecg-module-card { display: flex; flex-direction: column; gap: 14px; }
+.sport-workload-bar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+@media (min-width: 420px) { .sport-workload-bar { grid-template-columns: repeat(4, 1fr); } }
+.sport-mode-btn {
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  color: var(--ink-2);
+  padding: 12px 8px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  border-radius: var(--r-md);
+  text-align: center;
+  line-height: 1.3;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.sport-mode-btn:hover { color: var(--ink); }
+.active-sport-btn {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+/* Badges */
+.badges-gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.badge-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 6px;
+  border-radius: var(--r-md);
+  text-align: center;
+  transition: transform var(--dur) var(--ease-spring);
+}
+.badge-icon { font-size: 26px; }
+.badge-label { font-size: 11px; font-weight: 650; line-height: 1.35; }
+.badge-unlocked {
+  background: var(--accent-soft);
+  border: 1.5px solid var(--accent);
+  animation: kx-pop var(--dur-slow) var(--ease-spring) both;
+}
+.badge-unlocked .badge-label { color: var(--ink); }
+.badge-unlocked:hover { transform: translateY(-2px) rotate(-1deg); }
+.badge-locked { background: var(--surface-2); border: 1.5px dashed var(--line-strong); }
+.badge-locked .badge-icon { filter: grayscale(1); opacity: 0.4; }
+.badge-locked .badge-label { color: var(--ink-4); }
+.badge-lock-overlay { position: absolute; top: 6px; right: 8px; font-size: 12px; opacity: 0.6; }
+
+/* ---------------------------------------------------------------------------
+   Nourish
+   --------------------------------------------------------------------------- */
+
+.nourish-calories-remaining {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  margin: 6px 0;
+  font-variant-numeric: tabular-nums;
+}
+.macro-meters-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.macro-progress-bar { display: flex; flex-direction: column; gap: 6px; }
+.macro-bar-header { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* Progress bars read as a running lane: rounded track, fill runs in from the start line */
+.progress-track {
+  width: 100%;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transform-origin: left center;
+  animation: kx-fill 900ms var(--ease-out) 200ms both;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.green-fill { background: var(--accent); }
+.blue-fill { background: var(--info); }
+
+.scanner-input-row { display: flex; gap: 8px; }
+.scanner-input-row .scanner-text-input { margin-top: 0; min-width: 0; }
+.scanner-camera-trigger {
+  flex: none;
+  width: 48px;
+  background: var(--accent-soft);
+  border: none;
+  color: var(--accent);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.scanner-camera-trigger:active { transform: scale(0.94); }
+
+.scan-outcome-panel {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 16px;
+  margin-top: 16px;
+  border: 1.5px solid transparent;
+  animation: kx-rise var(--dur) var(--ease-out) both;
+}
+.border-cleared { border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.border-hazard_detected { border-color: color-mix(in srgb, var(--danger) 55%, transparent); }
+.scan-outcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.compliance-badge { font-size: 12px; padding: 4px 10px; border-radius: var(--r-pill); font-weight: 700; white-space: nowrap; }
+.badge-cleared { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.badge-hazard_detected { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.estimated-portion-badge {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  margin-bottom: 12px;
+}
+.scan-macros-micros-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.panel-sub-label { color: var(--ink); display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.scan-clinical-recommendation { border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; line-height: 1.55; }
+.scan-clinical-recommendation strong { color: var(--ink); display: block; margin-bottom: 3px; }
+
+/* ---------------------------------------------------------------------------
+   Profile: points, quests, rewards, charity
+   --------------------------------------------------------------------------- */
+
+.rewards-wallet-balance {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.demo-toggle-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--warn); cursor: pointer; }
+.demo-toggle-checkbox { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.cadence-btn-normal,
+.cadence-btn-alert {
+  flex: 1;
+  padding: 11px 10px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  border: none;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.cadence-btn-normal { background: color-mix(in srgb, var(--good) 13%, transparent); color: var(--good); }
+.cadence-btn-alert  { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+.quests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+.quests-title { margin: 0; }
+.quests-list-stack { display: flex; flex-direction: column; gap: 8px; }
+.quest-item-pill {
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  transition: background var(--dur-fast), border-color var(--dur), transform var(--dur-fast) var(--ease-out);
+}
+.quest-item-pill:hover { background: var(--line); }
+.quest-item-pill:active { transform: scale(0.985); }
+.quest-item-completed {
+  background: color-mix(in srgb, var(--good) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--good) 40%, transparent);
+  animation: kx-pop var(--dur) var(--ease-spring);
+}
+
+.rewards-redemption-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.redemption-title { margin: 0; }
+.ledger-table-container { overflow-x: auto; }
+.ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; font-variant-numeric: tabular-nums; }
+.ledger-table th { border-bottom: 1px solid var(--line); color: var(--ink-3); padding: 6px; font-weight: 600; font-size: 12px; }
+.ledger-table td { padding: 10px 6px; border-bottom: 1px solid var(--line); }
+.ledger-status-pill { font-size: 11px; padding: 2px 8px; border-radius: var(--r-pill); font-weight: 700; }
+.ledger-status-pill.status-settled { background: color-mix(in srgb, var(--good) 13%, transparent); color: var(--good); }
+.ledger-status-pill.status-donated { background: color-mix(in srgb, var(--info) 13%, transparent); color: var(--info); }
+
+.charity-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+.charity-title { margin: 0; }
+.charity-subtitle { font-size: 13px; color: var(--ink-3); display: block; margin-top: 2px; }
+.donations-count-pill { font-size: 13px; color: var(--ink-2); font-weight: 650; white-space: nowrap; }
+.charity-options-grid { display: flex; flex-direction: column; gap: 10px; }
+.charity-item-subcard {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+.charity-item-tag { font-size: 11px; color: var(--info); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; display: block; }
+.charity-item-name { font-size: 16px; font-weight: 700; color: var(--ink); margin: 4px 0 2px; }
+.charity-item-mission { font-size: 14px; color: var(--ink-2); line-height: 1.5; margin: 0; }
+.donate-points-btn {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  color: var(--ink);
+  font-weight: 650;
+  padding: 11px;
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.donate-points-btn:hover { border-color: var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   Hub
+   --------------------------------------------------------------------------- */
+
+.billing-status-title {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 22px;
+  font-weight: 750;
+  margin: 4px 0;
+  line-height: 1.15;
+}
+.billing-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.billing-stat-box { background: var(--surface-2); border-radius: var(--r-md); padding: 14px; }
+.billing-stat-box span { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; display: block; }
+.billing-stat-box strong { font-size: 16px; color: var(--ink); display: block; margin: 4px 0; }
+.billing-stat-box p { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.45; }
+.promo-input-box { margin-top: 14px; background: var(--surface-2); border-radius: var(--r-md); padding: 16px; }
+.promo-box-title { font-size: 14px; color: var(--ink); font-weight: 700; display: block; }
+.promo-box-desc { font-size: 13px; color: var(--ink-2); margin: 2px 0 10px; }
+.promo-input-row { display: flex; gap: 8px; }
+.promo-input-row .promo-text-input { margin-top: 0; background: var(--surface); min-width: 0; }
+.promo-response-msg { font-size: 14px; margin-top: 8px; }
+.response-error { color: var(--danger); }
+.response-success { color: var(--good); }
+
+.hub-legal-stack { display: flex; flex-direction: column; gap: 12px; }
+.support-success-banner {
+  background: color-mix(in srgb, var(--good) 12%, transparent);
+  color: var(--good);
+  padding: 14px;
+  border-radius: var(--r-md);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  animation: kx-pop var(--dur) var(--ease-spring) both;
+}
+.support-form-stack { display: flex; flex-direction: column; gap: 12px; }
+.support-emails-box {
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding-top: 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.support-emails-box a { color: var(--accent); text-decoration: none; font-weight: 600; }
+
+/* ---------------------------------------------------------------------------
+   Floating tab bar — the pill behind the active tab slides between positions
+   --------------------------------------------------------------------------- */
+
+.phone-bottom-nav {
+  --tab-count: 4;
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);
+  max-width: 440px;
+  height: 66px;
+  padding: 6px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count), 1fr);
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  animation: kx-nav-in var(--dur-slow) var(--ease-out) both;
+}
+@keyframes kx-nav-in {
+  from { opacity: 0; transform: translate(-50%, 24px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.phone-bottom-nav::before {
+  content: '';
+  position: absolute;
+  top: 6px; bottom: 6px; left: 6px;
+  width: calc((100% - 12px) / var(--tab-count));
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  transform: translateX(calc(100% * var(--tab-index, 0)));
+  transition: transform 420ms var(--ease-spring);
+}
+.nav-item-btn {
+  position: relative;
+  z-index: 1;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border-radius: var(--r-pill);
+  transition: color var(--dur) var(--ease-out);
+}
+.nav-item-btn:active .nav-icon { transform: scale(0.88); }
+.nav-item-active { color: var(--bg); }
+.nav-icon { display: grid; transition: transform var(--dur-fast) var(--ease-out); }
+.nav-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+
+/* Camera shortcut */
+.floating-hud-camera-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 94px);
+  right: 20px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 12px 24px -8px color-mix(in srgb, var(--accent) 70%, transparent), var(--shadow-md);
+  z-index: 99;
+  animation: kx-pop var(--dur-slow) var(--ease-spring) 0.4s both;
+  transition: transform var(--dur) var(--ease-spring), background var(--dur-fast);
+}
+.floating-hud-camera-fab:hover { transform: scale(1.06); background: var(--accent-press); }
+.floating-hud-camera-fab:active { transform: scale(0.94); }
+@media (min-width: 1120px) {
+  .floating-hud-camera-fab { right: calc(50% - 540px); }
+}
+
+/* ---------------------------------------------------------------------------
+   Modals — slide up as a sheet on phones, pop in on wider screens
+   --------------------------------------------------------------------------- */
+
+.portal-overlay-modal {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 38%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 1000;
+  padding: 12px;
+  box-sizing: border-box;
+  animation: kx-fade var(--dur) var(--ease-out) both;
+}
+.modal-content-card {
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 28px;
+  padding: 24px;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-lg);
+  animation: kx-sheet 460ms var(--ease-out) both;
+}
+@keyframes kx-sheet {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@media (min-width: 600px) {
+  .portal-overlay-modal { align-items: center; }
+  .modal-content-card { animation: kx-pop var(--dur) var(--ease-spring) both; }
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 20px;
+  font-weight: 750;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+.modal-options-stack { display: flex; flex-direction: column; gap: 8px; }
+.modal-sync-option-btn {
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  color: var(--ink);
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.modal-sync-option-btn:hover { border-color: var(--accent); }
+
+/* Level-up celebration */
+.levelup-celebration-card { position: relative; overflow: hidden; animation: kx-pop 0.55s var(--ease-spring) both; }
+.levelup-celebration-card::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 140%; height: 140%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 65%);
+  animation: levelUpGlowPulse 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes levelUpGlowPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.levelup-trophy-icon { animation: levelUpTrophyPop 0.7s var(--ease-spring) 0.15s both; }
+@keyframes levelUpTrophyPop {
+  0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.levelup-sparkle { position: absolute; font-size: 21px; opacity: 0; animation: levelUpSparkleTwinkle 2.4s ease-in-out infinite; pointer-events: none; }
+.levelup-sparkle-1 { top: 12%; left: 15%; }
+.levelup-sparkle-2 { top: 20%; right: 12%; animation-delay: 0.7s; font-size: 17px; }
+.levelup-sparkle-3 { bottom: 18%; left: 22%; animation-delay: 1.3s; font-size: 18px; }
+@keyframes levelUpSparkleTwinkle { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.1); } }
+
+/* Camera scan window */
+.camera-viewfinder-scanning {
+  height: 180px;
+  background: var(--hero-bg);
+  color: var(--hero-ink);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.laser-beam {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 16px 2px color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: laserTravel 1.8s infinite var(--ease-out);
+}
+@keyframes laserTravel { 0% { top: 0; } 50% { top: 178px; } 100% { top: 0; } }
+.scanner-timer { font-size: 28px; animation: rotationSpin 2s infinite linear; }
+@keyframes rotationSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.scanner-status-text { font-size: 14px; color: var(--hero-ink); font-weight: 700; margin-top: 10px; text-align: center; }
+.scanner-subtext { font-size: 12px; color: var(--hero-ink-2); margin-top: 4px; }
+
+/* Footer disclaimer */
+.app-compliance-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding: 16px 4px 0;
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------------------
+   Small shared pieces added in the redesign
+   --------------------------------------------------------------------------- */
+
+/* Eyebrow label at the top of a card */
+.vitals-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin-bottom: 6px;
+}
+
+.kx-row-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.kx-unit {
+  font-family: var(--font-body);
+  font-stretch: 100%;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-3);
+  margin-left: 8px;
+}
+.kx-of { color: var(--ink-4); font-weight: 500; }
+.kx-count { font-size: 13px; font-weight: 650; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.kx-footer-title { font-size: 13px; font-weight: 700; color: var(--ink-2); margin: 0 0 4px; }
+
+/* Device live/offline pill with a pulsing dot when live */
+.kx-live-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 650;
+  padding: 5px 11px; border-radius: var(--r-pill);
+  color: var(--ink-3); background: var(--surface-2);
+}
+.kx-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); position: relative; }
+.kx-live-on { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.kx-live-on .kx-live-dot { background: var(--good); }
+.kx-live-on .kx-live-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: var(--good);
+  animation: kx-ping 1.8s var(--ease-out) infinite;
+}
+@keyframes kx-ping { from { transform: scale(1); opacity: 0.7; } to { transform: scale(2.8); opacity: 0; } }
+
+/* Meal ideas */
+.kx-meal-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.kx-meal {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.kx-meal-name { font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+.kx-meal-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.kx-meal-meta span {
+  font-size: 12px; font-weight: 600; color: var(--ink-2);
+  background: var(--surface); padding: 3px 9px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Toggle chips (allergens) */
+.kx-chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+.kx-chip {
+  font-size: 14px; font-weight: 600;
+  padding: 9px 14px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease-spring);
+}
+.kx-chip:active { transform: scale(0.94); }
+.kx-chip-on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+/* Quests */
+.kx-quest-main { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.kx-quest-text { color: var(--ink); line-height: 1.4; }
+.kx-check {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  display: grid; place-items: center;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur);
+}
+.quest-item-completed .kx-check { background: var(--good); border-color: var(--good); }
+.quest-item-completed .kx-check::after {
+  content: ''; width: 5px; height: 10px; margin-top: -2px;
+  border: solid var(--surface); border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+  animation: kx-pop var(--dur) var(--ease-spring) both;
+}
+.quest-item-completed .kx-quest-text { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.kx-quest-pts {
+  flex: none; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 4px 10px; border-radius: var(--r-pill);
+}
+.quest-item-completed .kx-quest-pts { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+
+/* Profile hero: same dark track panel as Today, with two lap counters */
+.kx-profile-hero .kx-hero-foot { justify-content: flex-start; }
+.kx-stat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.kx-stat-row .kx-lap:nth-child(2) { animation-delay: 0.45s; }
+.kx-stat-row .kx-lap:nth-child(2) .kx-lap-num { color: var(--hero-ink); }
+
+.kx-note {
+  font-size: 13px; color: var(--ink-2); line-height: 1.5;
+  background: var(--surface-2); border-radius: var(--r-sm);
+  padding: 10px 12px; margin: 0 0 14px;
+}
+/* The reminder toggle is a setting, not a warning */
+.hub-support-card .demo-toggle-label { color: var(--ink); margin-bottom: 14px; line-height: 1.4; }
+/* A lone last field in a two-column form takes the full row instead of a squeezed half */
+.drawer-form-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.hub-billing-card > .edit-bio-btn { margin-bottom: 14px; }
+.kx-how { margin-top: 14px; padding: 14px 16px; border-radius: var(--r-md); background: var(--surface-2); }
+.kx-how p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.55; }

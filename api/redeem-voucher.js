@@ -8,8 +8,11 @@
 // counter, since both only depend on tracking successful redemptions, not on point legitimacy.
 import { getRewardConfig, checkMonthlyRedemptionCap, recordRedemption } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
+import { handleCors } from './_lib/cors.js';
 
 export default async function handler(req, res) {
+  if (handleCors(req, res)) return;
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }

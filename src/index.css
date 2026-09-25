@@ -1,0 +1,183 @@
+/* =============================================================================
+   KinetixFit design tokens — "track day"
+   Everything in App.tsx and components reads colour, type and motion from here.
+   Light is the default; the dark set applies when the phone/OS is in dark mode.
+   ============================================================================= */
+
+@import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource-variable/hanken-grotesk/index.css';
+
+:root {
+  /* Surfaces */
+  --bg: #F3F4F0;            /* chalk */
+  --bg-translucent: rgba(243, 244, 240, 0.86);
+  --surface: #FFFFFF;       /* paper */
+  --surface-2: #ECEEE8;     /* recessed fills, chips, inputs */
+  --line: #E1E3DC;
+  --line-strong: #CBCEC5;
+
+  /* Text */
+  --ink: #16181F;
+  --ink-2: #454A55;
+  --ink-3: #6B7180;
+  --ink-4: #9A9FAA;
+
+  /* Brand + semantic */
+  --accent: #E5532D;        /* track clay */
+  --accent-press: #C8431F;
+  --accent-soft: #FBE3DA;
+  --on-accent: #FFFFFF;
+  --info: #2466D9;
+  --good: #16895A;
+  --warn: #B87708;
+  --danger: #D23B3B;
+
+  /* One fixed colour per health metric, everywhere it appears */
+  --m-steps: #2466D9;
+  --m-heart: #E5532D;
+  --m-sleep: #6A4FD6;
+  --m-stress: #B87708;
+
+  /* The dark "hero" panel stays dark in both themes */
+  --hero-bg: #16181F;
+  --hero-ink: #F4F3EE;
+  --hero-ink-2: #A7ABB5;
+  --hero-lane: rgba(244, 243, 238, 0.10);
+
+  /* Type */
+  --font-display: 'Archivo Variable', 'Arial Black', system-ui, sans-serif;
+  --font-body: 'Hanken Grotesk Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Shape + depth */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(22, 24, 31, 0.05), 0 1px 1px rgba(22, 24, 31, 0.03);
+  --shadow-md: 0 6px 20px -8px rgba(22, 24, 31, 0.18), 0 2px 6px -2px rgba(22, 24, 31, 0.06);
+  --shadow-lg: 0 24px 48px -16px rgba(22, 24, 31, 0.28);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 280ms;
+  --dur-slow: 620ms;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1116;
+    --bg-translucent: rgba(15, 17, 22, 0.86);
+    --surface: #181B22;
+    --surface-2: #20242D;
+    --line: #2A2F39;
+    --line-strong: #3A404C;
+
+    --ink: #F2F2EE;
+    --ink-2: #C3C6CE;
+    --ink-3: #9197A3;
+    --ink-4: #686E7A;
+
+    --accent: #FF6A3D;
+    --accent-press: #FF835E;
+    --accent-soft: #3A2019;
+    --on-accent: #16181F;
+    --info: #6E9EFF;
+    --good: #3CC98A;
+    --warn: #F0B03C;
+    --danger: #FF6B6B;
+
+    --m-steps: #6E9EFF;
+    --m-heart: #FF6A3D;
+    --m-sleep: #A08BFF;
+    --m-stress: #F0B03C;
+
+    --hero-bg: #1F232C;
+    --hero-lane: rgba(244, 243, 238, 0.08);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px -10px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+
+    color-scheme: dark;
+  }
+}
+
+html, body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select, textarea { font-family: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Display type: the wide, athletic cut of Archivo. Used sparingly — greetings, big numbers, titles. */
+.kx-display {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+   --------------------------------------------------------------------------- */
+
+@keyframes kx-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes kx-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes kx-pop {
+  0%   { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes kx-lane-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes kx-fill {
+  from { transform: scaleX(0); }
+}
+@keyframes kx-runner {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
+/* Staggered entrance for the direct children of a tab */
+.kx-stagger > * {
+  animation: kx-rise var(--dur-slow) var(--ease-out) both;
+}
+.kx-stagger > *:nth-child(1) { animation-delay: 30ms; }
+.kx-stagger > *:nth-child(2) { animation-delay: 90ms; }
+.kx-stagger > *:nth-child(3) { animation-delay: 150ms; }
+.kx-stagger > *:nth-child(4) { animation-delay: 210ms; }
+.kx-stagger > *:nth-child(5) { animation-delay: 270ms; }
+.kx-stagger > *:nth-child(6) { animation-delay: 330ms; }
+.kx-stagger > *:nth-child(7) { animation-delay: 390ms; }
+.kx-stagger > *:nth-child(n+8) { animation-delay: 440ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

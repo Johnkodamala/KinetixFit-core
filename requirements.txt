@@ -1,0 +1,61 @@
+# KinetixFit — Android build requirements
+#
+# This is NOT a pip file: the app is React + Capacitor, so there are no Python dependencies.
+# Every line is a comment, so `pip install -r requirements.txt` is a harmless no-op.
+# It is the single checklist of everything needed to build the Android app on macOS.
+#
+# Install everything in one go:   ./scripts/setup-android.sh
+# Keep this file and scripts/setup-android.sh in sync when a version changes.
+
+# ── System toolchain (Homebrew) ────────────────────────────────────────────────
+# node            >= 22            brew install node            (Capacitor 8 CLI minimum; verified on 26.0.0)
+# npm             >= 10            ships with node              (verified on 11.12.1)
+# openjdk@21      21               brew install openjdk@21      (AGP 8.13 needs JDK 17+; Capacitor 8 targets 21)
+# android-commandlinetools         brew install --cask android-commandlinetools
+# android-studio  (optional IDE)   brew install --cask android-studio   (used by `npx cap open android`)
+
+# ── Android SDK packages (sdkmanager, into ~/Library/Android/sdk) ─────────────
+# platform-tools                   adb, fastboot
+# platforms;android-36             compileSdk / targetSdk 36 (android/variables.gradle)
+# build-tools;36.0.0
+# cmdline-tools;latest             sdkmanager, avdmanager
+# emulator                         for running an AVD (needs a system image, created via Android Studio)
+
+# ── Gradle (downloaded automatically by android/gradlew on first build) ───────
+# gradle                          8.14.3   android/gradle/wrapper/gradle-wrapper.properties
+# com.android.tools.build:gradle  8.13.0   android/build.gradle
+# com.google.gms:google-services  4.4.4    android/build.gradle (only applied if google-services.json exists)
+# minSdk 26 · compileSdk 36 · targetSdk 36 (android/variables.gradle)
+
+# ── npm packages (installed by `npm install` from package.json / package-lock.json) ──
+# Runtime
+# @capacitor/android                 ^8.5.0
+# @capacitor/core                    ^8.5.0
+# @capacitor/ios                     ^8.5.0
+# @capacitor/barcode-scanner         ^3.1.2
+# @capacitor/browser                 ^8.0.4
+# @capacitor/local-notifications     ^8.3.1
+# @capgo/capacitor-health            ^8.10.6
+# @fontsource-variable/archivo       (bundled display font)
+# @fontsource-variable/hanken-grotesk (bundled body font)
+# @revenuecat/purchases-capacitor    ^13.4.1
+# @supabase/supabase-js              ^2.116.0
+# @upstash/redis                     ^1.38.3
+# qrcode                             ^1.5.4
+# react                              ^19.2.8
+# react-dom                          ^19.2.8
+# recharts                           ^3.10.1
+# Dev
+# @capacitor/cli                     ^8.5.0
+# @eslint/js                         ^10.0.1
+# @types/node                        ^24.13.3
+# @types/react                       ^19.2.17
+# @types/react-dom                   ^19.2.3
+# @vitejs/plugin-react               ^6.0.4
+# eslint                             ^10.8.0
+# eslint-plugin-react-hooks          ^7.1.1
+# eslint-plugin-react-refresh        ^0.5.3
+# globals                            ^17.7.0
+# typescript                         ~6.0.2
+# typescript-eslint                  ^8.65.0
+# vite                               ^8.2.0
