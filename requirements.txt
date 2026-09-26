@@ -1,8 +1,8 @@
-# KinetixFit — Android build requirements
+# KinetixFit — Android + iOS build requirements
 #
 # This is NOT a pip file: the app is React + Capacitor, so there are no Python dependencies.
 # Every line is a comment, so `pip install -r requirements.txt` is a harmless no-op.
-# It is the single checklist of everything needed to build the Android app on macOS.
+# It is the single checklist of everything needed to build the Android and iOS apps on macOS.
 #
 # Install everything in one go:   ./scripts/setup-android.sh
 # Keep this file and scripts/setup-android.sh in sync when a version changes.
@@ -27,6 +27,19 @@
 # com.google.gms:google-services  4.4.4    android/build.gradle (only applied if google-services.json exists)
 # minSdk 26 · compileSdk 36 · targetSdk 36 (android/variables.gradle)
 
+# ── iOS toolchain (verified 2026-09-26) ───────────────────────────────────────
+# Xcode           27.0             App Store; then `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
+# iOS simulator runtime 26.4       Xcode → Settings → Components (~8 GB)
+# Command Line Tools 27.0          `softwareupdate -i "Command Line Tools for Xcode 27.0-27.0"` (sudo; Homebrew
+#                                  refuses to build some formulae with older CLT)
+# App deployment target iOS 16.4   ios/App/App.xcodeproj (CSS needs color-mix + container units)
+# Swift packages                   resolved by Xcode from ios/App/CapApp-SPM/Package.swift (written by `cap sync ios`)
+# Simulator testing (optional, scripts/ios-sim/):
+#   ios-webkit-debug-proxy 1.9.2   brew install ios-webkit-debug-proxy        (run JS in the app's WebView)
+#   idb-companion 1.6.2            brew trust facebook/fb && brew install facebook/fb/idb-companion   (real taps)
+#   fb-idb                         pip3 install --user fb-idb                 (the idb client)
+# A real iPhone with HealthKit needs a paid Apple Developer Program team.
+
 # ── npm packages (installed by `npm install` from package.json / package-lock.json) ──
 # Runtime
 # @capacitor/android                 ^8.5.0
@@ -34,7 +47,10 @@
 # @capacitor/ios                     ^8.5.0
 # @capacitor/barcode-scanner         ^3.1.2
 # @capacitor/browser                 ^8.0.4
+# @capacitor/app                     ^8.1.1
+# @capacitor/haptics                 ^8.0.2
 # @capacitor/local-notifications     ^8.3.1
+# @capacitor/keyboard                ^8.0.5   (iOS keyboard resize + events)
 # @capgo/capacitor-health            ^8.10.6
 # @fontsource-variable/archivo       (bundled display font)
 # @fontsource-variable/hanken-grotesk (bundled body font)

@@ -11,6 +11,7 @@
 .workspace-container {
   background: var(--bg);
   color: var(--ink);
+  min-height: 100vh; /* fallback: WebViews older than Chrome 108 have no dvh */
   min-height: 100dvh;
   font-family: var(--font-body);
   display: flex;
@@ -21,6 +22,7 @@
 .app-viewport-container {
   width: 100%;
   max-width: 1120px;
+  height: 100vh; /* fallback: WebViews older than Chrome 108 have no dvh */
   height: 100dvh;
   position: relative;
   display: flex;
@@ -78,14 +80,32 @@
   border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
-  text-align: center;
   box-shadow: var(--shadow-lg);
   width: max-content;
   line-height: 1.4;
   animation: kx-toast-in 420ms var(--ease-spring) both;
-  pointer-events: none;
+  cursor: pointer; /* tap to dismiss */
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
 }
-/* Stays until the app clears the message (it sets its own timeout per message) */
+/* Tone badge: a coloured disc with the glyph in the page colour, readable on the pill in both themes */
+.alert-ticker-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 0.5px;
+  border-radius: 50%;
+  color: var(--bg);
+  background: var(--info);
+}
+.tone-success .alert-ticker-icon { background: var(--good); }
+.tone-error .alert-ticker-icon { background: var(--danger); }
+.tone-warn .alert-ticker-icon { background: var(--warn); }
+/* Cleared by App.tsx after 2.5–6s, or on tap */
 @keyframes kx-toast-in {
   from { opacity: 0; transform: translate(-50%, -16px) scale(0.96); }
   to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
@@ -110,12 +130,14 @@
 
 .vitals-dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …): a plain 1fr can't shrink below its widest content, which pushed Rewards 5px past the
+     other cards on a 360px phone */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 @media (min-width: 1024px) {
-  .vitals-dashboard-grid { grid-template-columns: 1fr 1.25fr; gap: 24px; }
+  .vitals-dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; }
   .app-scroll-body { padding-left: 32px; padding-right: 32px; }
 }
 
@@ -153,7 +175,6 @@
   box-sizing: border-box;
   position: relative;
 }
-.legal-block-card { border-radius: var(--r-md); padding: 16px; }
 
 .card-header-title,
 .redemption-title,
@@ -249,6 +270,16 @@
 .scanner-submit-btn:hover,
 .redeem-rewards-btn:hover,
 .promo-submit-btn:hover { background: var(--accent-press); }
+/* Accent buttons that can't be used yet look it, matching .primary-btn:disabled */
+.connect-wearable-btn:disabled,
+.scanner-submit-btn:disabled,
+.redeem-rewards-btn:disabled,
+.promo-submit-btn:disabled {
+  background: var(--accent-soft);
+  color: var(--ink-3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 .connect-wearable-btn:active,
 .scanner-submit-btn:active,
 .redeem-rewards-btn:active,
@@ -361,7 +392,6 @@
   max-width: 34ch;
 }
 .kx-hero-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.kx-hero-hint { font-size: 13px; color: var(--hero-ink-2); margin: 0; max-width: 22ch; line-height: 1.45; }
 
 /* Streak as a lap counter */
 .kx-lap {
@@ -473,7 +503,7 @@
   text-align: center;
   transition: transform var(--dur) var(--ease-spring);
 }
-.badge-icon { font-size: 26px; }
+.badge-icon { display: grid; place-items: center; color: var(--accent); }
 .badge-label { font-size: 11px; font-weight: 650; line-height: 1.35; }
 .badge-unlocked {
   background: var(--accent-soft);
@@ -483,9 +513,9 @@
 .badge-unlocked .badge-label { color: var(--ink); }
 .badge-unlocked:hover { transform: translateY(-2px) rotate(-1deg); }
 .badge-locked { background: var(--surface-2); border: 1.5px dashed var(--line-strong); }
-.badge-locked .badge-icon { filter: grayscale(1); opacity: 0.4; }
+.badge-locked .badge-icon { color: var(--ink-4); }
 .badge-locked .badge-label { color: var(--ink-4); }
-.badge-lock-overlay { position: absolute; top: 6px; right: 8px; font-size: 12px; opacity: 0.6; }
+.badge-lock-overlay { position: absolute; top: 8px; right: 8px; color: var(--ink-4); }
 
 /* ---------------------------------------------------------------------------
    Nourish
@@ -784,16 +814,29 @@
   from { opacity: 0; transform: translate(-50%, 24px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
-.phone-bottom-nav::before {
-  content: '';
+/* The selected-tab lens (src/components/TabBar.tsx): --lens-pos is the tab index, fractional while a
+   finger slides along the bar. The outer span moves; the inner "drop" stretches and lifts. */
+.phone-bottom-nav { touch-action: none; user-select: none; -webkit-user-select: none; }
+.nav-lens {
   position: absolute;
   top: 6px; bottom: 6px; left: 6px;
   width: calc((100% - 12px) / var(--tab-count));
+  transform: translateX(calc(100% * var(--lens-pos, 0)));
+  transition: transform 460ms var(--ease-spring);
+  pointer-events: none;
+}
+.phone-bottom-nav.is-scrubbing .nav-lens { transition: transform 90ms linear; }
+.nav-lens-drop {
+  position: absolute;
+  inset: 0;
   border-radius: var(--r-pill);
   background: var(--ink);
-  transform: translateX(calc(100% * var(--tab-index, 0)));
-  transition: transform 420ms var(--ease-spring);
+  transition: transform 260ms var(--ease-spring), box-shadow 260ms var(--ease-out);
 }
+/* lifted while sliding, like a lens picked up off the bar */
+.phone-bottom-nav.is-scrubbing .nav-lens-drop { transform: scale(1.1, 1.16); }
+.nav-item-btn.nav-item-under { color: var(--nav-active-ink, var(--ink)); }
+@media (prefers-reduced-motion: reduce) { .nav-lens, .nav-lens-drop { transition: none; } }
 .nav-item-btn {
   position: relative;
   z-index: 1;
@@ -860,6 +903,7 @@
 .modal-content-card {
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 40px); /* fallback: WebViews older than Chrome 108 have no dvh */
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
   background: var(--surface);
@@ -915,16 +959,14 @@
   pointer-events: none;
 }
 @keyframes levelUpGlowPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-.levelup-trophy-icon { animation: levelUpTrophyPop 0.7s var(--ease-spring) 0.15s both; }
+.levelup-trophy-icon {
+  display: grid; place-items: center; width: 76px; height: 76px; margin: 4px auto 14px;
+  border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent);
+  animation: levelUpTrophyPop 0.7s var(--ease-spring) 0.15s both; }
 @keyframes levelUpTrophyPop {
   0% { opacity: 0; transform: scale(0.3) rotate(-15deg); }
   100% { opacity: 1; transform: scale(1) rotate(0deg); }
 }
-.levelup-sparkle { position: absolute; font-size: 21px; opacity: 0; animation: levelUpSparkleTwinkle 2.4s ease-in-out infinite; pointer-events: none; }
-.levelup-sparkle-1 { top: 12%; left: 15%; }
-.levelup-sparkle-2 { top: 20%; right: 12%; animation-delay: 0.7s; font-size: 17px; }
-.levelup-sparkle-3 { bottom: 18%; left: 22%; animation-delay: 1.3s; font-size: 18px; }
-@keyframes levelUpSparkleTwinkle { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.1); } }
 
 /* Camera scan window */
 .camera-viewfinder-scanning {
@@ -1083,3 +1125,146 @@
 .hub-billing-card > .edit-bio-btn { margin-bottom: 14px; }
 .kx-how { margin-top: 14px; padding: 14px 16px; border-radius: var(--r-md); background: var(--surface-2); }
 .kx-how p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+
+/* Empty voucher history */
+.ledger-empty {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+   Account tab: a settings menu of grouped rows; each row opens its own page
+   (#account/<page>) with a back button. Rows reuse .kx-row from pickers.css.
+   --------------------------------------------------------------------------- */
+.kx-account { display: flex; flex-direction: column; gap: 22px; width: 100%; max-width: 640px; margin: 0 auto; }
+
+.kx-account-head { display: flex; align-items: center; gap: 14px; padding: 4px 0 0; }
+.kx-avatar {
+  flex: none; display: grid; place-items: center;
+  width: 56px; height: 56px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 24px;
+}
+.kx-account-id { min-width: 0; }
+.kx-account-name {
+  margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 800;
+  font-size: 22px; line-height: 1.15; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kx-account-email { margin: 3px 0 0; font-size: 14px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.kx-account-section { display: flex; flex-direction: column; gap: 8px; }
+.kx-section-label { margin: 0 16px; /* lines up with the row text inside the group card */ font-size: 12px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.09em; }
+
+/* a group of rows as one card */
+.kx-rows-menu {
+  margin-top: 0;
+  padding: 0 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.kx-rows-menu .kx-row { min-height: 54px; text-decoration: none; }
+.kx-rows-menu .kx-row:active { background: transparent; opacity: 0.6; }
+.kx-rows-menu .kx-row-label { color: var(--ink); font-weight: 600; }
+.kx-rows-menu .kx-row-value { color: var(--ink-3); font-weight: 500; }
+.kx-rows-menu .kx-row-truncate { flex: 0 1 auto; max-width: 55%; }
+.kx-rows-menu .kx-row-danger .kx-row-label { color: var(--danger); }
+
+/* account page header: back button + title */
+.kx-page-head { display: flex; align-items: center; gap: 12px; }
+.kx-back-btn {
+  flex: none; display: grid; place-items: center;
+  width: 40px; height: 40px; border: 0; border-radius: var(--r-pill);
+  background: var(--surface-2); color: var(--ink); cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.kx-back-btn:active { transform: scale(0.92); }
+.kx-back-icon { transform: rotate(90deg); }
+.kx-page-title { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 22px; color: var(--ink); }
+.kx-account .hub-billing-card > .vitals-label { margin-bottom: 4px; }
+/* the promo field used to sit on a grey box; on its own page it sits on the card, so use the input fill */
+.kx-account .promo-input-row .promo-text-input { background: var(--surface-2); }
+.kx-account .promo-input-row .promo-text-input:focus { background: var(--surface); }
+
+/* ---------------------------------------------------------------------------
+   Polish pass: the brand header is for the website; phones get a title per tab
+   (Today and Account open on their own hero/avatar heads instead).
+   --------------------------------------------------------------------------- */
+.app-brand-header.kx-desktop-only { display: none; }
+@media (min-width: 1024px) { .app-brand-header.kx-desktop-only { display: flex; } }
+.kx-tab-title {
+  margin: 6px 0 14px;
+  font-family: var(--font-display); font-stretch: 112%; font-weight: 800;
+  font-size: 30px; line-height: 1.1; letter-spacing: -0.01em; color: var(--ink);
+}
+
+/* the one Connect button on Today, inside the hero */
+.kx-hero-cta {
+  position: relative; z-index: 1; align-self: flex-start;
+  border: 0; border-radius: var(--r-pill); padding: 12px 20px;
+  background: var(--accent); color: var(--on-accent);
+  font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.kx-hero-cta:active { transform: scale(0.97); }
+
+/* Rewards hero: progress through the current level */
+.kx-level-track {
+  position: relative; height: 6px; max-width: 280px; margin-top: 14px;
+  border-radius: var(--r-pill); overflow: hidden;
+  background: color-mix(in srgb, var(--hero-ink) 16%, transparent);
+}
+.kx-level-track > span {
+  position: absolute; inset: 0; background: var(--accent);
+  transform-origin: left; transform: scaleX(var(--fill, 0));
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+/* Today hero: the day's targets as three figures, not a sentence that wraps */
+.kx-hero-targets { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
+.kx-hero-targets .kx-hero-eyebrow { margin: 0; }
+.kx-hero-target-row { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 24px; font-size: 13px; color: var(--hero-ink-2); }
+.kx-hero-target-row > span { display: flex; flex-direction: column; gap: 1px; }
+.kx-hero-target-row strong { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 21px; line-height: 1.1; color: var(--hero-ink); }
+
+/* the floating camera button sits over the bottom of Today; leave room so the last card can scroll clear */
+.kx-fab-clearance { height: 64px; }
+@media (min-width: 1024px) { .kx-fab-clearance { display: none; } }
+
+.redeem-rewards-btn { white-space: nowrap; }
+.biopoint-validator-card .validator-desc:last-child { margin-bottom: 0; }
+
+/* Today: "connected but nothing is sharing" setup card (Samsung Health → Health Connect) */
+.kx-setup-card { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.kx-setup-card .card-header-title { margin-top: 2px; }
+.kx-steps { margin: 12px 0 16px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.kx-steps strong { color: var(--ink); font-weight: 650; }
+.kx-setup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.kx-setup-actions .primary-btn { flex: 1 1 auto; width: auto; }
+.kx-setup-actions .edit-bio-btn { flex: 0 0 auto; }
+
+/* Confirmation pop-up (Log out): Cancel on the left, the destructive action on the right */
+.kx-confirm-actions { display: flex; gap: 10px; margin-top: 18px; }
+.kx-confirm-actions .modal-close-btn { margin-top: 0; }
+.kx-danger-btn {
+  flex: 1;
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 13px 18px;
+  background: var(--danger);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.kx-danger-btn:active { transform: scale(0.97); }
+/* an icon chip at the top of an information pop-up */
+.kx-modal-icon { width: 40px; height: 40px; border-radius: 12px; margin-bottom: 14px; }

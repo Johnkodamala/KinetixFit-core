@@ -5,6 +5,7 @@
   background: var(--bg);
   color: var(--ink);
   width: 100%;
+  height: 100vh; /* fallback: WebViews older than Chrome 108 have no dvh */
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -193,3 +194,63 @@
 }
 .ob-form { display: flex; flex-direction: column; gap: 14px; }
 .ob-form .ob-label { margin-bottom: 0; }
+
+/* Password with a show/hide toggle inside the field */
+.ob-password { position: relative; margin-bottom: 16px; }
+.ob-password .ob-input { padding-right: 72px; margin-bottom: 0; }
+.ob-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ob-password-toggle:active { background: var(--surface-2); }
+
+/* ---------------------------------------------------------------------------
+   Phones: onboarding fills the screen like a native app instead of a floating
+   card. Titles sit at the top, actions at the bottom within thumb reach.
+   Wider screens (the website) keep the centred card above.
+   --------------------------------------------------------------------------- */
+@media (max-width: 599px) {
+  .ob-container {
+    padding: calc(env(safe-area-inset-top) + 12px) 20px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .ob-card {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    max-width: none;
+    margin: 0;
+    padding: 20px 0 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .ob-card > .ob-btn-primary,
+  .ob-card > .ob-btn-row,
+  .ob-card > .ob-actions { margin-top: auto; }
+
+  /* Welcome: the track panel takes the top of the screen */
+  .ob-card-hero { padding: 4px 0 0; }
+  .ob-card-hero > :not(.ob-hero-panel) { margin-left: 4px; margin-right: 4px; }
+  .ob-card-hero > .ob-btn-primary { width: calc(100% - 8px); }
+  .ob-hero-panel {
+    flex: 1 1 auto;
+    min-height: 300px;
+    border-radius: 28px;
+    padding: 26px 24px 30px;
+  }
+  .ob-hero-title { font-size: clamp(32px, 9.4vw, 44px); }
+  /* the card is a flex column now; keep the small badges their natural width */
+  .ob-step, .ob-badge { align-self: flex-start; }
+}

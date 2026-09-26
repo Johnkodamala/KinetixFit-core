@@ -1,0 +1,412 @@
+/* =============================================================================
+   Liquid glass layer — loaded last (src/main.tsx), so it restyles surfaces without editing each rule.
+   Tokens live in src/index.css (--glass-*, --ambient-*, --hero-glow, --btn-sheen), light and dark.
+
+   - A soft ambient glow sits fixed behind the app; translucent surfaces let it show through as
+     content scrolls, which is what reads as "glass".
+   - Cards are translucent with a sheen, a bright inner top edge and a hairline — but no
+     backdrop-filter: the ambient behind them is already soft, and blurring every card costs
+     scrolling smoothness on mid-range phones (S21 FE / A55).
+   - Real frosted blur only where content moves underneath: the tab bar, sheets and pop-ups.
+   ============================================================================= */
+
+/* --- Ambient light behind everything --------------------------------------------------------- */
+.workspace-container { isolation: isolate; }
+.workspace-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 100% 0%, var(--ambient-warm), transparent 70%),
+    radial-gradient(55% 40% at 0% 38%, var(--ambient-cool), transparent 70%),
+    radial-gradient(60% 45% at 80% 100%, var(--ambient-violet), transparent 70%);
+}
+/* onboarding screens sit on the same ambient */
+.ob-container { background: transparent; }
+
+/* --- Glass cards ------------------------------------------------------------------------------ */
+.ecg-module-card,
+.nourish-summary-card,
+.scanner-module-card,
+.rewards-summary-card,
+.biopoint-validator-card,
+.quests-card,
+.rewards-redemption-card,
+.charity-matching-card,
+.hub-billing-card,
+.hub-support-card,
+.legal-block-card,
+.sync-diagnostics-card,
+.biometric-item-card,
+.kx-rows-menu {
+  background:
+    radial-gradient(120% 80% at 0% 0%, var(--glass-sheen), transparent 55%),
+    linear-gradient(180deg, var(--glass-sheen), transparent 30%),
+    var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), inset 0 -1px 0 var(--glass-shade), 0 0 0 0.5px var(--glass-edge);
+}
+/* the setup card keeps its accent edge */
+.kx-setup-card { border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-border)); }
+
+/* the centred onboarding card on wide screens (phones have no card) */
+@media (min-width: 600px) {
+  .ob-card {
+    background: linear-gradient(180deg, var(--glass-sheen), transparent 38%), var(--glass-fill);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+  }
+}
+
+/* --- Hero: dark tinted glass with a warm light, not a flat slab ------------------------------- */
+.vitals-hero-card {
+  background:
+    radial-gradient(90% 80% at 100% 0%, var(--hero-glow), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    var(--hero-bg);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0.5px var(--glass-edge);
+}
+
+/* --- Frosted floating surfaces ---------------------------------------------------------------- */
+.phone-bottom-nav {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 60%), var(--glass-fill-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+}
+.kx-sheet,
+.modal-content-card {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 30%), var(--glass-fill-sheet);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-highlight);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+}
+
+/* --- Glossy accent buttons -------------------------------------------------------------------- */
+.primary-btn,
+.ob-btn-primary,
+.connect-wearable-btn,
+.kx-hero-cta,
+.redeem-rewards-btn,
+.promo-submit-btn,
+.floating-hud-camera-fab {
+  background-image: linear-gradient(180deg, var(--btn-sheen), transparent 60%);
+  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 var(--btn-sheen);
+}
+.primary-btn:disabled,
+.ob-btn-primary:disabled,
+.redeem-rewards-btn:disabled,
+.promo-submit-btn:disabled { background-image: none; box-shadow: none; }
+
+/* --- People who ask for less transparency get solid surfaces ---------------------------------- */
+@media (prefers-reduced-transparency: reduce) {
+  .workspace-container::before { display: none; }
+  .ecg-module-card, .nourish-summary-card, .scanner-module-card, .rewards-summary-card,
+  .biopoint-validator-card, .quests-card, .rewards-redemption-card, .charity-matching-card,
+  .hub-billing-card, .hub-support-card, .legal-block-card, .sync-diagnostics-card,
+  .biometric-item-card, .kx-rows-menu, .phone-bottom-nav, .kx-sheet, .modal-content-card {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* --- Selected tab: a tinted glass lens instead of a solid pill (TabBar.tsx) --------------------- */
+.nav-lens-drop {
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 65%),
+    color-mix(in srgb, var(--accent) var(--lens-tint), var(--glass-fill-strong));
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.nav-item-active { color: var(--nav-active-ink); }
+.nav-item-active .nav-icon { transform: translateY(-1px) scale(1.06); }
+
+/* --- Pressed states: a quick settle, like touching glass --------------------------------------- */
+.kx-row,
+.quest-item-pill,
+.kx-choice,
+.charity-item-subcard,
+.btc-card,
+.biometric-item-card {
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+.kx-rows-menu .kx-row:active { opacity: 1; background: var(--glass-press); }
+.quest-item-pill:active,
+.kx-choice:active,
+.charity-item-subcard:active,
+.btc-card:has(.btc-header:active:not(:disabled)) { transform: scale(0.985); }
+
+/* recessed fills that sit on glass get a hairline top highlight so they read as inset, not flat */
+.quest-item-pill,
+.charity-item-subcard,
+.sport-mode-btn,
+.kx-measure { box-shadow: inset 0 1px 0 var(--glass-shade); }
+/* while sliding, the lens clears to show the tab under it and throws a softer, wider shadow */
+.phone-bottom-nav.is-scrubbing .nav-lens-drop {
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 70%),
+    color-mix(in srgb, var(--accent) calc(var(--lens-tint) * 0.6), var(--glass-fill-strong));
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 12px 26px -10px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* --- Card titles: a small tinted icon chip before the title (iOS settings style) --------------- */
+:is(h3, h4):has(> .kx-title-icon) { display: flex; align-items: center; gap: 10px; }
+.kx-title-icon {
+  flex: none; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 9px;
+  color: var(--tint, var(--accent));
+  background: color-mix(in srgb, var(--tint, var(--accent)) 14%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), inset 0 0 0 1px color-mix(in srgb, var(--tint, var(--accent)) 18%, transparent);
+}
+.kx-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kx-card-sub { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-3); }
+.kx-workout-card .kx-card-sub { margin-top: -6px; }
+
+/* --- Log a workout: activity tiles --------------------------------------------------------------- */
+.kx-activity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kx-activity {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 78px; padding: 10px 4px;
+  border: 1px solid transparent; border-radius: 18px;
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 0 var(--glass-shade);
+  color: var(--ink-2); font: inherit; cursor: pointer;
+  transition: transform 160ms var(--ease-out), background-color 200ms var(--ease-out), border-color 200ms, color 200ms, box-shadow 200ms;
+}
+.kx-activity:active { transform: scale(0.96); }
+.kx-activity-icon { display: grid; color: var(--ink-3); transition: color 200ms, transform 260ms var(--ease-spring); }
+.kx-activity-label { font-size: 13px; font-weight: 650; }
+.kx-activity.is-on {
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 70%),
+    color-mix(in srgb, var(--accent) var(--lens-tint), var(--glass-fill-strong));
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 8px 18px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.kx-activity.is-on .kx-activity-icon { color: var(--nav-active-ink); transform: translateY(-1px) scale(1.08); }
+
+/* --- Progress bar on light cards (points) -------------------------------------------------------- */
+.kx-progress { position: relative; height: 8px; margin-top: 14px; border-radius: var(--r-pill); overflow: hidden; background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade); }
+.kx-progress > span {
+  position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--fill, 0));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, var(--warn)), var(--accent));
+  border-radius: inherit; transition: transform var(--dur-slow) var(--ease-out);
+}
+
+/* --- Empty states -------------------------------------------------------------------------------- */
+.kx-empty {
+  display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px;
+  border-radius: var(--r-md); background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade);
+}
+.kx-empty p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink-3); }
+.kx-empty-icon {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px;
+  color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent);
+}
+
+/* locked achievements: recessed glass, not a dashed outline */
+.badge-locked { border: 1px solid transparent; background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade); }
+.badge-unlocked { box-shadow: inset 0 1px 0 var(--glass-highlight), 0 8px 18px -10px color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* =============================================================================
+   Onboarding — same glass language as the app
+   ============================================================================= */
+/* welcome hero: tinted glass with the warm light, like Today's */
+.ob-hero-panel {
+  background:
+    radial-gradient(90% 70% at 100% 0%, var(--hero-glow), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    var(--hero-bg);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0.5px var(--glass-edge);
+}
+/* feature rows and permission lists: glass cards */
+.ob-feature,
+.ob-perm-list {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 40%), var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+}
+.ob-feature-icon { background: color-mix(in srgb, var(--metric) 14%, transparent); box-shadow: inset 0 1px 0 var(--glass-highlight); }
+.ob-perm-list {
+  list-style: none; margin: 4px 0 10px; padding: 4px 16px; border-radius: var(--r-lg);
+  display: flex; flex-direction: column;
+  animation: kx-rise var(--dur-slow) var(--ease-out) 120ms both;
+}
+.ob-perm-list li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.ob-perm-list li:last-child { border-bottom: 0; }
+.ob-perm-list li > span:last-child { display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--ink-3); line-height: 1.35; }
+.ob-perm-list strong { font-size: 15px; font-weight: 650; color: var(--ink); }
+.ob-perm-note { margin-top: 0; text-align: left; }
+
+/* secondary buttons everywhere: clear glass, not a grey slab */
+.ob-btn-secondary,
+.edit-bio-btn,
+.modal-close-btn {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 60%), var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge), 0 4px 12px -8px rgba(0, 0, 0, 0.25);
+}
+.ob-btn-secondary:hover, .edit-bio-btn:hover, .modal-close-btn:hover { background: var(--glass-fill-strong); }
+
+/* chips (allergies) and option cards (About you, sheets): glass, with the accent lens when chosen */
+.kx-chip,
+.kx-choice {
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 60%), var(--glass-fill);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+}
+.kx-chip-on,
+.kx-choice.is-on {
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, var(--glass-highlight), transparent 70%),
+    color-mix(in srgb, var(--accent) var(--lens-tint), var(--glass-fill-strong));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 8px 18px -10px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.kx-chip-on { color: var(--nav-active-ink); }
+
+/* =============================================================================
+   Nourish → Check a food
+   ============================================================================= */
+.kx-food-card { display: flex; flex-direction: column; gap: 14px; }
+.kx-food-card > .card-header-title { margin: 0; }
+.kx-food-card > .kx-card-sub { margin-top: -8px; }
+
+/* glass search field with the Check button inside it */
+.kx-search {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 52px; padding: 5px 5px 5px 14px; box-sizing: border-box;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  box-shadow: inset 0 1px 0 var(--glass-shade);
+  transition: border-color var(--dur-fast), background-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.kx-search:focus-within {
+  background: var(--glass-fill-strong);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.kx-search-icon { display: grid; color: var(--ink-3); flex: none; }
+.kx-search-input {
+  flex: 1; min-width: 0; height: 40px; padding: 0;
+  border: 0; outline: 0; background: transparent;
+  color: var(--ink); font: inherit; font-size: 16px;
+}
+.kx-search-input::placeholder { color: var(--ink-4); }
+.kx-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.kx-search-go {
+  flex: none; height: 40px; padding: 0 18px; border: 0; border-radius: var(--r-pill);
+  background-color: var(--accent); color: var(--on-accent); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  background-image: linear-gradient(180deg, var(--btn-sheen), transparent 60%);
+  box-shadow: inset 0 1px 0 var(--btn-sheen), 0 6px 14px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: kx-pop 260ms var(--ease-spring) both;
+}
+.kx-search-go:disabled { opacity: 0.6; }
+
+.kx-food-suggest {
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
+  margin: 0 -20px; padding: 2px 20px; /* scroll edge to edge of the card, content still lines up */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 20px, #000 calc(100% - 20px), transparent);
+}
+.kx-food-suggest::-webkit-scrollbar { display: none; }
+.kx-food-suggest > span { flex: none; font-size: 13px; font-weight: 650; color: var(--ink-3); margin-right: 2px; }
+.kx-food-suggest .kx-chip { flex: none; white-space: nowrap; }
+.kx-chip.kx-chip-sm { padding: 7px 12px; font-size: 13px; }
+
+.kx-food-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kx-food-action {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-height: 64px; padding: 14px;
+  border-radius: var(--r-md); border: 1px solid var(--glass-border);
+  background: linear-gradient(180deg, var(--glass-sheen), transparent 60%), var(--glass-fill);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  transition: transform 160ms var(--ease-out);
+}
+.kx-food-action:active { transform: scale(0.97); }
+.kx-food-action > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kx-food-action strong { font-size: 14px; font-weight: 650; line-height: 1.25; }
+.kx-food-action small { font-size: 12px; color: var(--ink-3); line-height: 1.3; }
+
+/* result */
+.kx-food-result {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 16px; border-radius: var(--r-md);
+  background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade);
+  animation: kx-rise var(--dur-slow) var(--ease-out) both;
+}
+.kx-food-status {
+  align-self: flex-start; padding: 5px 11px; border-radius: var(--r-pill);
+  font-size: 13px; font-weight: 700;
+  color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.kx-food-result.is-warning .kx-food-status { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.kx-food-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.kx-food-title h4 { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 20px; color: var(--ink); text-transform: capitalize; }
+.kx-food-portion { font-size: 13px; color: var(--ink-3); }
+.kx-food-kcal { margin: -6px 0 0; font-size: 15px; color: var(--ink-3); }
+.kx-food-kcal strong { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 34px; color: var(--ink); margin-right: 4px; }
+.kx-food-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.kx-food-macros > span {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px;
+  border-radius: 12px; background: var(--glass-fill); box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
+  font-size: 12px; color: var(--ink-3);
+}
+.kx-food-macros strong { font-size: 16px; font-weight: 750; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kx-food-minerals { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin: 0; }
+.kx-food-minerals > div { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.kx-food-minerals > div:nth-last-child(-n+2) { border-bottom: 0; }
+.kx-food-minerals dt { color: var(--ink-3); }
+.kx-food-minerals dd { margin: 0; font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kx-food-note strong { display: block; font-size: 14px; color: var(--ink); margin-bottom: 4px; }
+.kx-food-note p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.kx-food-logged { margin: 0; font-size: 13px; color: var(--ink-3); }
+
+/* =============================================================================
+   Alignment: card headers wrap instead of overflowing on 360px phones
+   ============================================================================= */
+.rewards-redemption-header,
+.charity-card-header,
+.quests-header,
+.kx-card-head { flex-wrap: wrap; row-gap: 10px; }
+.rewards-redemption-header > div,
+.charity-card-header > div { flex: 1 1 170px; min-width: 0; }
+
+/* Settings toggle (Reminders): an iOS-style switch on the right of the row, not a browser checkbox */
+.hub-support-card .demo-toggle-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 52px; margin: 0; padding: 0 0 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink);
+}
+.demo-toggle-checkbox {
+  order: 2; flex: none; position: relative; margin: 0;
+  -webkit-appearance: none; appearance: none;
+  width: 51px; height: 31px; border-radius: var(--r-pill);
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer; transition: background-color 220ms var(--ease-out), box-shadow 220ms;
+}
+.demo-toggle-checkbox::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  transition: transform 260ms var(--ease-spring);
+}
+.demo-toggle-checkbox:checked { background: var(--good); box-shadow: none; }
+.demo-toggle-checkbox:checked::after { transform: translateX(20px); }
+.demo-toggle-checkbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* a card that is only a list of rows (Your details) doesn't need extra space above/below the rows */
+.hub-support-card:has(> .kx-rows:only-child) { padding-top: 4px; padding-bottom: 4px; }
+.hub-support-card:has(> .kx-rows:only-child) > .kx-rows { margin-top: 0; }

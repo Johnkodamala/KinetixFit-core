@@ -27,7 +27,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>KinetixFit uses your camera to scan food barcodes and photos for nutrition information.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>KinetixFit does not currently write data to Apple Health.</string>
+	<string>KinetixFit only reads from Apple Health and never adds or changes your health data.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -55,8 +55,10 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

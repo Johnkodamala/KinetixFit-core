@@ -1,0 +1,394 @@
+/* =============================================================================
+   Form controls (src/components/Pickers.tsx, ProfileFields.tsx)
+   Big typeable numbers on a ruler, segmented choices, springy option cards,
+   bottom sheets and settings rows. Replaces number inputs and <select> pop-ups.
+   ============================================================================= */
+
+.kx-form { display: flex; flex-direction: column; gap: 22px; }
+.kx-field { display: flex; flex-direction: column; gap: 6px; }
+.kx-field .auth-input { margin-top: 0; }
+.kx-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.kx-field-hint { margin: 2px 0 0; font-size: 13px; color: var(--danger); }
+
+/* --- MeasureField: number + ruler ----------------------------------------------------------- */
+
+.kx-measure {
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-lg);
+  padding: 14px 16px 6px;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.kx-measure:focus-within { border-color: var(--accent); background: var(--surface); }
+.kx-measure-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.kx-measure-input {
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 40px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink);
+  caret-color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-width: 2ch;
+  outline: none;
+}
+.kx-measure-input[aria-invalid] { color: var(--danger); }
+.kx-measure-unit { font-size: 16px; font-weight: 600; color: var(--ink-3); }
+
+.kx-ruler { position: relative; height: 58px; margin: 4px -16px 0; }
+.kx-ruler-scroll {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y; /* pan-x alone swallowed vertical swipes, so pages with rulers could not scroll */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  outline: none;
+  border-radius: var(--r-sm);
+}
+.kx-ruler-scroll::-webkit-scrollbar { display: none; }
+.kx-ruler-scroll:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+/* half-width spacers so the first and last ticks can reach the needle */
+.kx-ruler-scroll::before,
+.kx-ruler-scroll::after { content: ''; flex: 0 0 50%; }
+.kx-ruler-track {
+  position: relative;
+  flex: none;
+  height: 100%;
+  background:
+    linear-gradient(to right, var(--ink-3) 0 2px, transparent 2px) var(--major-offset, 0px) 100% / var(--major) 24px repeat-x,
+    linear-gradient(to right, var(--line-strong) 0 1px, transparent 1px) 0 100% / var(--tick) 13px repeat-x;
+}
+.kx-ruler-label {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.kx-ruler-needle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 3px;
+  height: 34px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.kx-ruler-needle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+/* --- Segmented ------------------------------------------------------------------------------- */
+
+.kx-segmented-wrap { display: flex; flex-direction: column; gap: 8px; }
+.kx-rows + .kx-segmented-wrap { margin-top: 16px; }
+.kx-segmented {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--count), 1fr);
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+.kx-segmented-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / var(--count));
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), 0 0 0 1px var(--line);
+  transform: translateX(calc(var(--index) * 100%));
+  transition: transform 380ms var(--ease-spring);
+}
+.kx-segmented button {
+  position: relative;
+  z-index: 1;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.kx-segmented button:active { transform: scale(0.96); }
+.kx-segmented button.is-on { color: var(--ink); }
+
+/* --- Choice cards ------------------------------------------------------------------------------ */
+
+.kx-choices-wrap { display: flex; flex-direction: column; gap: 8px; }
+.kx-choices { display: grid; gap: 8px; }
+.kx-choices-1 { grid-template-columns: 1fr; }
+.kx-choices-2 { grid-template-columns: 1fr 1fr; gap: 10px; }
+.kx-choices-4 { grid-template-columns: repeat(4, 1fr); }
+
+.kx-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.kx-choice:active { transform: scale(0.97); }
+.kx-choice.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  animation: kx-choice-spring 420ms var(--ease-spring);
+}
+.kx-choice-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.kx-choice-label { font-size: 15px; font-weight: 650; }
+.kx-choice-hint { font-size: 13px; color: var(--ink-3); }
+.kx-choice.is-on .kx-choice-hint { color: var(--ink-2); }
+.kx-choice-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--accent);
+}
+.kx-choice.is-on .kx-choice-icon { background: var(--surface); }
+
+/* check disc, ticks in with a spring when chosen */
+.kx-choice-check {
+  flex: none;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  box-sizing: border-box;
+}
+.kx-choice.is-on .kx-choice-check {
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: kx-pop 360ms var(--ease-spring) both;
+}
+.kx-choice.is-on .kx-choice-check::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2.5px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* two-up cards stack icon over text; the check sits in the corner */
+.kx-choices-2 .kx-choice { flex-direction: column; align-items: flex-start; min-height: 104px; padding: 14px; }
+.kx-choices-2 .kx-choice-check { position: absolute; top: 12px; right: 12px; }
+
+/* compact grid: one-line options side by side, check on the right (regions) */
+.kx-choices-2.kx-choices-compact .kx-choice { flex-direction: row; align-items: center; min-height: 52px; padding: 10px 12px; }
+.kx-choices-compact .kx-choice-label { font-size: 14px; line-height: 1.25; }
+.kx-choices-2.kx-choices-compact .kx-choice-check { position: static; width: 18px; height: 18px; }
+.kx-choices-compact .kx-choice.is-on .kx-choice-check::after { left: 4.5px; top: 1.5px; width: 4px; height: 8px; }
+
+/* four-up: compact time chips */
+.kx-choices-4 .kx-choice { justify-content: center; min-height: 46px; padding: 8px 4px; border-radius: var(--r-sm); }
+.kx-choices-4 .kx-choice-label { font-variant-numeric: tabular-nums; font-size: 14px; }
+.kx-choices-4 .kx-choice-text { flex: none; align-items: center; }
+.kx-choices-4 .kx-choice-check { display: none; }
+
+@keyframes kx-choice-spring {
+  0%   { transform: scale(0.96); }
+  60%  { transform: scale(1.015); }
+  100% { transform: none; }
+}
+
+/* --- Bottom sheet ------------------------------------------------------------------------------ */
+
+.kx-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.42);
+  font-family: var(--font-body);
+  color: var(--ink);
+  animation: kx-fade 200ms var(--ease-out) both;
+}
+.kx-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh; /* fallback: WebViews older than Chrome 108 have no dvh */
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+  padding: 6px 16px calc(env(safe-area-inset-bottom) + 18px);
+  border-radius: 24px 24px 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: kx-sheet-in 360ms var(--ease-out) both;
+}
+.kx-sheet-root.is-closing { animation: kx-sheet-fade-out 200ms ease-in both; }
+.kx-sheet-root.is-closing .kx-sheet { animation: kx-sheet-out 200ms ease-in both; }
+.kx-sheet-handle {
+  display: block;
+  width: 38px;
+  height: 4px;
+  margin: 4px auto 10px;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+}
+.kx-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.kx-sheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 750;
+  font-size: 18px;
+}
+.kx-sheet-done {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* the sheet title already names the measure */
+.kx-sheet .kx-measure > .kx-field-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (min-width: 720px) {
+  .kx-sheet-root { align-items: center; }
+  .kx-sheet { border-radius: 24px; margin: 16px; padding-bottom: 20px; }
+}
+
+@keyframes kx-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes kx-sheet-out { to { transform: translateY(100%); } }
+@keyframes kx-sheet-fade-out { to { opacity: 0; } }
+
+/* --- Settings rows ----------------------------------------------------------------------------- */
+
+.kx-rows { display: flex; flex-direction: column; margin-top: 4px; }
+.kx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0; /* rows share the card's left edge with its headings and text */
+  box-sizing: border-box;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.kx-row:last-child { border-bottom: 0; }
+.kx-row:active { background: var(--surface-2); }
+.kx-row-label { flex: 1; color: var(--ink-2); font-weight: 500; }
+.kx-row-value { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kx-row-chevron { flex: none; color: var(--ink-4); transform: rotate(-90deg); }
+/* read-only row (e.g. the signed-in email) and a destructive action row (Log out) */
+.kx-row-static { cursor: default; }
+.kx-row-static:active { background: transparent; }
+.kx-row-static .kx-row-label { flex: none; white-space: nowrap; }
+.kx-row-truncate { flex: 1; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kx-row-danger .kx-row-label { color: var(--danger); font-weight: 650; }
+
+.kx-row-input { cursor: text; }
+.kx-row-input:active { background: transparent; }
+.kx-row-input:focus-within { border-bottom-color: var(--accent); }
+.kx-row-field {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  text-align: right;
+  outline: none;
+}
+.kx-row-field::placeholder { color: var(--ink-4); font-weight: 500; }
+
+/* --- Onboarding: keep Continue in reach while the form scrolls --------------------------------- */
+
+.ob-sticky-cta {
+  position: sticky;
+  /* 0, not the safe-area inset: .ob-container's bottom padding already clears the nav bar, and adding
+     the inset again lifted the button over the last ~23px of content, even when scrolled to the end */
+  bottom: 0;
+  z-index: 2;
+  margin-top: 24px;
+  /* a short fade of the card colour above the button, so content scrolling under it doesn't clash.
+     It must stay shorter than margin-top, or it covers the last content when scrolled to the end. */
+  box-shadow: 0 -12px 12px 2px var(--surface);
+}
+/* on phones onboarding has no card, so the fade is the page colour */
+@media (max-width: 599px) {
+  .ob-sticky-cta { box-shadow: 0 -12px 12px 2px var(--bg); }
+}
