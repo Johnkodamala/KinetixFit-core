@@ -23,7 +23,7 @@ export default function DonateButton({ suggestedAmount, label }: DonateButtonPro
       style={{ width: '100%', padding: '12px' }}
       title={!JUSTGIVING_FUNDRAISING_PAGE_SLUG ? 'Set JUSTGIVING_FUNDRAISING_PAGE_SLUG in src/utils/justgiving.ts before use' : 'Opens the JustGiving page — enter the amount there'}
     >
-      {label || `🎗️ Donate £${suggestedAmount.toFixed(2)}`}
+      {label || `Donate £${suggestedAmount.toFixed(2)}`}
     </button>
   );
 }

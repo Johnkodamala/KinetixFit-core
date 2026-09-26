@@ -20,6 +20,13 @@ const STATUS_COLORS: Record<string, string> = {
   Calibrating: 'var(--warn)',
   Syncing: 'var(--info)'
 };
+// What the pill says: the stored statuses are internal words ("Calibrating" meant "no reading yet")
+const STATUS_LABELS: Record<string, string> = {
+  Optimal: 'Synced',
+  Critical: 'High',
+  Calibrating: 'Waiting',
+  Syncing: 'Syncing'
+};
 
 interface BiometricTrendCardProps {
   icon: ReactNode;
@@ -35,7 +42,8 @@ interface BiometricTrendCardProps {
   chartType: 'bar' | 'line';
   /** Whether there's any basis at all to expect real data (e.g. a device has ever been connected). */
   isTrackable: boolean;
-  disconnectedMessage: string;
+  /** Shown under a card with no data source. Omit when the screen already has one Connect prompt. */
+  disconnectedMessage?: string;
   /** Shown instead of the chart when isTrackable but fewer than minPoints real values exist yet. */
   buildingMessage?: string;
   minPoints?: number;
@@ -84,23 +92,24 @@ export default function BiometricTrendCard({
   const gradientId = `btc-grad-${title.replace(/[^a-zA-Z0-9]/g, '')}`;
   let lastRealIndex = -1;
   visibleData.forEach((d, i) => { if (d.value !== null) lastRealIndex = i; });
+  const realPointCount = visibleData.filter(d => d.value !== null).length;
   const statusColor = STATUS_COLORS[status] || 'var(--ink-3)';
   const hasChart = isTrackable && !showBuilding;
 
   return (
     <div className={`btc-card ${expanded ? 'btc-open' : ''}`} style={{ ['--metric' as string]: color }}>
-      <button className="btc-header" onClick={onToggle} type="button" aria-expanded={expanded}>
+      <button className="btc-header" onClick={isTrackable ? onToggle : undefined} type="button" aria-expanded={isTrackable ? expanded : undefined} disabled={!isTrackable}>
         <span className="btc-icon">{icon}</span>
         <span className="btc-heading">
           <span className="btc-title">{title}</span>
           <span className="btc-reading">{latestReading}</span>
         </span>
-        {isTrackable ? <span className="btc-status-pill" style={{ ['--status' as string]: statusColor }}>{status}</span> : <span />}
-        <span className="btc-chevron"><ChevronIcon /></span>
+        {isTrackable ? <span className="btc-status-pill" style={{ ['--status' as string]: statusColor }}>{STATUS_LABELS[status] ?? status}</span> : <span />}
+        {isTrackable ? <span className="btc-chevron"><ChevronIcon /></span> : <span />}
       </button>
 
       {!isTrackable ? (
-        <p className="btc-empty">{disconnectedMessage}</p>
+        disconnectedMessage ? <p className="btc-empty">{disconnectedMessage}</p> : null
       ) : showBuilding ? (
         <p className="btc-empty">{buildingMessage || 'Building your trend — check back in a few days.'}</p>
       ) : (
@@ -145,7 +154,8 @@ export default function BiometricTrendCard({
                   connectNulls
                   animationDuration={800}
                   animationEasing="ease-out"
-                  dot={expanded ? makeTodayDot(color, lastRealIndex) : false}
+                  // one day of data draws no line, so show that day as a dot instead of an empty chart
+                  dot={expanded || realPointCount === 1 ? makeTodayDot(color, lastRealIndex) : false}
                   activeDot={expanded ? { r: 5, fill: color, stroke: 'var(--surface)', strokeWidth: 2 } : false}
                 />
               </AreaChart>
@@ -194,25 +204,27 @@ export default function BiometricTrendCard({
       <style>{`
         .btc-card {
           position: relative;
-          background: var(--surface);
-          border: 1px solid var(--line);
+          /* liquid glass, like the other cards (src/styles/glass.css) */
+          background: linear-gradient(180deg, var(--glass-sheen), transparent 38%), var(--glass-fill);
+          border: 1px solid var(--glass-border);
           border-radius: var(--r-md);
           padding: 14px 16px 14px 18px;
           box-sizing: border-box;
           color: var(--ink);
-          box-shadow: var(--shadow-sm);
+          box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge);
           overflow: hidden;
           transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), border-color var(--dur);
         }
         /* The metric's "lane": a coloured rail down the left edge that thickens when open */
         .btc-card::before {
           content: '';
-          position: absolute; left: 0; top: 0; bottom: 0;
-          width: 4px;
+          position: absolute; left: 6px; top: 14px; bottom: 14px;
+          width: 3px;
+          border-radius: 3px;
           background: var(--metric);
           transition: width var(--dur) var(--ease-out);
         }
-        .btc-card.btc-open { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--metric) 30%, var(--line)); }
+        .btc-card.btc-open { box-shadow: var(--shadow-md), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge); border-color: color-mix(in srgb, var(--metric) 35%, var(--glass-border)); }
         .btc-card.btc-open::before { width: 6px; }
         .btc-header {
           all: unset;

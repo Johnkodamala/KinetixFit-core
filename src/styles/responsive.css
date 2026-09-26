@@ -1,0 +1,237 @@
+/* =============================================================================
+   Responsive layer — loaded LAST (src/main.tsx), after glass.css.
+   The other stylesheets are written for a ~360–430px portrait phone. This file adapts them to
+   everything else a phone or tablet can be:
+
+   1. Every width   fluid gutters that also clear a landscape notch (safe-area left/right)
+   2. Narrow phones (< 360px: Galaxy Fold cover, iPhone SE 1st gen, small Androids)
+   3. Short screens (portrait, ≤ 700px tall: iPhone SE, 16:9 Androids) — a tighter hero and tab bar
+   4. Two columns   tablets (≥ 700px) and phones on their side (≥ 640px wide) get two-column tabs
+   5. Landscape phones (≤ 540px tall) — compact tab bar, onboarding side by side, sheets that fit
+   ============================================================================= */
+
+/* --- 1. Every width ------------------------------------------------------------------------- */
+
+/* Gutter grows a little with the screen (12px on a 280px Fold cover, 16px on most phones, 20px on
+   tablets) and never lets content sit under a notch or rounded corner when the phone is turned. */
+.app-scroll-body {
+  --gutter: clamp(12px, 4.2vw, 20px);
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+.ob-container {
+  padding-left: max(clamp(14px, 5vw, 20px), env(safe-area-inset-left));
+  padding-right: max(clamp(14px, 5vw, 20px), env(safe-area-inset-right));
+}
+@media (min-width: 1024px) {
+  .app-scroll-body { --gutter: 32px; }
+}
+
+/* Option grids: minmax(0, 1fr) — a plain 1fr can't shrink below its widest label, which pushed
+   "South East" off a 280px screen at large font sizes */
+.kx-choices-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kx-choices-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.kx-choice-label, .kx-choice-hint { overflow-wrap: break-word; }
+.support-emails-box span { overflow-wrap: anywhere; }
+
+/* Nourish is a single column on phones (see section 4 for two columns) */
+.kx-nourish-grid { gap: 20px; }
+
+/* Long names and words never push past the edge */
+.kx-hero-greeting,
+.ob-title,
+.ay-hello,
+.kx-page-title,
+.kx-tab-title,
+.card-header-title,
+.kx-food-title h4 { overflow-wrap: break-word; }
+
+/* Hero type follows the hero's own width, not the screen's — in a two-column layout the hero is
+   half the screen. vw first for WebViews without container query units (Chrome < 105). */
+.vitals-hero-card,
+.ob-hero-panel { container-type: inline-size; }
+.kx-hero-greeting { font-size: clamp(22px, 7.4vw, 34px); font-size: clamp(22px, 8.6cqi, 34px); }
+.ob-hero-title { font-size: clamp(28px, 9vw, 44px); font-size: clamp(28px, 11.5cqi, 44px); }
+.ay-hello { font-size: clamp(28px, 9.4vw, 44px); font-size: clamp(28px, 11.5cqi, 44px); }
+.ay-big { font-size: clamp(48px, 16vw, 72px); font-size: clamp(48px, 19cqi, 72px); }
+
+/* Tap targets: the small suggestion chips, text links and the email links were under 36px tall */
+.kx-chip.kx-chip-sm { min-height: 36px; }
+.ob-link { min-height: 36px; padding: 0 6px; margin-left: -6px; margin-right: -6px; }
+.support-emails-box a { display: inline-flex; align-items: center; min-height: 40px; }
+.support-emails-box { gap: 0; }
+/* the cycle tile's hint is an instruction — wrap it instead of cutting it off mid-sentence */
+.bio-behavior-log { white-space: normal; line-height: 1.45; }
+.redeem-rewards-btn { min-height: 40px; }
+
+/* Two-button rows never wrap their labels onto a second line */
+.ob-actions > button,
+.ob-btn-row > button { white-space: nowrap; }
+
+/* While the on-screen keyboard is up (src/lib/keyboard.ts), the floating tab bar and camera button would sit
+   on top of it and cover the field being typed in — they step aside until it closes */
+.kx-keyboard-open .phone-bottom-nav,
+.kx-keyboard-open .floating-hud-camera-fab { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 120ms ease-out, visibility 0s 120ms; }
+
+/* iOS zooms the page into any text field under 16px when it's focused */
+.kx-row-field { font-size: 16px; }
+/* iOS/WebKit draws date fields as their own control: left-aligned, with an intrinsic width. Make the date
+   row (Last period started) line up on the right like every other value. */
+input[type='date'].kx-row-field { -webkit-appearance: none; appearance: none; min-width: 0; min-height: 44px; justify-content: flex-end; }
+input[type='date'].kx-row-field::-webkit-date-and-time-value { text-align: right; }
+
+/* --- 2. Narrow phones ------------------------------------------------------------------------- */
+@media (max-width: 359px) {
+  .ecg-module-card, .nourish-summary-card, .scanner-module-card, .rewards-summary-card,
+  .biopoint-validator-card, .quests-card, .rewards-redemption-card, .charity-matching-card,
+  .hub-billing-card, .hub-support-card, .legal-block-card, .sync-diagnostics-card { padding: 16px; }
+  .kx-food-suggest { margin: 0 -16px; padding: 2px 16px; }
+  .vitals-hero-card { padding: 18px 16px 16px; }
+  .kx-hero-target-row { gap: 16px; }
+  .kx-hero-target-row strong { font-size: 19px; }
+  .kx-tab-title { font-size: 26px; }
+  .nourish-calories-remaining { font-size: 30px; }
+  .rewards-wallet-balance { font-size: 32px; }
+  .badges-gallery-grid { gap: 8px; }
+  .billing-stats-row { grid-template-columns: minmax(0, 1fr); }
+  .ob-actions > .primary-btn, .ob-actions > .secondary-btn { padding-left: 12px; padding-right: 12px; }
+  .ob-btn-row .ob-btn-secondary { flex-basis: 30%; }
+  /* with the phone's font size turned up, "KinetixFit" is wider than the panel: a smaller size, and a
+     break as the last resort rather than text cut off at the edge */
+  .ob-hero-title { font-size: clamp(26px, 10cqi, 40px); overflow-wrap: anywhere; }
+}
+@media (max-width: 339px) {
+  /* 4 tiles of ~50px are too tight to tap and read — 2 × 2 instead */
+  .kx-activity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kx-activity { min-height: 64px; flex-direction: row; gap: 8px; }
+  .kx-food-macros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kx-food-minerals { grid-template-columns: minmax(0, 1fr); }
+  .kx-food-minerals > div:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  .kx-food-actions { grid-template-columns: minmax(0, 1fr); }
+  .kx-food-action { flex-direction: row; align-items: center; min-height: 56px; }
+  .ay-targets strong { font-size: 18px; }
+  .ay-tiles { grid-template-columns: minmax(0, 1fr); }
+  .kx-choices-4 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .phone-bottom-nav { width: calc(100% - 20px); }
+  .floating-hud-camera-fab { right: 14px; }
+}
+
+/* --- 3. Short portrait screens --------------------------------------------------------------- */
+@media (orientation: portrait) and (max-height: 700px) {
+  .phone-bottom-nav { height: 60px; bottom: calc(env(safe-area-inset-bottom) + 10px); }
+  .app-scroll-body { padding-bottom: calc(env(safe-area-inset-bottom) + 96px); }
+  .floating-hud-camera-fab { bottom: calc(env(safe-area-inset-bottom) + 84px); width: 50px; height: 50px; }
+  .vitals-hero-card { gap: 12px; padding-top: 18px; padding-bottom: 16px; }
+  .kx-hero-status { margin-top: 6px; }
+  .kx-lap { padding: 6px 12px 6px 10px; }
+  .kx-lap-num { font-size: 22px; }
+  .kx-tab-title { margin: 2px 0 8px; }
+  .ob-hero-panel { min-height: 220px; }
+  .ob-title { font-size: 24px; }
+  .ob-body { margin-bottom: 18px; }
+  .ob-badge { width: 52px; height: 52px; margin-bottom: 14px; border-radius: 16px; }
+  .ob-perm-list li { padding: 9px 0; }
+  .ay-hero { min-height: 280px; }
+  .ay-top { margin-bottom: 16px; }
+  .modal-content-card { padding: 20px; }
+}
+
+/* --- 4. Two columns: tablets, and phones turned on their side -------------------------------- */
+@media (min-width: 700px), (orientation: landscape) and (min-width: 640px) {
+  .vitals-dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  /* Nourish: today's numbers and meal ideas on the left, Check a food on the right */
+  .kx-nourish-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .kx-nourish-grid > .kx-food-card { grid-column: 2; grid-row: 1 / span 2; }
+  .kx-nourish-grid > :not(.kx-food-card) { grid-column: 1; }
+}
+@media (min-width: 1024px) {
+  .vitals-dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; }
+}
+/* Tablets: more room at the top, and a slightly larger tab bar and camera button position */
+@media (min-width: 700px) and (min-height: 700px) {
+  .app-scroll-body { padding-top: calc(env(safe-area-inset-top) + 20px); }
+  .phone-bottom-nav { max-width: 480px; height: 70px; bottom: calc(env(safe-area-inset-bottom) + 20px); }
+  .nav-label { font-size: 12px; }
+  .floating-hud-camera-fab { bottom: calc(env(safe-area-inset-bottom) + 104px); right: max(24px, calc((100vw - 1120px) / 2 + 24px)); }
+}
+
+/* --- 5. Landscape phones --------------------------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 540px) {
+  /* compact tab bar: icon and label side by side, low on the screen */
+  .phone-bottom-nav {
+    height: 50px;
+    max-width: 520px;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+  }
+  .nav-item-btn { flex-direction: row; gap: 7px; }
+  .nav-label { font-size: 12px; }
+  .app-scroll-body {
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 76px);
+  }
+  .floating-hud-camera-fab {
+    width: 48px; height: 48px;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    right: max(16px, calc(env(safe-area-inset-right) + 8px));
+  }
+  .kx-fab-clearance { display: none; }
+  .alert-ticker { top: calc(env(safe-area-inset-top) + 8px); }
+
+  /* heroes: shorter, so the first cards show without scrolling */
+  .vitals-hero-card { gap: 10px; padding: 16px 18px; }
+  .kx-hero-status { margin-top: 4px; }
+  .kx-lap { padding: 5px 12px 5px 10px; }
+  .kx-lap-num { font-size: 20px; }
+  .kx-tab-title { font-size: 24px; margin: 0 0 4px; }
+
+  /* onboarding: a wider card, less vertical padding */
+  .ob-container {
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+  }
+  /* a phone on its side is still a phone: full-screen onboarding, no floating card (that's for the website) */
+  .ob-card {
+    flex: none;
+    max-width: 640px;
+    margin: auto;
+    padding: 8px 4px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .ob-sticky-cta { box-shadow: 0 -12px 12px 2px var(--bg); }
+  .ob-card > .ob-btn-primary,
+  .ob-card > .ob-btn-row,
+  .ob-card > .ob-actions { margin-top: 8px; }
+  .ob-hero-panel { min-height: 0; }
+  .ay-hero { min-height: 0; padding-top: 22px; }
+  .ay-build { padding-bottom: 0; }
+  .ob-dots { margin-top: 14px; }
+
+  /* welcome: the track panel on the left, the words and button on the right */
+  .ob-card.ob-card-hero {
+    max-width: 780px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: 28px;
+    align-content: center;
+    padding: 10px;
+  }
+  .ob-card-hero > .ob-hero-panel {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    margin: 0;
+    min-height: min(300px, calc(100dvh - 60px));
+  }
+  .ob-card-hero > :not(.ob-hero-panel) { grid-column: 2; margin-left: 0; margin-right: 10px; }
+  .ob-card-hero > .ob-body { align-self: end; margin-bottom: 18px; }
+  .ob-card-hero > .ob-btn-primary { width: calc(100% - 10px); align-self: center; }
+  .ob-card-hero > .ob-dots { align-self: start; }
+
+  /* sheets and pop-ups: use the full height, stay readable width */
+  .portal-overlay-modal { align-items: center; padding: 8px; }
+  .modal-content-card { max-width: 520px; max-height: calc(100dvh - 16px); padding: 18px 20px; }
+  .kx-sheet-root { align-items: flex-end; }
+  .kx-sheet { max-width: 560px; max-height: calc(100dvh - 12px); }
+}

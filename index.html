@@ -2,15 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>KinetixFit | Fitness, Nutrition & Rewards</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <!-- PNG fallback for browsers/platforms that don't support SVG favicons -->
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="apple-touch-icon" href="/favicon-180.png">
     <meta name="description" content="KinetixFit helps you track workouts, log meals, and earn real rewards for healthy habits — using real data from your phone or wearable, not guesswork." />
+    <!-- Launch intro (src/components/LaunchIntro.tsx): decide before first paint so the page starts on
+         the launch colour instead of flashing the app background. Plays once per session. -->
+    <script>
+      try { if (sessionStorage.getItem('kx_intro_seen') !== '1') document.documentElement.dataset.intro = 'run'; }
+      catch (e) { document.documentElement.dataset.intro = 'run'; }
+    </script>
+    <style>html[data-intro='run'], html[data-intro='run'] body { background-color: #16181F; }</style>
+    <!-- Theme (src/lib/theme.ts): resolve light/dark before first paint so the app never flashes the wrong one. -->
+    <script>
+      (function () {
+        var saved = null, nativeDark = null;
+        try { saved = localStorage.getItem('kx_theme'); nativeDark = localStorage.getItem('kx_system_dark'); } catch (e) {}
+        // kx_system_dark: Android's last answer (the WebView media query is unreliable there)
+        var systemDark = nativeDark !== null ? nativeDark === '1' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var dark = saved === 'dark' || (saved !== 'light' && systemDark);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
-  <body style="margin: 0; background-color: #030712; color: #ffffff; overflow-y: auto; overflow-x: hidden;">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

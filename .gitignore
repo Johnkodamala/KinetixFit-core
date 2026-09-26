@@ -46,3 +46,6 @@ ios/App/App.xcodeproj/xcuserdata
 *.keystore
 *.p12
 *.pem
+.vercel
+.env*
+!.env.example

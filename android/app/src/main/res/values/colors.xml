@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch colour: matches the launch-bg token in src/index.css and the web launch intro, so the native
+         splash hands straight over to it without a flash or a second logo. -->
+    <color name="kx_launch_bg">#16181F</color>
+    <!-- App background (bg token in src/index.css); values-night/colors.xml has the dark one -->
+    <color name="kx_app_bg">#F3F4F0</color>
+</resources>

@@ -1,7 +1,7 @@
 /* =============================================================================
    KinetixFit design tokens — "track day"
    Everything in App.tsx and components reads colour, type and motion from here.
-   Light is the default; the dark set applies when the phone/OS is in dark mode.
+   Light is the default; the dark set applies under <html data-theme='dark'> (see src/lib/theme.ts).
    ============================================================================= */
 
 @import '@fontsource-variable/archivo/wdth.css';
@@ -12,7 +12,7 @@
   --bg: #F3F4F0;            /* chalk */
   --bg-translucent: rgba(243, 244, 240, 0.86);
   --surface: #FFFFFF;       /* paper */
-  --surface-2: #ECEEE8;     /* recessed fills, chips, inputs */
+  --surface-2: rgba(22, 24, 31, 0.055); /* recessed fills, chips, inputs — translucent so glass shows through */
   --line: #E1E3DC;
   --line-strong: #CBCEC5;
 
@@ -37,12 +37,18 @@
   --m-heart: #E5532D;
   --m-sleep: #6A4FD6;
   --m-stress: #B87708;
+  --m-cycle: #C2417A;
 
   /* The dark "hero" panel stays dark in both themes */
   --hero-bg: #16181F;
   --hero-ink: #F4F3EE;
   --hero-ink-2: #A7ABB5;
   --hero-lane: rgba(244, 243, 238, 0.10);
+
+  /* Launch intro + native splash — fixed in both themes (android colors.xml and index.html match) */
+  --launch-bg: #16181F;
+  --launch-ink: #F4F3EE;
+  --launch-lane: rgba(244, 243, 238, 0.16);
 
   /* Type */
   --font-display: 'Archivo Variable', 'Arial Black', system-ui, sans-serif;
@@ -57,6 +63,26 @@
   --shadow-md: 0 6px 20px -8px rgba(22, 24, 31, 0.18), 0 2px 6px -2px rgba(22, 24, 31, 0.06);
   --shadow-lg: 0 24px 48px -16px rgba(22, 24, 31, 0.28);
 
+  /* Liquid glass (src/styles/glass.css): translucent surfaces over a soft ambient background */
+  --ambient-warm: rgba(229, 83, 45, 0.16);   /* accent glow, top right */
+  --ambient-cool: rgba(36, 102, 217, 0.12);  /* info glow, left */
+  --ambient-violet: rgba(124, 92, 255, 0.10);
+  --glass-fill: rgba(255, 255, 255, 0.62);
+  --glass-fill-strong: rgba(255, 255, 255, 0.80); /* floating bars */
+  --glass-fill-sheet: rgba(255, 255, 255, 0.93);  /* sheets and pop-ups: text sits on them, so less see-through */
+  --glass-sheen: rgba(255, 255, 255, 0.55);        /* top-down highlight across a surface */
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-edge: rgba(22, 24, 31, 0.07);            /* hairline that keeps white glass defined on a light page */
+  --glass-highlight: rgba(255, 255, 255, 0.95);    /* 1px inner top edge */
+  --glass-shadow: 0 12px 32px -14px rgba(40, 44, 64, 0.22), 0 2px 6px -2px rgba(40, 44, 64, 0.06);
+  --glass-blur: 22px;
+  --btn-sheen: rgba(255, 255, 255, 0.26);          /* gloss on accent buttons */
+  --hero-glow: rgba(229, 83, 45, 0.34);            /* warm light inside the dark hero */
+  --glass-shade: rgba(22, 24, 31, 0.04);           /* 1px inner bottom edge: glass has thickness */
+  --glass-press: rgba(22, 24, 31, 0.05);           /* pressed row/tile tint */
+  --lens-tint: 15%;                                /* how much accent the selected-tab lens takes */
+  --nav-active-ink: var(--accent-press);           /* darker clay: 11px labels need the contrast on a light lens */
+
   /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -67,43 +93,62 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0F1116;
-    --bg-translucent: rgba(15, 17, 22, 0.86);
-    --surface: #181B22;
-    --surface-2: #20242D;
-    --line: #2A2F39;
-    --line-strong: #3A404C;
+/* Dark theme. <html data-theme> is set from the user's choice in Account → Appearance (System follows
+   the phone) by src/lib/theme.ts, and before first paint by the inline script in index.html. */
+:root[data-theme='dark'] {
+  --bg: #0F1116;
+  --bg-translucent: rgba(15, 17, 22, 0.86);
+  --surface: #181B22;
+  --surface-2: rgba(244, 243, 238, 0.07);
+  --line: #2A2F39;
+  --line-strong: #3A404C;
 
-    --ink: #F2F2EE;
-    --ink-2: #C3C6CE;
-    --ink-3: #9197A3;
-    --ink-4: #686E7A;
+  --ink: #F2F2EE;
+  --ink-2: #C3C6CE;
+  --ink-3: #9197A3;
+  --ink-4: #686E7A;
 
-    --accent: #FF6A3D;
-    --accent-press: #FF835E;
-    --accent-soft: #3A2019;
-    --on-accent: #16181F;
-    --info: #6E9EFF;
-    --good: #3CC98A;
-    --warn: #F0B03C;
-    --danger: #FF6B6B;
+  --accent: #FF6A3D;
+  --accent-press: #FF835E;
+  --accent-soft: #3A2019;
+  --on-accent: #16181F;
+  --info: #6E9EFF;
+  --good: #3CC98A;
+  --warn: #F0B03C;
+  --danger: #FF6B6B;
 
-    --m-steps: #6E9EFF;
-    --m-heart: #FF6A3D;
-    --m-sleep: #A08BFF;
-    --m-stress: #F0B03C;
+  --m-steps: #6E9EFF;
+  --m-heart: #FF6A3D;
+  --m-sleep: #A08BFF;
+  --m-stress: #F0B03C;
+  --m-cycle: #F07AAE;
 
-    --hero-bg: #1F232C;
-    --hero-lane: rgba(244, 243, 238, 0.08);
+  --hero-bg: #1F232C;
+  --hero-lane: rgba(244, 243, 238, 0.08);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 8px 24px -10px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px -10px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
 
-    color-scheme: dark;
-  }
+  --ambient-warm: rgba(255, 106, 61, 0.14);
+  --ambient-cool: rgba(110, 158, 255, 0.10);
+  --ambient-violet: rgba(160, 139, 255, 0.09);
+  --glass-fill: rgba(30, 34, 44, 0.58);
+  --glass-fill-strong: rgba(26, 29, 38, 0.80);
+  --glass-fill-sheet: rgba(24, 27, 34, 0.94);
+  --glass-sheen: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-edge: rgba(0, 0, 0, 0.35);
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 16px 36px -16px rgba(0, 0, 0, 0.65), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
+  --btn-sheen: rgba(255, 255, 255, 0.18);
+  --hero-glow: rgba(255, 106, 61, 0.24);
+  --glass-shade: rgba(0, 0, 0, 0.25);
+  --glass-press: rgba(255, 255, 255, 0.05);
+  --lens-tint: 20%;
+  --nav-active-ink: var(--accent);
+
+  color-scheme: dark;
 }
 
 html, body {
@@ -114,6 +159,29 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* The page itself never scrolls: every screen scrolls inside its own panel (.ob-container,
+   .app-scroll-body). Phone screens are often a fraction of a pixel shorter than 100dvh rounds to
+   (e.g. 842.7 vs 843), which otherwise leaves the whole page 1px scrollable with a stray scrollbar. */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The app draws behind the phone's status bar (viewport-fit=cover); this frosted strip keeps the
+   clock and icons readable over content scrolling underneath. Zero height where there's no inset. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top);
+  background: var(--bg-translucent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  z-index: 900;
+  pointer-events: none;
 }
 
 button, input, select, textarea { font-family: inherit; }

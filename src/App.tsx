@@ -1,14 +1,24 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Purchases, type CustomerInfo } from '@revenuecat/purchases-capacitor';
-import { Health } from '@capgo/capacitor-health';
+import { Health, type HealthSample } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { serverUrl } from './lib/server';
+import { localDayKey, localDayKeyDaysAgo } from './lib/dates';
+import { bmiOf } from './lib/bmi';
+import { primarySourceLabel, isSamsungDevice } from './lib/healthSources';
+import { getThemePref, setThemePref, type ThemePref } from './lib/theme';
+import { selection as hapticSelection } from './lib/feedback';
 import type { Session } from '@supabase/supabase-js';
 import BiometricTrendCard, { type DailyPoint } from './components/BiometricTrendCard';
-import { StepsIcon, HeartIcon, SleepIcon, StressIcon, CameraIcon, RewardIcon, BellIcon } from './components/Icons';
+import { ProfileSettingsList } from './components/ProfileFields';
+import AboutYouFlow from './components/AboutYouFlow';
+import TabBar from './components/TabBar';
+import { ChoiceCards, Segmented, SheetRow } from './components/Pickers';
+import { StepsIcon, HeartIcon, SleepIcon, StressIcon, CameraIcon, RewardIcon, BellIcon, MessageIcon, ChevronIcon, FlameIcon, DumbbellIcon, MedalIcon, TrophyIcon, LockIcon, RecoveryIcon, BikeIcon, WavesIcon, BowlIcon, TargetIcon, GiftIcon, SearchIcon, BarcodeIcon } from './components/Icons';
 import TrackLanes from './components/TrackLanes';
 
 // ============================================================================
@@ -33,7 +43,7 @@ interface TelemetryStream {
   };
 }
 
-interface UserProfile {
+export interface UserProfile {
   name: string;
   email: string;
   height: number;
@@ -47,14 +57,57 @@ interface UserProfile {
   activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
   lastPeriodStartDate: string | null;
   averageCycleLength: number;
+  /** onboarding region id (src/lib/regions.ts); null until chosen */
+  region: string | null;
 }
+
+// In-app message pill (see notify()). The tone picks its icon and colour.
+type MessageTone = 'success' | 'error' | 'warn' | 'info';
+interface AppMessage { tone: MessageTone; text: string; }
 
 // Onboarding step index at which the real dashboard becomes visible. Steps: 0-1 Welcome,
 // 2 Sign up/Log in, 3 Health permission, 4 Notifications permission, 5 Profile, 6 Allergies.
 const DASHBOARD_STEP = 7;
 
+// Reminder hours, shown as 24-hour times
+const formatHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: formatHour(h) }));
+
 // Bottom-nav order; the sliding indicator's position is this index.
-const TAB_IDS = ['vitals', 'nourish', 'profile', 'hub'];
+const TAB_IDS = ['vitals', 'nourish', 'rewards', 'account'];
+
+// Account is a settings menu; each row opens one of these pages at #account/<page>, so the browser
+// and Android back button return to the menu.
+type AccountPage = 'details' | 'allergies' | 'devices' | 'reminders' | 'subscription' | 'promo' | 'about' | 'privacy' | 'help';
+const ACCOUNT_PAGE_TITLES: Record<AccountPage, string> = {
+  details: 'Your details', allergies: 'Food allergies', devices: 'Connected devices', reminders: 'Reminders',
+  subscription: 'Plan & billing', promo: 'Promo code', about: 'About KinetixFit', privacy: 'Your data & privacy', help: 'Get help'
+};
+const WORKOUT_MODES: { id: 'rest' | 'run' | 'cycle' | 'swim'; label: string; icon: React.ReactNode }[] = [
+  { id: 'rest', label: 'Recovery', icon: <RecoveryIcon size={22} /> },
+  { id: 'run', label: 'Run', icon: <StepsIcon size={22} /> },
+  { id: 'cycle', label: 'Cycle', icon: <BikeIcon size={22} /> },
+  { id: 'swim', label: 'Swim', icon: <WavesIcon size={22} /> }
+];
+
+// Points one charity donation costs (matches the "Donate 1,000 pts · £2.50" buttons)
+const CHARITY_DONATION_POINTS = 1000;
+
+// One-tap examples under the food search
+const FOOD_SUGGESTIONS = ['Porridge', 'Banana', 'Greek yogurt', 'Chicken breast'];
+
+const THEME_LABELS: Record<ThemePref, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+
+// Old links: Profile and Hub were split into Rewards and Account, and Account now holds their settings.
+const LEGACY_TABS: Record<string, string> = { profile: 'account', hub: 'account' };
+
+function parseRoute(hash: string): { tab: string; page: AccountPage | null } | null {
+  const [rawTab, rawPage] = hash.replace('#', '').split('/');
+  const tab = LEGACY_TABS[rawTab] ?? rawTab;
+  if (!TAB_IDS.includes(tab)) return null;
+  const page = tab === 'account' && rawPage && rawPage in ACCOUNT_PAGE_TITLES ? rawPage as AccountPage : null;
+  return { tab, page };
+}
 
 
 
@@ -62,12 +115,48 @@ const TAB_IDS = ['vitals', 'nourish', 'profile', 'hub'];
 // both hold far more than this; 30 is just the widest range the UI currently offers.
 const TRENDS_LOOKBACK_DAYS = 30;
 const STRESS_HISTORY_STORAGE_KEY = 'kinetix_stress_history';
+const NOTIFICATIONS_SKIPPED_KEY = 'kx_notifications_skipped'; // "Skip for now" on the reminders screen
+const NO_STRESS_NOTICE_KEY = 'kx_no_stress_notice_seen'; // "Samsung Health doesn't share stress" shown once
 
 // Turns aggregated device-history samples into { day, value } entries keyed by calendar day,
 // ready for buildDailyPoints. Rounding/unit conversion (e.g. sleep minutes -> quality %) happens
 // at the call site since it differs per metric.
 function toDayEntries(samples: { startDate: string; value: number }[]): { day: string; value: number }[] {
-  return samples.map(s => ({ day: new Date(s.startDate).toISOString().slice(0, 10), value: s.value }));
+  return samples.map(s => ({ day: localDayKey(new Date(s.startDate)), value: s.value }));
+}
+
+// Minutes actually asleep across a set of sleep samples. Health Connect returns one sample per
+// session (value = time in bed) with optional stages; HealthKit returns one sample per state, where
+// 'inBed' overlaps the asleep samples. Awake time is left out, and 'inBed' only counts when nothing
+// more specific was recorded (e.g. a phone-only HealthKit user).
+function totalSleepMinutes(samples: HealthSample[]): number {
+  const isAsleep = (state?: string) => state !== 'awake' && state !== 'inBed';
+  const asleep = samples.filter(s => isAsleep(s.sleepState));
+  const counted = asleep.length > 0 ? asleep : samples.filter(s => s.sleepState === 'inBed');
+  return counted.reduce((sum, s) => {
+    if (s.stages && s.stages.length > 0) {
+      return sum + s.stages.filter(st => isAsleep(st.stage)).reduce((t, st) => t + st.durationMinutes, 0);
+    }
+    return sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
+  }, 0);
+}
+
+// Health Connect can't aggregate sleep, so trend points are built from raw samples, each night
+// credited to the day it ended on (the morning you woke up).
+function sleepDayEntries(samples: HealthSample[]): { day: string; value: number }[] {
+  const byDay = new Map<string, HealthSample[]>();
+  for (const s of samples) {
+    const day = localDayKey(new Date(s.endDate));
+    byDay.set(day, [...(byDay.get(day) ?? []), s]);
+  }
+  return [...byDay].map(([day, daySamples]) => ({ day, value: totalSleepMinutes(daySamples) }));
+}
+
+// Samples from one settled health query, or none (with a warning) if that query failed.
+function settledSamples<T>(result: PromiseSettledResult<{ samples: T[] }>, label: string): T[] {
+  if (result.status === 'fulfilled') return result.value.samples;
+  console.warn(`Health data read failed (${label}):`, result.reason);
+  return [];
 }
 
 function formatMinutesAsHoursMinutes(totalMinutes: number): string {
@@ -85,7 +174,7 @@ function buildDailyPoints(entries: { day: string; value: number }[], days: numbe
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDayKey(d);
     const raw = byDay.get(key);
     points.push({
       date: key,
@@ -108,7 +197,7 @@ function loadStressHistory(): { day: string; value: number }[] {
 }
 
 function recordStressSnapshot(hrv: number): { day: string; value: number }[] {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDayKey();
   const history = loadStressHistory();
   const idx = history.findIndex(h => h.day === today);
   if (idx >= 0) {
@@ -150,7 +239,8 @@ const DEFAULT_PROFILE: UserProfile = {
   age: 30,
   activityLevel: 'moderate',
   lastPeriodStartDate: null,
-  averageCycleLength: 28
+  averageCycleLength: 28,
+  region: null
 };
 
 const ACTIVITY_MULTIPLIERS: Record<UserProfile['activityLevel'], number> = {
@@ -161,8 +251,9 @@ const ACTIVITY_MULTIPLIERS: Record<UserProfile['activityLevel'], number> = {
   very_active: 1.9
 };
 
+// NHS weight-loss advice: about 600 kcal a day under what you burn, for 0.5–1 kg a week (the plan quotes it)
 const GOAL_CALORIE_ADJUSTMENT: Record<UserProfile['target'], number> = {
-  'Weight Loss': -500,
+  'Weight Loss': -600,
   'Weight Gain': 300,
   'Cardio Endurance': 0,
   'Autonomic Recovery': 0
@@ -175,6 +266,13 @@ const GOAL_PROTEIN_PER_KG: Record<UserProfile['target'], number> = {
   'Autonomic Recovery': 1.6
 };
 
+// Protein per kg is meant for lean mass: above a BMI of 30 it's worked out from the weight at a BMI of 25
+// instead (the usual "adjusted weight" approach), or a 120 kg person was told to eat 240 g a day.
+function proteinReferenceWeight(p: UserProfile): number {
+  const heightM = p.height / 100;
+  return bmiOf(p.height, p.weight) >= 30 ? 25 * heightM * heightM : p.weight;
+}
+
 // Mifflin-St Jeor equation. Falls back to the midpoint of the male/female offset when sex is unset.
 function calculateBmr(p: UserProfile): number {
   const base = 10 * p.weight + 6.25 * p.height - 5 * p.age;
@@ -183,83 +281,32 @@ function calculateBmr(p: UserProfile): number {
   return base - 78;
 }
 
-const DAILY_QUOTES = [
-  "Every step counts — you're doing better than you think.",
-  "Progress isn't always visible, but it's always real.",
-  "Today's a good day to be a little stronger than yesterday.",
-  "You don't have to be perfect, just consistent.",
-  "Small wins add up to big changes.",
-  "Rest is part of the plan, not a break from it.",
-  "You showed up — that's the hard part done.",
-  "Your only competition is who you were yesterday.",
-  "One good choice at a time. That's all it takes.",
-  "Strength grows in the moments you almost gave up.",
-  "You're allowed to go at your own pace.",
-  "Consistency beats intensity, every time.",
-  "Take care of your body — it's the only one you get.",
-  "A little progress each day adds up to big results.",
-  "You're closer than you were this morning.",
-  "Some days are about pushing hard. Today can be about showing up.",
-  "Every healthy choice is a vote for the person you're becoming.",
-  "You don't need to feel motivated to take one small step.",
-  "Recovery is where the real progress happens.",
-  "Be proud of showing up, not just the results.",
-  "The best workout is the one you actually do.",
-  "Your body hears everything your mind says — be kind to it.",
-  "Discipline is just remembering what you actually want.",
-  "You're allowed to start small. Starting is what matters.",
-  "Good habits compound quietly, then all at once.",
-  "There's no finish line — just today's next good decision.",
-  "You've survived 100% of your hardest days so far.",
-  "Energy comes from moving, even when you don't feel like it.",
-  "Celebrate the small stuff — it's not actually small.",
-  "You're building something today that future-you will thank you for.",
-  "Not every day has to be your best — just your honest one.",
-  "Sleep, food, movement — small care adds up to a lot.",
-  "You're not behind. You're exactly where you need to start from.",
-  "Momentum starts with one step you almost skipped.",
-  "Your effort counts even on the days it doesn't show.",
-  "Be the reason today was a little better than yesterday.",
-  "Growth is quiet most days — trust the process.",
-  "You get to decide what today looks like. Make it count.",
-  "It's okay to go slow — you're still moving forward.",
-  "The version of you a year from now is built today."
-];
-
-function getDailyQuote(): string {
-  // Deterministic on the calendar date — no storage needed, same quote all day for everyone,
-  // changes automatically at midnight without any caching logic to get stale.
-  const today = new Date();
-  const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
-  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
-}
-
 function getTasksForTarget(target: UserProfile['target']): Task[] {
   if (target === 'Weight Loss') {
     return [
-      { id: 'TOD-1', text: 'Hit your calorie deficit goal today 🔥', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
-      { id: 'TOD-2', text: 'Fuel up with 10g+ fiber in one meal 🌾', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
-      { id: 'TOD-3', text: 'Log a 45-min cardio session 🏃‍♂️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
+      { id: 'TOD-1', text: 'Hit your calorie deficit goal today', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
+      { id: 'TOD-2', text: 'Fuel up with 10g+ fibre in one meal', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
+      { id: 'TOD-3', text: 'Log a 45-min cardio session', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
     ];
   }
   if (target === 'Weight Gain') {
     return [
-      { id: 'TOD-1', text: 'Smash your 150g protein target 💪', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
-      { id: 'TOD-2', text: 'Log your carb intake for the day 🍚', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
-      { id: 'TOD-3', text: 'Get a strength session in 🏋️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
+      { id: 'TOD-1', text: 'Hit your protein target today', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'nutrition' },
+      { id: 'TOD-2', text: 'Log your carb intake for the day', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'nutrition' },
+      { id: 'TOD-3', text: 'Get a strength session in', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'activity' }
     ];
   }
   if (target === 'Cardio Endurance') {
     return [
-      { id: 'TOD-1', text: 'Nail your step intervals today 🏃', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'activity' },
-      { id: 'TOD-2', text: 'Push your heart rate into peak zone 📈', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'activity' },
-      { id: 'TOD-3', text: 'Hit 2.5L of water today 💧', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'unverifiable_by_design' }
+      { id: 'TOD-1', text: 'Nail your step intervals today', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'activity' },
+      { id: 'TOD-2', text: 'Push your heart rate into peak zone', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'activity' },
+      { id: 'TOD-3', text: 'Hit 2.5L of water today', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'unverifiable_by_design' }
     ];
   }
   return [
-    { id: 'TOD-1', text: 'Complete a 15-minute breathing session 🌬️', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'recovery' },
-    { id: 'TOD-2', text: 'Check your sleep quality score 😴', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'recovery' },
-    { id: 'TOD-3', text: 'Keep your stress load low today 🧘‍♂️', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'recovery' }
+    { id: 'TOD-1', text: 'Complete a 15-minute breathing session', completed: false, xpValue: 150, pointsValue: 220, verificationType: 'recovery' },
+    { id: 'TOD-2', text: 'Check your sleep quality score', completed: false, xpValue: 100, pointsValue: 150, verificationType: 'recovery' },
+    { id: 'TOD-3', text: 'Keep your stress load low today', completed: false, xpValue: 120, pointsValue: 180, verificationType: 'recovery' }
   ];
 }
 
@@ -305,20 +352,29 @@ export default function App() {
 
   // 0: Welcome 1, 1: Welcome 2, 2: Sign up/Log in, 3: Health permission, 4: Notifications permission,
   // 5: Profile setup, 6: Allergies, 7 (DASHBOARD_STEP): main app
-  const [onboardingStep, setOnboardingStep] = useState<number>(0);
+  const [onboardingStep, setOnboardingStep] = useState<number>(() => {
+    const devStep = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('ob') : null;
+    if (devStep !== null) return Number(devStep);
+    // Someone who finished onboarding (kinetix_logged_in) starts on the dashboard. Starting them at 0 left the
+    // step at 3 after the session restore, so every effect gated on DASHBOARD_STEP (health reads, reminders,
+    // quest sync) silently never ran after an app restart, even though the dashboard was on screen.
+    return localStorage.getItem('kinetix_logged_in') === 'true' ? DASHBOARD_STEP : 0;
+  });
   const [emailInput, setEmailInput] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [authMode, setAuthMode] = useState<'signup' | 'login' | 'forgot'>('signup');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
 
   // --- 2. ACTIVE NAVIGATION TAB (Sync with URL Hash to support Browser Back Button) ---
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    const hash = window.location.hash.replace('#', '');
-    return ['vitals', 'nourish', 'profile', 'hub'].includes(hash) ? hash : 'vitals';
-  });
+  const [activeTab, setActiveTab] = useState<string>(() => parseRoute(window.location.hash)?.tab ?? 'vitals');
+  const [accountPage, setAccountPage] = useState<AccountPage | null>(() => parseRoute(window.location.hash)?.page ?? null);
+  // true when the open account page was reached from the menu, so Back can pop history instead of adding to it
+  const accountPageFromMenu = useRef(false);
+  const [themePref, setThemePrefState] = useState<ThemePref>(getThemePref);
 
   // Force correct viewport meta for mobile layout scaling (no tiny letters/stretching)
   useEffect(() => {
@@ -334,10 +390,11 @@ export default function App() {
   // Listen to browser Back / Forward navigation events (prevents exiting link)
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (['vitals', 'nourish', 'profile', 'hub'].includes(hash)) {
-        setActiveTab(hash);
-      }
+      const route = parseRoute(window.location.hash);
+      if (!route) return;
+      setActiveTab(route.tab);
+      setAccountPage(route.page);
+      if (!route.page) accountPageFromMenu.current = false;
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -346,8 +403,43 @@ export default function App() {
   // Set URL hash when tab is switched via clicking bottoms navigation icons
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
+    setAccountPage(null);
+    accountPageFromMenu.current = false;
     window.location.hash = tabId;
   };
+
+  const openAccountPage = (page: AccountPage) => {
+    hapticSelection();
+    setAccountPage(page);
+    accountPageFromMenu.current = true;
+    window.history.pushState(null, '', `#account/${page}`);
+  };
+
+  const closeAccountPage = () => {
+    hapticSelection();
+    if (accountPageFromMenu.current) {
+      window.history.back(); // the hashchange handler shows the menu again
+      return;
+    }
+    // opened straight from a link: replace it, so Back doesn't return to the page we just left
+    setAccountPage(null);
+    window.history.replaceState(null, '', '#account');
+  };
+
+  // Each tab and account page starts at the top, not wherever the previous one was scrolled to.
+  useEffect(() => {
+    document.querySelector('.app-scroll-body')?.scrollTo({ top: 0 });
+  }, [activeTab, accountPage]);
+
+  // Android back button: close an account page first, then walk back through tabs, then leave the app.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) { hapticSelection(); window.history.back(); }
+      else CapacitorApp.exitApp();
+    });
+    return () => { listener.then(l => l.remove()); };
+  }, []);
 
   // --- 4. USER PROFILE DATA STATE (With LocalStorage Persistence) ---
   const [profile, setProfile] = useState<UserProfile>(() => {
@@ -366,6 +458,7 @@ export default function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [activeSportMode, setActiveSportMode] = useState<'rest' | 'run' | 'cycle' | 'swim'>('rest');
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [isConnectingHealth, setIsConnectingHealth] = useState<boolean>(false);
   const [liveSteps, setLiveSteps] = useState<number | null>(null);
   const [liveSleepQualityPercent, setLiveSleepQualityPercent] = useState<number | null>(null);
@@ -381,11 +474,14 @@ export default function App() {
 
   // Requests notification permission only the first time it's actually needed (lazily, from
   // whichever of the three notification features fires first), never proactively on app open.
+  // Someone who chose "Skip for now" on the reminders screen is never asked by the app on its own — only
+  // when they turn reminders on themselves (iOS gives one chance to ask; a "Don't Allow" is final).
   const ensureNotificationPermission = async (): Promise<boolean> => {
     if (!Capacitor.isNativePlatform()) return false;
     try {
       const current = await LocalNotifications.checkPermissions();
       if (current.display === 'granted') return true;
+      if (localStorage.getItem(NOTIFICATIONS_SKIPPED_KEY) === '1') return false;
       const requested = await LocalNotifications.requestPermissions();
       return requested.display === 'granted';
     } catch (err) {
@@ -399,9 +495,26 @@ export default function App() {
     setProfile(updatedProfile);
     localStorage.setItem('kinetix_profile', JSON.stringify(updatedProfile));
   };
+  // Merge a few fields into the latest profile — safe for rapid updates (ruler scrolling, typing)
+  const patchProfile = (changes: Partial<UserProfile>) => {
+    setProfile(prev => {
+      const next = { ...prev, ...changes };
+      localStorage.setItem('kinetix_profile', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // --- 5. DYNAMIC MOTIVATION POPUPS & REVENUE DEFENSE CONTROLS ---
-  const [motivationMessage, setMotivationMessage] = useState<string | null>('Welcome back!');
+  // One message at a time in the pill at the top of the app. It clears itself after a few seconds
+  // (a little longer for long text), a tap dismisses it early, and a newer message restarts the timer.
+  const [motivationMessage, setMotivationMessage] = useState<AppMessage | null>(null);
+  const notify = (tone: MessageTone, text: string) => setMotivationMessage({ tone, text });
+  useEffect(() => {
+    if (!motivationMessage) return;
+    const ms = Math.min(6000, Math.max(2500, motivationMessage.text.length * 40));
+    const t = window.setTimeout(() => setMotivationMessage(null), ms);
+    return () => window.clearTimeout(t);
+  }, [motivationMessage]);
 
   const [lastRedemptionTime, setLastLastRedemptionTime] = useState<number>(0);
   const [requiredTaskCountForRedeem] = useState<number>(2); // Multi-step validation defense
@@ -412,6 +525,8 @@ export default function App() {
   // so a disconnected user always sees an honest "connect a device" state, never a fake number.
   const [liveBpm, setLiveBpm] = useState<number | null>(null);
   const [liveHrv, setLiveHrv] = useState<number | null>(null);
+  // true once Health Connect has answered an HRV read — "no HRV" only means something after that
+  const [hrvChecked, setHrvChecked] = useState(false);
 
   // --- 7-DAY/30-DAY HEALTH TRENDS (real device history, plus a locally-persisted HRV/stress log) ---
   // Stress has no queryable device history (it's an estimate derived from HRV, not a stored
@@ -423,28 +538,86 @@ export default function App() {
   const [trendRangeDays, setTrendRangeDays] = useState<7 | 30>(7);
   const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
 
+  // Health Connect only answers apps that are on screen, so reads pause in the background and run again the
+  // moment the app comes back (for example from Health Connect settings after allowing Samsung Health).
+  const appActiveRef = useRef(true);
+  const [foregroundTick, setForegroundTick] = useState(0);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      appActiveRef.current = isActive;
+      if (isActive) setForegroundTick(t => t + 1);
+    });
+    return () => { listener.then(l => l.remove()); };
+  }, []);
+
+  // What the last health read found. 'no-data' means every read worked but came back empty — usually because
+  // Samsung Health (or the user's tracker app) hasn't been allowed to share with Health Connect yet.
+  const [healthDataState, setHealthDataState] = useState<'unknown' | 'has-data' | 'no-data'>('unknown');
+  // The app that actually wrote the data ("Samsung Health"), once a read tells us.
+  const [healthSource, setHealthSource] = useState<string | null>(null);
+
+  const openHealthConnectSettings = () => {
+    Health.openHealthConnectSettings().catch(err => {
+      console.warn('Could not open Health Connect settings:', err);
+      notify('error', "Couldn't open Health Connect. Open it from your phone's Settings instead.");
+    });
+  };
+  // iOS has no settings API for HealthKit; the Health app's own URL scheme opens it (Capacitor hands
+  // non-app URLs to the system), and the setup card says where KinetixFit's permissions live in there.
+  const openAppleHealth = () => { window.location.href = 'x-apple-health://'; };
+  const openHealthSettings = Capacitor.getPlatform() === 'ios' ? openAppleHealth : openHealthConnectSettings;
+
   // Real steps/heart-rate/sleep history from HealthKit/Health Connect once a device is connected.
   useEffect(() => {
     if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData) return;
 
     const fetchHealthTrends = async () => {
+      if (!appActiveRef.current) return;
       try {
         const now = new Date();
         const startDate = new Date(now);
         startDate.setDate(startDate.getDate() - (TRENDS_LOOKBACK_DAYS - 1));
         startDate.setHours(0, 0, 0, 0);
 
-        const [stepsResult, hrResult, sleepResult] = await Promise.all([
+        // allSettled, not all: one metric failing (no permission, no data source) must not blank
+        // the other cards.
+        const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+        const [stepsResult, hrResult, sleepResult, recentStepsResult] = await Promise.allSettled([
           Health.queryAggregated({ dataType: 'steps', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'sum' }),
           Health.queryAggregated({ dataType: 'heartRate', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'average' }),
-          Health.queryAggregated({ dataType: 'sleep', startDate: startDate.toISOString(), endDate: now.toISOString(), bucket: 'day', aggregation: 'sum' })
+          Health.readSamples({ dataType: 'sleep', startDate: startDate.toISOString(), endDate: now.toISOString(), limit: 2000, ascending: true }),
+          // raw samples carry the writing app's package name, which aggregates don't
+          Health.readSamples({ dataType: 'steps', startDate: weekAgo, endDate: now.toISOString(), limit: 200 })
         ]);
+        const results = [stepsResult, hrResult, sleepResult, recentStepsResult];
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') console.warn(`Health trend fetch failed (${['steps', 'heartRate', 'sleep', 'recent steps'][i]}):`, r.reason);
+        });
+
+        const rawSamples = [
+          ...(sleepResult.status === 'fulfilled' ? sleepResult.value.samples : []),
+          ...(recentStepsResult.status === 'fulfilled' ? recentStepsResult.value.samples : [])
+        ];
+        const hasAnyData = rawSamples.length > 0
+          || (stepsResult.status === 'fulfilled' && stepsResult.value.samples.some(x => x.value > 0))
+          || (hrResult.status === 'fulfilled' && hrResult.value.samples.some(x => x.value > 0));
+        if (hasAnyData) setHealthDataState('has-data');
+        else if (results.every(r => r.status === 'fulfilled')) setHealthDataState('no-data');
+        const source = primarySourceLabel(rawSamples);
+        if (source) setHealthSource(source);
 
         setHealthTrends(prev => ({
           ...prev,
-          steps: buildDailyPoints(toDayEntries(stepsResult.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS),
-          heartRate: buildDailyPoints(toDayEntries(hrResult.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS),
-          sleep: buildDailyPoints(toDayEntries(sleepResult.samples).map(e => ({ ...e, value: Math.min(100, Math.round((e.value / (8 * 60)) * 100)) })), TRENDS_LOOKBACK_DAYS)
+          ...(stepsResult.status === 'fulfilled' && {
+            steps: buildDailyPoints(toDayEntries(stepsResult.value.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS)
+          }),
+          ...(hrResult.status === 'fulfilled' && {
+            heartRate: buildDailyPoints(toDayEntries(hrResult.value.samples).map(e => ({ ...e, value: Math.round(e.value) })), TRENDS_LOOKBACK_DAYS)
+          }),
+          ...(sleepResult.status === 'fulfilled' && {
+            sleep: buildDailyPoints(sleepDayEntries(sleepResult.value.samples).map(e => ({ ...e, value: Math.min(100, Math.round((e.value / (8 * 60)) * 100)) })), TRENDS_LOOKBACK_DAYS)
+          })
         }));
       } catch (err) {
         console.warn('Health trend fetch failed:', err);
@@ -454,13 +627,32 @@ export default function App() {
     fetchHealthTrends();
     const interval = setInterval(fetchHealthTrends, 30 * 60000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, onboardingStep, isLiveHealthData]);
+    // foregroundTick: fetch again as soon as the app returns to the screen
+  }, [isLoggedIn, onboardingStep, isLiveHealthData, foregroundTick]);
+
+  // Samsung Health shares steps, heart rate and sleep through Health Connect, but never HRV — and stress
+  // (and the Recovery card) are estimated from HRV. For its users those cards are hidden rather than left
+  // waiting for a reading that will never come, and a one-time notice says why. If another app starts
+  // sharing HRV, liveHrv arrives and the cards come back on their own.
+  const hasStressHistory = healthTrends.stress.some(d => d.value !== null);
+  const noHrvFromSource = hrvChecked && healthDataState === 'has-data' && healthSource === 'Samsung Health' && liveHrv === null && !hasStressHistory;
+  // Shown on the first sync that finds no HRV, until it's acknowledged — then never again
+  const [noStressNoticeSeen, setNoStressNoticeSeen] = useState(() => localStorage.getItem(NO_STRESS_NOTICE_KEY) === '1');
+  const showNoStressNotice = noHrvFromSource && !noStressNoticeSeen;
+  const dismissNoStressNotice = () => {
+    localStorage.setItem(NO_STRESS_NOTICE_KEY, '1');
+    setNoStressNoticeSeen(true);
+  };
+
+  // Last snapshot the server accepted, so an unchanged reading isn't posted again every 30 s.
+  const lastSyncedSnapshot = useRef<string | null>(null);
 
   // Real periodic reads from HealthKit/Health Connect once a device is actually connected.
   useEffect(() => {
     if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData) return;
 
     const readLiveHealthData = async () => {
+      if (!appActiveRef.current) return;
       try {
         const now = new Date();
         const recentWindowStart = new Date(now.getTime() - 10 * 60000).toISOString();
@@ -468,54 +660,64 @@ export default function App() {
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
         const nowIso = now.toISOString();
 
-        const [hrResult, hrvResult, stepsResult, sleepResult] = await Promise.all([
+        // allSettled so one metric failing doesn't stop the others updating (see the trend fetch).
+        const [hrResult, hrvResult, stepsResult, sleepResult] = await Promise.allSettled([
           Health.readSamples({ dataType: 'heartRate', startDate: recentWindowStart, endDate: nowIso, limit: 1, ascending: false }),
           Health.readSamples({ dataType: 'heartRateVariability', startDate: dayWindowStart, endDate: nowIso, limit: 1, ascending: false }),
           Health.queryAggregated({ dataType: 'steps', startDate: startOfToday, endDate: nowIso, bucket: 'day', aggregation: 'sum' }),
           Health.readSamples({ dataType: 'sleep', startDate: dayWindowStart, endDate: nowIso, limit: 50 })
         ]);
+        const hrSamples = settledSamples(hrResult, 'heartRate');
+        const hrvSamples = settledSamples(hrvResult, 'heartRateVariability');
+        if (hrvResult.status === 'fulfilled') setHrvChecked(true);
+        const stepsSamples = settledSamples(stepsResult, 'steps');
+        const sleepSamples = settledSamples(sleepResult, 'sleep');
+        if (hrSamples.length || hrvSamples.length || stepsSamples.some(x => x.value > 0) || sleepSamples.length) setHealthDataState('has-data');
 
         let syncedBpm: number | null = null;
         let syncedHrv: number | null = null;
         let syncedSteps: number | null = null;
         let syncedSleepQuality: number | null = null;
 
-        if (hrResult.samples.length > 0) {
-          syncedBpm = Math.round(hrResult.samples[0].value);
+        if (hrSamples.length > 0) {
+          syncedBpm = Math.round(hrSamples[0].value);
           setLiveBpm(syncedBpm);
         }
-        if (hrvResult.samples.length > 0) {
-          syncedHrv = Math.round(hrvResult.samples[0].value);
+        if (hrvSamples.length > 0) {
+          syncedHrv = Math.round(hrvSamples[0].value);
           setLiveHrv(syncedHrv);
           const trimmedHistory = recordStressSnapshot(syncedHrv);
           setHealthTrends(prev => ({ ...prev, stress: buildDailyPoints(trimmedHistory, TRENDS_LOOKBACK_DAYS) }));
         }
-        if (stepsResult.samples.length > 0) {
-          syncedSteps = Math.round(stepsResult.samples[0].value);
+        if (stepsSamples.length > 0) {
+          syncedSteps = Math.round(stepsSamples[0].value);
           setLiveSteps(syncedSteps);
         }
-        if (sleepResult.samples.length > 0) {
-          const totalMinutes = sleepResult.samples.reduce((sum, s) => {
-            return sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
-          }, 0);
+        if (sleepSamples.length > 0) {
+          const totalMinutes = totalSleepMinutes(sleepSamples);
           syncedSleepQuality = Math.min(100, Math.round((totalMinutes / (8 * 60)) * 100));
           setLiveSleepQualityPercent(syncedSleepQuality);
           setLiveSleepMinutes(Math.round(totalMinutes));
         }
 
-        // Push this reading to the server so quest completion can be verified against it —
-        // previously this data never left the device at all.
-        fetch(serverUrl('/api/sync-health-data'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            appUserId: profile.email,
-            steps: syncedSteps,
-            liveBpm: syncedBpm,
-            liveHrv: syncedHrv,
-            sleepQualityPercent: syncedSleepQuality
+        // Push this reading to the server so quest completion can be verified against it — but only when
+        // there's a reading and it changed: this runs every 30 s, and empty or repeated snapshots were
+        // being posted each time.
+        const snapshot = { steps: syncedSteps, liveBpm: syncedBpm, liveHrv: syncedHrv, sleepQualityPercent: syncedSleepQuality };
+        const snapshotKey = JSON.stringify(snapshot);
+        const hasReading = Object.values(snapshot).some(v => v !== null);
+        if (hasReading && profile.email && snapshotKey !== lastSyncedSnapshot.current) {
+          fetch(serverUrl('/api/sync-health-data'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appUserId: profile.email, ...snapshot })
           })
-        }).catch(err => console.warn('Health data sync failed:', err));
+            .then(async r => {
+              if (r.ok) lastSyncedSnapshot.current = snapshotKey;
+              else console.warn('Health data sync failed:', r.status, await r.text().catch(() => ''));
+            })
+            .catch(err => console.warn('Health data sync failed:', err));
+        }
       } catch (err) {
         console.warn('Health data read failed:', err);
       }
@@ -524,7 +726,7 @@ export default function App() {
     readLiveHealthData();
     const interval = setInterval(readLiveHealthData, 30000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, onboardingStep, isLiveHealthData, profile.email]);
+  }, [isLoggedIn, onboardingStep, isLiveHealthData, profile.email, foregroundTick]);
 
   // Hydration reminders: repeating daily local notifications at fixed times across the
   // configured shift window. Rescheduled (old ones cancelled first) whenever settings change.
@@ -546,7 +748,7 @@ export default function App() {
       await LocalNotifications.schedule({
         notifications: times.map((hour, idx) => ({
           id: 9000 + idx,
-          title: '💧 Hydration Check-In',
+          title: 'Time for some water',
           body: 'Time for a water break — staying hydrated keeps your energy and focus up.',
           schedule: { on: { hour, minute: 0 }, repeats: true }
         }))
@@ -560,7 +762,7 @@ export default function App() {
     if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !isLiveHealthData || liveSteps === null) return;
     if (!Capacitor.isNativePlatform()) return;
 
-    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayKey = localDayKey();
     if (lastWorkoutLoggedDate === todayKey) return;
     if (localStorage.getItem('kinetix_activity_alert_date') === todayKey) return;
     if (liveSteps < 3000) return;
@@ -571,7 +773,7 @@ export default function App() {
       await LocalNotifications.schedule({
         notifications: [{
           id: 9100,
-          title: '🏃 Log Your Activity',
+          title: 'Log your activity',
           body: `Your connected device shows ${liveSteps} steps today — log your workout to earn XP!`,
           schedule: { at: new Date(Date.now() + 1000) }
         }]
@@ -581,14 +783,14 @@ export default function App() {
   }, [isLoggedIn, onboardingStep, isLiveHealthData, liveSteps, lastWorkoutLoggedDate]);
 
   // --- 7. CORE HEALTH TELEMETRY ARRAY ---
-  const [biometrics, setBiometrics] = useState<TelemetryStream[]>([
+  const [biometrics] = useState<TelemetryStream[]>([
     {
       id: 'BIO-1',
       metric: 'Activity and Movement',
       system: 'Steps',
       reading: 'Not connected',
       status: 'Calibrating',
-      behavior: 'Connect a device in Profile to see your real steps',
+      behavior: 'Connect a device in Account to see your real steps',
       details: {
         title: 'Step Details',
         description: 'Tracks your daily steps and filters out fake step-counting from shaking your phone.',
@@ -602,7 +804,7 @@ export default function App() {
       id: 'BIO-2',
       metric: 'Heart Health',
       system: 'Heart Rate',
-      reading: 'Waiting for reading…',
+      reading: 'Not connected',
       status: 'Calibrating',
       behavior: 'Connect a device to see your real heart rate',
       details: {
@@ -621,7 +823,7 @@ export default function App() {
       system: 'Sleep',
       reading: 'Not connected',
       status: 'Calibrating',
-      behavior: 'Connect a device in Profile to see your real sleep',
+      behavior: 'Connect a device in Account to see your real sleep',
       details: {
         title: 'Sleep Details',
         description: 'Tracks your overall sleep quality from your connected device.',
@@ -635,7 +837,7 @@ export default function App() {
       id: 'BIO-5',
       metric: 'Stress',
       system: 'Stress',
-      reading: 'Waiting for data…',
+      reading: 'Not connected',
       status: 'Calibrating',
       behavior: 'Connect a device to see a stress estimate',
       details: {
@@ -655,14 +857,14 @@ export default function App() {
       if (!profile.lastPeriodStartDate) {
         return {
           id: 'BIO-6',
-          metric: 'Women\'s Health',
-          system: 'Cycle Tracking',
-          reading: 'Awaiting Cycle Data',
+          metric: 'Your cycle',
+          system: 'Cycle',
+          reading: 'Not set up',
           status: 'Calibrating',
-          behavior: 'Set your last period start date in Profile to activate',
+          behavior: 'Add your last period start date in Account → Your details',
           details: {
-            title: 'Biological Rhythm Alignment',
-            description: 'Add your last period start date and average cycle length in your Profile to activate real cycle phase tracking.',
+            title: 'Your cycle',
+            description: 'Add your last period start date and average cycle length in Account → Your details to activate real cycle phase tracking.',
             subMetrics: []
           }
         };
@@ -670,16 +872,16 @@ export default function App() {
       const { phase, dayOfCycle } = computeCyclePhase(profile.lastPeriodStartDate, profile.averageCycleLength);
       return {
         id: 'BIO-6',
-        metric: 'Women\'s Health',
-        system: 'Dynamic Biological Rhythm Sync',
+        metric: 'Your cycle',
+        system: 'Cycle',
         reading: phase,
         status: 'Optimal',
         behavior: `Day ${dayOfCycle} of ${profile.averageCycleLength}-day cycle`,
         details: {
-          title: 'Biological Rhythm Alignment',
+          title: 'Your cycle',
           description: 'Calculated from your logged last period start date and average cycle length — not a fixed value.',
           subMetrics: [
-            { label: 'Current Phase', value: phase, color: '#ec4899' },
+            { label: 'Current Phase', value: phase, color: 'var(--m-cycle)' },
             { label: 'Cycle Day', value: `Day ${dayOfCycle} of ${profile.averageCycleLength}`, color: 'var(--info)' }
           ]
         }
@@ -690,9 +892,9 @@ export default function App() {
       if (liveHrv === null || liveBpm === null) {
         return {
           id: 'BIO-6',
-          metric: 'Recovery & Hormonal Balance',
-          system: 'Recovery Estimate',
-          reading: 'Waiting for data',
+          metric: 'Recovery',
+          system: 'Recovery estimate',
+          reading: isLiveHealthData ? 'Waiting for data' : 'Not connected',
           status: 'Calibrating',
           behavior: isLiveHealthData ? 'No recent heart rate data from your device yet' : 'Connect a device to see your recovery estimate',
           details: {
@@ -702,11 +904,11 @@ export default function App() {
           }
         };
       }
-      const recoveryLabel = liveHrv > 60 && liveBpm < 80 ? 'High Recovery' : liveHrv > 45 ? 'Moderate Recovery' : 'Low Recovery — Prioritize Rest';
+      const recoveryLabel = liveHrv > 60 && liveBpm < 80 ? 'High' : liveHrv > 45 ? 'Moderate' : 'Low — take it easy today';
       return {
         id: 'BIO-6',
-        metric: 'Recovery & Hormonal Balance',
-        system: 'Recovery Estimate',
+        metric: 'Recovery',
+        system: 'Recovery estimate',
         reading: recoveryLabel,
         status: liveHrv > 45 ? 'Optimal' : 'Critical',
         behavior: 'Derived from HRV, resting heart rate & sleep quality',
@@ -735,7 +937,7 @@ export default function App() {
             ...item,
             reading: 'Not connected',
             status: 'Calibrating' as const,
-            behavior: 'Connect a device in Profile to see your real steps',
+            behavior: 'Connect a device in Account to see your real steps',
             details: { ...item.details, subMetrics: [{ label: 'Steps', value: '--', color: 'var(--ink-3)' }, ...item.details.subMetrics.slice(1)] }
           };
         }
@@ -750,16 +952,19 @@ export default function App() {
         }
         return {
           ...item,
-          reading: `${liveSteps} steps today`,
+          reading: `${liveSteps.toLocaleString('en-GB')} steps today`,
+          status: 'Optimal' as const, // a real reading — the pill used to stay on "Calibrating"
           behavior: 'Synced from your device',
-          details: { ...item.details, subMetrics: [{ label: 'Steps Today', value: `${liveSteps}`, color: 'var(--accent)' }, ...item.details.subMetrics.slice(1)] }
+          details: { ...item.details, subMetrics: [{ label: 'Steps Today', value: liveSteps.toLocaleString('en-GB'), color: 'var(--accent)' }, ...item.details.subMetrics.slice(1)] }
         };
       }
       if (item.id === 'BIO-2') {
-        if (liveBpm === null || liveHrv === null) {
+        // Heart rate needs only a heart-rate reading: HRV is extra. Samsung Health never shares HRV and an
+        // iPhone without an Apple Watch has none, so requiring both left this card waiting forever.
+        if (liveBpm === null) {
           return {
             ...item,
-            reading: 'Waiting for reading…',
+            reading: isLiveHealthData ? 'Waiting for reading…' : 'Not connected',
             status: 'Calibrating' as const,
             behavior: isLiveHealthData ? 'No recent heart rate data from your device yet' : 'Connect a device to see your real heart rate',
             details: {
@@ -773,14 +978,14 @@ export default function App() {
         }
         return {
           ...item,
-          reading: `${liveBpm} BPM / ${liveHrv} ms HRV`,
+          reading: liveHrv !== null ? `${liveBpm} BPM / ${liveHrv} ms HRV` : `${liveBpm} BPM`,
           status: liveBpm > 100 ? 'Critical' as const : 'Optimal' as const,
           behavior: liveBpm > 100 ? 'Elevated heart rate' : (isLiveHealthData ? 'Synced from your device' : 'Demo data — connect a device for real readings'),
           details: {
             ...item.details,
             subMetrics: [
               { label: 'Resting Heart Rate', value: `${liveBpm} BPM`, color: 'var(--danger)' },
-              { label: 'HRV', value: `${liveHrv} ms`, color: 'var(--info)' },
+              { label: 'HRV', value: liveHrv !== null ? `${liveHrv} ms` : '--', color: liveHrv !== null ? 'var(--info)' : 'var(--ink-3)' },
               { label: 'Recovery', value: liveBpm > 100 ? 'Caution' : 'Good', color: liveBpm > 100 ? 'var(--danger)' : 'var(--accent)' }
             ]
           }
@@ -796,7 +1001,7 @@ export default function App() {
             ...item,
             reading: 'Not connected',
             status: 'Calibrating' as const,
-            behavior: 'Connect a device in Profile to see your real sleep',
+            behavior: 'Connect a device in Account to see your real sleep',
             details: { ...item.details, subMetrics: emptySleepSubMetrics }
           };
         }
@@ -812,6 +1017,7 @@ export default function App() {
         return {
           ...item,
           reading: liveSleepMinutes !== null ? formatMinutesAsHoursMinutes(liveSleepMinutes) : `${liveSleepQualityPercent}% Quality`,
+          status: 'Optimal' as const,
           behavior: 'Synced from your device',
           details: {
             ...item.details,
@@ -826,7 +1032,7 @@ export default function App() {
         if (liveHrv === null) {
           return {
             ...item,
-            reading: 'Waiting for data…',
+            reading: isLiveHealthData ? 'Waiting for data…' : 'Not connected',
             status: 'Calibrating' as const,
             behavior: isLiveHealthData ? 'No recent HRV data from your device yet' : 'Connect a device to see a stress estimate',
             details: { ...item.details, subMetrics: [{ label: 'Stress Level', value: '--', color: 'var(--ink-3)' }, ...item.details.subMetrics.slice(1)] }
@@ -855,7 +1061,9 @@ export default function App() {
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
   const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '0'));
-  const [level] = useState<number>(() => parseInt(localStorage.getItem('kinetix_level') || '1'));
+  const [level, setLevel] = useState<number>(() => parseInt(localStorage.getItem('kinetix_level') || '1'));
+  // Level n runs from (n-1)*500 to n*500 XP (the level-up check uses level * 500).
+  const xpIntoLevel = Math.min(500, Math.max(0, xp - (level - 1) * 500));
   const [totalVoucherPoints, setTotalVoucherPoints] = useState<number>(() => parseInt(localStorage.getItem('kinetix_voucher_points') || '0'));
   const [streak, setStreak] = useState<number>(() => parseInt(localStorage.getItem('kinetix_streak') || '0'));
 
@@ -886,8 +1094,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || 'Could not complete this quest. Please try again.'}`);
-        setTimeout(() => setMotivationMessage(null), 6000);
+        notify('error', `${data.error || 'Could not complete this quest. Please try again.'}`);
         return;
       }
 
@@ -898,6 +1105,7 @@ export default function App() {
       const targetXpThreshold = level * 500;
       if (newXp >= targetXpThreshold) {
         localStorage.setItem('kinetix_level', (level + 1).toString());
+        setLevel(level + 1);
         setTimeout(() => setShowLevelUpModal(true), 350);
       }
 
@@ -910,17 +1118,16 @@ export default function App() {
       setTodayTasks(nextTasks);
       setTasksCompletedTodayCount(prev => prev + 1);
 
-      setMotivationMessage(data.verified
-        ? `✅ Quest verified via synced device data: "${task.text}" (+${data.pointsAwarded} Points!)`
-        : `🔥 Quest logged: "${task.text}" (+${data.pointsAwarded} Points!) — ${data.verificationNote}`);
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('success', data.verified
+        ? `Quest verified from your device data: "${task.text}" · +${data.pointsAwarded} points`
+        : `Quest logged: "${task.text}" · +${data.pointsAwarded} points — ${data.verificationNote}`);
 
       // Daily streak tracking: increments once per calendar day when all quests are completed
       if (nextTasks.length > 0 && nextTasks.every(t => t.completed)) {
-        const todayKey = new Date().toISOString().slice(0, 10);
+        const todayKey = localDayKey();
         const lastCompletedKey = localStorage.getItem('kinetix_streak_last_date');
         if (lastCompletedKey !== todayKey) {
-          const yesterdayKey = new Date(new Date().getTime() - 86400000).toISOString().slice(0, 10);
+          const yesterdayKey = localDayKeyDaysAgo(1);
           const nextStreak = lastCompletedKey === yesterdayKey ? streak + 1 : 1;
           setStreak(nextStreak);
           localStorage.setItem('kinetix_streak', nextStreak.toString());
@@ -928,8 +1135,7 @@ export default function App() {
         }
       }
     } catch {
-      setMotivationMessage('⚠️ Could not reach the server to verify this quest. Please try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Could not reach the server to verify this quest. Please try again.');
     } finally {
       setCompletingTaskId(null);
     }
@@ -940,7 +1146,7 @@ export default function App() {
   // completed quest stayed "completed" forever. Adjusted directly during render (React's
   // documented pattern for this) rather than in an effect, since an effect here would cause an
   // extra, avoidable render pass.
-  const todayDateKey = new Date().toISOString().slice(0, 10);
+  const todayDateKey = localDayKey();
   const [tasksTargetSnapshot, setTasksTargetSnapshot] = useState(profile.target);
   const [tasksDateSnapshot, setTasksDateSnapshot] = useState(todayDateKey);
   if (profile.target !== tasksTargetSnapshot || todayDateKey !== tasksDateSnapshot) {
@@ -956,18 +1162,22 @@ export default function App() {
     protein: 0,
     fiber: 0
   });
-  const [caloriesBurned, setCaloriesBurned] = useState<number>(0);
+  const caloriesBurned = 0; // no real source yet — the old step simulator used to add made-up burn here
 
   const nhsTargets = useMemo(() => {
     const bmr = calculateBmr(profile);
     const tdee = bmr * ACTIVITY_MULTIPLIERS[profile.activityLevel];
-    const calories = Math.round(tdee + GOAL_CALORIE_ADJUSTMENT[profile.target]);
-    const protein = Math.round(profile.weight * GOAL_PROTEIN_PER_KG[profile.target]);
+    // A deficit never takes the target under the usual unsupervised minimum (1,200 kcal women, 1,500 men)
+    // — a small, sedentary woman was offered ~760 kcal.
+    const floor = profile.sex === 'male' ? 1500 : 1200;
+    const adjusted = tdee + GOAL_CALORIE_ADJUSTMENT[profile.target];
+    const calories = Math.round(GOAL_CALORIE_ADJUSTMENT[profile.target] < 0 ? Math.max(adjusted, floor) : adjusted);
+    const protein = Math.round(proteinReferenceWeight(profile) * GOAL_PROTEIN_PER_KG[profile.target]);
     const fat = Math.round((calories * 0.27) / 9);
     const carbs = Math.max(0, Math.round((calories - protein * 4 - fat * 9) / 4));
-    const fiber = Math.round((calories / 1000) * 14);
+    const fiber = 30; // NHS: 30g a day for adults — the same figure Nourish, Today and the plan show
     return { calories, carbs, protein, fiber };
-  }, [profile.weight, profile.height, profile.age, profile.sex, profile.activityLevel, profile.target]);
+  }, [profile]);
 
   const caloriesRemaining = nhsTargets.calories - dailyConsumables.calories + caloriesBurned;
 
@@ -977,7 +1187,7 @@ export default function App() {
     if (!Capacitor.isNativePlatform()) return;
 
     (async () => {
-      const todayKey = new Date().toISOString().slice(0, 10);
+      const todayKey = localDayKey();
       let firedToday: string[] = [];
       const savedRaw = localStorage.getItem('kinetix_nutrition_alerts_fired');
       if (savedRaw) {
@@ -990,7 +1200,7 @@ export default function App() {
       const metrics: { key: string; label: string; current: number; target: number; unit: string }[] = [
         { key: 'calories', label: 'calorie', current: dailyConsumables.calories, target: nhsTargets.calories, unit: 'kcal' },
         { key: 'protein', label: 'protein', current: dailyConsumables.protein, target: nhsTargets.protein, unit: 'g' },
-        { key: 'fiber', label: 'fiber', current: dailyConsumables.fiber, target: nhsTargets.fiber, unit: 'g' }
+        { key: 'fiber', label: 'fibre', current: dailyConsumables.fiber, target: nhsTargets.fiber, unit: 'g' }
       ];
 
       const toFire: { alertKey: string; title: string; body: string }[] = [];
@@ -999,7 +1209,7 @@ export default function App() {
         const pct = (m.current / m.target) * 100;
         const remaining = Math.max(0, Math.round(m.target - m.current));
         if (pct >= 100 && !firedToday.includes(`${m.key}-100`)) {
-          toFire.push({ alertKey: `${m.key}-100`, title: `🎯 ${m.label} goal hit!`, body: `You've reached your daily ${m.label} target.` });
+          toFire.push({ alertKey: `${m.key}-100`, title: `${m.label.charAt(0).toUpperCase()}${m.label.slice(1)} goal reached`, body: `You've reached your daily ${m.label} target.` });
         } else if (pct >= 90 && !firedToday.includes(`${m.key}-90`)) {
           toFire.push({ alertKey: `${m.key}-90`, title: 'Almost there', body: `${remaining}${m.unit} of ${m.label} left to hit today's target.` });
         }
@@ -1067,9 +1277,7 @@ export default function App() {
   ];
 
   // --- 11. REWARDS LEDGERS (100% Branded & White-Labeled) ---
-  const [vouchers, setVouchers] = useState<VoucherLog[]>([
-    { id: 'TX-UK-9921', provider: 'Premium High-Street Beverage Token', value: '£15.00', sku: 'KTX-COSTA-UK', state: 'Settled', timestamp: 'Today, 08:30' }
-  ]);
+  const [vouchers, setVouchers] = useState<VoucherLog[]>([]);
 
   // --- CSR CHARITY DONATIONS REGISTRY ---
   const [charityDonations, setCharityDonations] = useState<number>(() => parseInt(localStorage.getItem('kinetix_charity_donations') || '0'));
@@ -1086,7 +1294,7 @@ export default function App() {
     const requiredPoints = 1000;
 
     if (totalVoucherPoints < requiredPoints) {
-      alert(`You need ${requiredPoints} points to donate. Complete more quests to earn them.`);
+      notify('info', `You need ${requiredPoints} points to donate. Complete quests to earn them.`);
       return;
     }
 
@@ -1100,8 +1308,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || 'Donation could not be logged. Please try again.'}`);
-        setTimeout(() => setMotivationMessage(null), 7000);
+        notify('error', `${data.error || 'Donation could not be logged. Please try again.'}`);
         return;
       }
 
@@ -1123,11 +1330,9 @@ export default function App() {
       localStorage.setItem('kinetix_charity_donations', updatedDonationsTotal.toString());
 
       setVouchers([newTx, ...vouchers]);
-      setMotivationMessage(`💛 Donation to ${charityName} recorded. Thank you!`);
-      setTimeout(() => setMotivationMessage(null), 7000);
+      notify('success', `Donation to ${charityName} recorded. Thank you!`);
     } catch {
-      setMotivationMessage('⚠️ Could not reach the donation server. Please try again.');
-      setTimeout(() => setMotivationMessage(null), 7000);
+      notify('error', 'Could not reach the donation server. Please try again.');
     } finally {
       setIsDonating(false);
     }
@@ -1135,9 +1340,10 @@ export default function App() {
 
   // --- SUBSCRIPTIONS & ADMIN MANAGED PROMOS ---
   const [promoCodeInput, setPromoCodeInput] = useState<string>('');
-  const [promoMessage, setPromoMessage] = useState<string>('');
+  const [promoMessage, setPromoMessage] = useState<AppMessage | null>(null);
   const [isRedeemingPromo, setIsRedeemingPromo] = useState<boolean>(false);
-  const [revenueCatStatus, setRevenueCatStatus] = useState<string>('7-Day Free Trial Active');
+  // null until RevenueCat reports a real status (native only) — the card never guesses one
+  const [revenueCatStatus, setRevenueCatStatus] = useState<string | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
   // Identify this customer to RevenueCat by email (a stable ID) instead of the SDK's default
@@ -1170,7 +1376,7 @@ export default function App() {
         const expiry = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
         setRevenueCatStatus(`Active${expiry ? ` (renews ${expiry.toLocaleDateString('en-GB')})` : ' (Lifetime)'}`);
       } else {
-        setRevenueCatStatus('No Active Subscription');
+        setRevenueCatStatus('No active subscription');
       }
     } catch (err) {
       console.warn('RevenueCat getCustomerInfo unavailable:', err);
@@ -1189,8 +1395,7 @@ export default function App() {
 
   const handleManageSubscription = async () => {
     if (!Capacitor.isNativePlatform()) {
-      setMotivationMessage('📱 Subscriptions are managed through your App Store or Google Play account. Open KinetixFit on your mobile device to manage your subscription.');
-      setTimeout(() => setMotivationMessage(null), 7000);
+      notify('info', 'Subscriptions are managed through your App Store or Google Play account. Open KinetixFit on your mobile device to manage your subscription.');
       return;
     }
 
@@ -1207,8 +1412,7 @@ export default function App() {
       await Browser.open({ url: manageUrl });
     } catch (err) {
       console.warn('Unable to open subscription management screen:', err);
-      setMotivationMessage('⚠️ Could not open subscription management. Please try again from your device settings.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Could not open subscription management. Please try again from your device settings.');
     }
   };
 
@@ -1316,12 +1520,19 @@ export default function App() {
     if (error) setAuthError(error.message);
   };
 
+  // Signing in (or finishing onboarding) always opens Today, whatever tab was open before logging out.
+  const openTodayFresh = () => {
+    setActiveTab('vitals');
+    setAccountPage(null);
+    accountPageFromMenu.current = false;
+    window.history.replaceState(null, '', '#vitals');
+  };
+
   const handleCompleteOnboarding = () => {
     setIsLogged(true);
     localStorage.setItem('kinetix_logged_in', 'true');
     setOnboardingStep(DASHBOARD_STEP);
-    setMotivationMessage('🏆 Welcome to KinetixFit!');
-    setTimeout(() => setMotivationMessage(null), 7000);
+    openTodayFresh();
   };
 
   const handleLogout = async () => {
@@ -1331,6 +1542,7 @@ export default function App() {
     localStorage.removeItem('kinetix_logged_in');
     setIsLogged(false);
     setOnboardingStep(0);
+    openTodayFresh(); // so the next sign-in doesn't reopen Account, where Log out lives
     setEmailInput('');
     setPasswordInput('');
     setAuthMode('signup');
@@ -1344,12 +1556,11 @@ export default function App() {
     const entry = `${label} (${timestamp.toLocaleDateString('en-GB')})`;
     saveProfileToStorage({ ...profile, workoutsLogged: [...profile.workoutsLogged, entry] });
 
-    const todayKey = timestamp.toISOString().slice(0, 10);
+    const todayKey = localDayKey(timestamp);
     setLastWorkoutLoggedDate(todayKey);
     localStorage.setItem('kinetix_last_workout_date', todayKey);
 
-    setMotivationMessage(`✅ Logged: ${entry}`);
-    setTimeout(() => setMotivationMessage(null), 5000);
+    notify('success', `Logged: ${entry}`);
   };
 
   const handleTogglePersonalAllergen = (allergen: string) => {
@@ -1359,27 +1570,6 @@ export default function App() {
     saveProfileToStorage({ ...profile, personalAllergens: updated });
   };
 
-  const handleSimulateSteps = (cadence: number) => {
-    if (cadence > 350) {
-      setMotivationMessage("⚠️ That's faster than anyone can step (over 350 a minute), so no points were added.");
-      setTimeout(() => setMotivationMessage(null), 7000);
-      return;
-    }
-    const updated = [...biometrics];
-    updated[0].reading = `${cadence} steps/min`;
-    setBiometrics(updated);
-    setCaloriesBurned(prev => prev + Math.round(cadence * 0.4));
-
-    const pointsEarned = Math.round(cadence * 0.1);
-    setTotalVoucherPoints(prev => {
-      const nextPts = prev + pointsEarned;
-      localStorage.setItem('kinetix_voucher_points', nextPts.toString());
-      return nextPts;
-    });
-
-    setMotivationMessage(`🏃 Steps counted at ${cadence} a minute · +${pointsEarned} points`);
-    setTimeout(() => setMotivationMessage(null), 5000);
-  };
 
   // Applies existing personalization (allergen flagging + target-based recommendation) to a
   // real nutrition result from /api/scan-meal, regardless of whether it came from photo or text.
@@ -1401,8 +1591,7 @@ export default function App() {
 
     if (flagged.length > 0) {
       const recommendation = `Contains ${flagged.join(', ')}, which you've marked as an allergen. Try something else — the meal ideas on this page leave your allergens out.`;
-      setMotivationMessage('⚠️ Heads up: this contains one of your allergens.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('warn', 'This contains one of your allergens.');
 
       setScanResult({
         foodName, calories, macros, micros,
@@ -1431,8 +1620,7 @@ export default function App() {
     } else { // Autonomic Recovery
       recommendation = `A steady, balanced choice for a recovery day. Add some healthy fats and keep sipping water through the day.`;
     }
-    setMotivationMessage(`✅ Logged · +${macros.fiber}g fibre towards today's 30g`);
-    setTimeout(() => setMotivationMessage(null), 5000);
+    notify('success', `Logged · +${macros.fiber}g fibre towards today's ${nhsTargets.fiber}g`);
 
     setScanResult({
       foodName, calories, macros, micros,
@@ -1452,8 +1640,7 @@ export default function App() {
       localStorage.setItem('kinetix_voucher_points', next.toString());
       return next;
     });
-    setMotivationMessage(`🍽️ +${amount} points for today's first scan!`);
-    setTimeout(() => setMotivationMessage(null), 5000);
+    notify('success', `+${amount} points for today's first scan`);
   };
 
   const handleMealScan = async (inputStr?: string) => {
@@ -1471,16 +1658,14 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || 'Could not scan that item. Please try again.'}`);
-        setTimeout(() => setMotivationMessage(null), 6000);
+        notify('error', `${data.error || 'Could not scan that item. Please try again.'}`);
         return;
       }
 
       finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
       applyPointsAwarded(data.pointsAwarded);
     } catch {
-      setMotivationMessage('⚠️ Scan failed — check your connection and try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Scan failed — check your connection and try again.');
     } finally {
       setIsScanLoading(false);
     }
@@ -1497,8 +1682,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || 'Could not identify that photo. Please try again or enter it manually.'}`);
-        setTimeout(() => setMotivationMessage(null), 6000);
+        notify('error', `${data.error || 'Could not identify that photo. Please try again or enter it manually.'}`);
         return;
       }
 
@@ -1507,8 +1691,7 @@ export default function App() {
       finalizeScanResult(data.foodName, data.calories, data.macros, data.micros, data.estimated, data.estimatedPortionGrams);
       applyPointsAwarded(data.pointsAwarded);
     } catch {
-      setMotivationMessage('⚠️ Photo scan failed — check your connection and try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Photo scan failed — check your connection and try again.');
     } finally {
       setIsCameraScanning(false);
     }
@@ -1531,8 +1714,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || 'Product not found — try manual entry.'}`);
-        setTimeout(() => setMotivationMessage(null), 6000);
+        notify('error', `${data.error || 'Product not found — try manual entry.'}`);
         return;
       }
 
@@ -1543,8 +1725,7 @@ export default function App() {
       // The plugin rejects the promise on user-cancelled scans too — only surface real failures.
       const message = err instanceof Error ? err.message.toLowerCase() : '';
       if (!message.includes('cancel')) {
-        setMotivationMessage('⚠️ Barcode scan failed. Please try again or enter manually.');
-        setTimeout(() => setMotivationMessage(null), 6000);
+        notify('error', 'Barcode scan failed. Please try again or enter manually.');
       }
     } finally {
       setIsCameraScanning(false);
@@ -1584,8 +1765,7 @@ export default function App() {
       const { base64, mimeType } = await resizeImageToBase64(file);
       await handleMealScanFromPhoto(base64, mimeType);
     } catch {
-      setMotivationMessage('⚠️ Could not process that photo. Please try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Could not process that photo. Please try again.');
     }
   };
 
@@ -1600,8 +1780,7 @@ export default function App() {
 
   const handleConnectHealthSource = async () => {
     if (!Capacitor.isNativePlatform()) {
-      setMotivationMessage('📱 Live health sync needs the iOS or Android app. Open KinetixFit on your phone to connect.');
-      setTimeout(() => setMotivationMessage(null), 7000);
+      notify('info', 'Live health sync needs the iOS or Android app. Open KinetixFit on your phone to connect.');
       return;
     }
 
@@ -1609,8 +1788,7 @@ export default function App() {
     try {
       const { available } = await Health.isAvailable();
       if (!available) {
-        setMotivationMessage("⚠️ Health data isn't available on this device. Make sure Health Connect is installed (Android) or you're on a supported iOS version.");
-        setTimeout(() => setMotivationMessage(null), 7000);
+        notify('error', "Health data isn't available on this device. Make sure Health Connect is installed (Android) or you're on a supported iOS version.");
         return;
       }
 
@@ -1619,20 +1797,17 @@ export default function App() {
       });
 
       if (status.readAuthorized.length === 0) {
-        setMotivationMessage("🔒 Health data access wasn't granted. You can enable it later from your device's Health settings.");
-        setTimeout(() => setMotivationMessage(null), 7000);
+        notify('info', "Health data access wasn't granted. You can enable it later from your device's Health settings.");
         return;
       }
 
       const sourceName = Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect';
       saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
       setShowDeviceSyncModal(false);
-      setMotivationMessage(`✅ Connected to ${sourceName}. Your data can take a moment to appear.`);
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('success', `Connected to ${sourceName}. Your data can take a moment to appear.`);
     } catch (err) {
       console.warn('Health connection failed:', err);
-      setMotivationMessage('⚠️ Could not connect to health data. Please try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Could not connect to health data. Please try again.');
     } finally {
       setIsConnectingHealth(false);
     }
@@ -1652,16 +1827,16 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setPromoMessage(`❌ ${data.error || 'Invalid Promo or Coupon Code.'}`);
+        setPromoMessage({ tone: 'error', text: data.error || "That code isn't valid. Check it and try again." });
         return;
       }
 
-      setPromoMessage(data.tier === 'lifetime'
-        ? '💚 Lifetime access activated successfully!'
-        : '💎 30-day promotional access activated successfully!');
+      setPromoMessage({ tone: 'success', text: data.tier === 'lifetime'
+        ? 'Lifetime access is now active.'
+        : '30 days of Premium are now active.' });
       await refreshRevenueCatStatus();
     } catch {
-      setPromoMessage('❌ Could not reach the licensing server. Please try again.');
+      setPromoMessage({ tone: 'error', text: 'Could not reach the server to check your code. Try again.' });
     } finally {
       setIsRedeemingPromo(false);
     }
@@ -1669,20 +1844,18 @@ export default function App() {
 
   const triggerRewardVaultSettlement = async () => {
     if (tasksCompletedTodayCount < requiredTaskCountForRedeem) {
-      alert(`Finish at least ${requiredTaskCountForRedeem} of today's quests to redeem — you've done ${tasksCompletedTodayCount} so far.`);
-      setMotivationMessage("🔒 Finish 2 of today's quests to unlock redeeming.");
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('info', `Finish ${requiredTaskCountForRedeem} of today's quests to unlock redeeming — you've done ${tasksCompletedTodayCount} so far.`);
       return;
     }
 
     if (totalVoucherPoints < 2500) {
-      alert("You need 2,500 points to redeem a voucher. Keep completing quests to earn more.");
+      notify('info', 'You need 2,500 points to redeem a voucher. Complete quests to earn more.');
       return;
     }
 
     const currentTime = Date.now();
     if (currentTime - lastRedemptionTime < 86400000) {
-      alert("You can redeem one reward every 24 hours.");
+      notify('info', 'You can redeem one reward every 24 hours.');
       return;
     }
 
@@ -1692,7 +1865,7 @@ export default function App() {
     let sku: string;
 
     if (rewardGateway === 'primary') {
-      alert("Rewards are temporarily unavailable, please check back soon.");
+      notify('error', 'Rewards are temporarily unavailable. Try again later.');
       return;
     } else if (rewardGateway === 'direct') {
       prefix = 'TX-API-';
@@ -1720,8 +1893,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMotivationMessage(`⚠️ ${data.error || data.details || 'Redemption failed. Please try again.'}`);
-        setTimeout(() => setMotivationMessage(null), 7000);
+        notify('error', `${data.error || data.details || 'Redemption failed. Please try again.'}`);
         return;
       }
 
@@ -1739,11 +1911,9 @@ export default function App() {
       setTotalVoucherPoints(newPts);
       localStorage.setItem('kinetix_voucher_points', newPts.toString());
       setLastLastRedemptionTime(Date.now());
-      setMotivationMessage(`☕ ${data.message || 'Voucher settled!'}`);
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('success', data.message || 'Voucher redeemed.');
     } catch {
-      setMotivationMessage('⚠️ Could not reach the redemption server. Please try again.');
-      setTimeout(() => setMotivationMessage(null), 6000);
+      notify('error', 'Could not reach the redemption server. Please try again.');
     } finally {
       setIsRedeemingVoucher(false);
     }
@@ -1752,7 +1922,7 @@ export default function App() {
   const handleSendContact = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactName || !contactEmail || !contactMsg) {
-      alert("Please fill out all contact fields.");
+      notify('error', 'Fill in your name, email and message to send it.');
       return;
     }
     setContactSuccess(true);
@@ -1775,13 +1945,27 @@ export default function App() {
         <div>
           <p className="kx-hero-eyebrow">{today}</p>
           <h2 className="kx-hero-greeting">
-            {timeGreeting},<br /><em>{profile.name || 'there'}</em>
+            {timeGreeting},<br /><em>{profile.name.trim().split(/\s+/)[0] || 'there'}</em>
           </h2>
           <p className="kx-hero-status">
-            {profile.smartDeviceConnected ? `Synced with ${profile.smartDeviceConnected}` : 'Connect a device to see your live stats.'}
+            {!profile.smartDeviceConnected
+              ? 'Connect a device to see your steps, heart rate and sleep.'
+              : healthDataState === 'no-data'
+                ? `Connected to ${profile.smartDeviceConnected} — no data yet.`
+                : `Synced with ${healthSource ?? profile.smartDeviceConnected}`}
           </p>
         </div>
-        <p className="kx-hero-quote">{getDailyQuote()}</p>
+        <div className="kx-hero-targets" aria-label="Today's targets">
+          <span className="kx-hero-eyebrow">Today's targets</span>
+          <div className="kx-hero-target-row">
+            <span><strong>{nhsTargets.calories.toLocaleString('en-GB')}</strong> kcal</span>
+            <span><strong>{nhsTargets.protein}g</strong> protein</span>
+            <span><strong>{nhsTargets.fiber}g</strong> fibre</span>
+          </div>
+        </div>
+        {!profile.smartDeviceConnected && (
+          <button type="button" onClick={() => setShowDeviceSyncModal(true)} className="kx-hero-cta">Connect a device</button>
+        )}
       </>
     );
   };
@@ -1889,18 +2073,35 @@ export default function App() {
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   className="ob-input"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint={authMode === 'forgot' ? 'send' : 'next'}
                 />
                 {authMode !== 'forgot' && (
                   <>
                     <label className="ob-label">Password</label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="At least 6 characters"
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      className="ob-input"
-                    />
+                    <div className="ob-password">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        placeholder="At least 6 characters"
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        className="ob-input"
+                        autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        enterKeyHint="go"
+                      />
+                      <button type="button" className="ob-password-toggle" onClick={() => setShowPassword(v => !v)} aria-pressed={showPassword}>
+                        {showPassword ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
                   </>
                 )}
                 {authMode === 'login' && (
@@ -1915,7 +2116,9 @@ export default function App() {
                 </button>
               </form>
 
-              {authMode !== 'forgot' && (
+              {/* Google sign-in only works on the website (native needs a deep-link return that isn't built yet), and
+                  on iOS offering it would also require Sign in with Apple (App Store guideline 4.8) — so apps don't show it */}
+              {authMode !== 'forgot' && !Capacitor.isNativePlatform() && (
                 <>
                   <div className="ob-divider">or</div>
                   <button onClick={handleGoogleSignIn} className="ob-btn-google">
@@ -1955,8 +2158,14 @@ export default function App() {
               <div className="ob-badge" style={{ ['--metric' as string]: 'var(--m-heart)' }}><HeartIcon size={30} /></div>
               <h1 className="ob-title">See your real stats</h1>
               <p className="ob-body">
-                We use {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'} to show your real steps, heart rate, and sleep — no guessing, no placeholder numbers. You can disconnect at any time in Profile.
+                We use {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'} to show your real steps, heart rate, and sleep — no guessing, no placeholder numbers. You can disconnect at any time in Account.
               </p>
+              <ul className="ob-perm-list" aria-label="What KinetixFit reads">
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-steps)' }}><StepsIcon size={16} /></span><span><strong>Steps</strong>Your daily activity and streak</span></li>
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-heart)' }}><HeartIcon size={16} /></span><span><strong>Heart rate</strong>Recovery and stress estimates</span></li>
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-sleep)' }}><SleepIcon size={16} /></span><span><strong>Sleep</strong>Nightly sleep and your trend</span></li>
+              </ul>
+              <p className="ob-footnote ob-perm-note">Read only — KinetixFit doesn't add or change anything in {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}.</p>
               <button onClick={handleConnectHealthSource} disabled={isConnectingHealth} className="ob-btn-primary" style={{ marginBottom: '10px' }}>
                 {isConnectingHealth ? 'Connecting…' : `Connect ${Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}`}
               </button>
@@ -1983,16 +2192,31 @@ export default function App() {
               <div className="ob-badge" style={{ ['--metric' as string]: 'var(--m-sleep)' }}><BellIcon size={30} /></div>
               <h1 className="ob-title">Stay on track</h1>
               <p className="ob-body">
-                We'll send helpful reminders — hydration during your work hours, and a nudge if you forget to log a meal. Only if you want them — you can turn these off anytime in Profile.
+                A few helpful reminders, only if you want them. You can change or turn them off anytime in Account.
               </p>
+              <ul className="ob-perm-list" aria-label="Reminders KinetixFit sends">
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--info)' }}><WavesIcon size={16} /></span><span><strong>Water breaks</strong>During the hours you choose</span></li>
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-heart)' }}><DumbbellIcon size={16} /></span><span><strong>Activity nudge</strong>When your steps suggest a workout to log</span></li>
+                <li><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--good)' }}><TargetIcon size={16} /></span><span><strong>Target alerts</strong>When you're close to your protein, fibre or calories</span></li>
+              </ul>
               <button
-                onClick={async () => { await ensureNotificationPermission(); setOnboardingStep(5); }}
+                onClick={async () => { localStorage.removeItem(NOTIFICATIONS_SKIPPED_KEY); await ensureNotificationPermission(); setOnboardingStep(5); }}
                 className="ob-btn-primary"
                 style={{ marginBottom: '10px' }}
               >
                 Turn on reminders
               </button>
-              <button onClick={() => setOnboardingStep(5)} className="ob-btn-secondary">Skip for now</button>
+              <button
+                onClick={() => {
+                  localStorage.setItem(NOTIFICATIONS_SKIPPED_KEY, '1');
+                  localStorage.setItem('kinetix_hydration_enabled', 'false');
+                  setHydrationRemindersEnabled(false);
+                  setOnboardingStep(5);
+                }}
+                className="ob-btn-secondary"
+              >
+                Skip for now
+              </button>
             </div>
           </div>
         </div>
@@ -2000,72 +2224,17 @@ export default function App() {
     );
   }
 
-  // C. ONBOARDING STEP 5: Biographical profile setup
+  // C. ONBOARDING STEP 5: About you — name/region, body, goal and plan, with a moment after each
   if (onboardingStep === 5) {
     return (
-      <div className="workspace-container">
-        <div className="app-viewport-container">
-
-          <div className="ob-container">
-            <div className="ob-card">
-              <span className="ob-step">Step 1 of 2</span>
-              <h1 className="ob-title">About you</h1>
-              <p className="ob-body" style={{ marginBottom: '18px' }}>We use this to set your calorie and protein targets.</p>
-              <div className="ob-form">
-                <label className="ob-label">Your name
-                  <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="auth-input" />
-                </label>
-                <label className="ob-label">Height (cm)
-                  <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="auth-input" />
-                </label>
-                <label className="ob-label">Weight (kg)
-                  <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="auth-input" />
-                </label>
-                <label className="ob-label">Age
-                  <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="auth-input" />
-                </label>
-                <label className="ob-label">Sex
-                  <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="auth-input-select">
-                    <option value="">Prefer not to say</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
-                </label>
-                {profile.sex === 'female' && (
-                  <>
-                    <label className="ob-label">Last period started
-                      <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="auth-input" />
-                    </label>
-                    <label className="ob-label">Cycle length (days)
-                      <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="auth-input" />
-                    </label>
-                  </>
-                )}
-                <label className="ob-label">Activity level
-                  <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="auth-input-select">
-                    <option value="sedentary">Sedentary (little to no exercise)</option>
-                    <option value="light">Light (exercise 1-3x/week)</option>
-                    <option value="moderate">Moderate (exercise 3-5x/week)</option>
-                    <option value="active">Active (exercise 6-7x/week)</option>
-                    <option value="very_active">Very active (hard exercise or physical job)</option>
-                  </select>
-                </label>
-                <label className="ob-label">Main goal
-                  <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="auth-input-select">
-                    <option value="Autonomic Recovery">Recovery</option>
-                    <option value="Weight Loss">Weight Loss</option>
-                    <option value="Weight Gain">Weight Gain</option>
-                    <option value="Cardio Endurance">Cardio Endurance</option>
-                  </select>
-                </label>
-                <button onClick={() => setOnboardingStep(6)} className="primary-btn" style={{ marginTop: '6px' }}>
-                  Continue
-                </button>
-              </div>
-            </div>
-                      </div>
-        </div>
-      </div>
+      <AboutYouFlow
+        profile={profile}
+        onChange={patchProfile}
+        bmr={Math.round(calculateBmr(profile))}
+        targets={nhsTargets}
+        onBack={() => setOnboardingStep(4)}
+        onDone={() => setOnboardingStep(6)}
+      />
     );
   }
 
@@ -2077,7 +2246,7 @@ export default function App() {
 
           <div className="ob-container">
             <div className="ob-card">
-              <span className="ob-step">Step 2 of 2</span>
+              <span className="ob-step">Last step</span>
               <h1 className="ob-title">Any food allergies?</h1>
               <p className="ob-body" style={{ marginBottom: '18px' }}>
                 Tap any you're allergic to. We'll flag them when you check a food.
@@ -2099,7 +2268,7 @@ export default function App() {
                   );
                 })}
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="ob-actions" style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={() => setOnboardingStep(5)} className="secondary-btn" style={{ flex: 1 }}>
                   Back
                 </button>
@@ -2119,7 +2288,31 @@ export default function App() {
   const heartRateBio = allBiometrics.find(b => b.id === 'BIO-2')!;
   const sleepBio = allBiometrics.find(b => b.id === 'BIO-4')!;
   const stressBio = allBiometrics.find(b => b.id === 'BIO-5')!;
-  const hasStressHistory = healthTrends.stress.some(d => d.value !== null);
+
+  // Workouts are stored as "Label (dd/mm/yyyy)"; count the ones from the last 7 days for the Log a workout card.
+  const weekAgoMs = new Date().getTime() - 7 * 86400000;
+  const workoutsThisWeek = profile.workoutsLogged.filter(entry => {
+    const m = entry.match(/\((\d{2})\/(\d{2})\/(\d{4})\)$/);
+    return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime() > weekAgoMs : false;
+  }).length;
+
+  // Account menu: grouped rows, each opening its own page; the value is a short summary of what's inside.
+  const accountEmail = session?.user?.email || profile.email;
+  const accountSections: { title: string; rows: { page: AccountPage; value?: string }[] }[] = [
+    { title: 'Profile', rows: [
+      { page: 'details' },
+      { page: 'allergies', value: profile.personalAllergens.length ? `${profile.personalAllergens.length} selected` : 'None' }
+    ] },
+    { title: 'Devices & reminders', rows: [
+      { page: 'devices', value: profile.smartDeviceConnected ? (healthSource ?? profile.smartDeviceConnected) : 'Not connected' },
+      { page: 'reminders', value: hydrationRemindersEnabled ? `Every ${hydrationIntervalHours} h` : 'Off' }
+    ] },
+    { title: 'Subscription', rows: [
+      { page: 'subscription', value: revenueCatStatus ?? undefined },
+      { page: 'promo' }
+    ] },
+    { title: 'Help & legal', rows: [{ page: 'about' }, { page: 'privacy' }, { page: 'help' }] }
+  ];
 
   // F. MAIN HOLLYWOOD HUD PLATFORM PORTAL SCREEN WITH GLASS SCI-FI OVERLAYS
   return (
@@ -2127,8 +2320,9 @@ export default function App() {
       <div className="app-viewport-container">
         {/* --- DYNAMIC GLOWING ANNOUNCEMENT TICKER --- */}
         {motivationMessage && (
-          <div className="alert-ticker">
-            {motivationMessage}
+          <div key={motivationMessage.text} className={`alert-ticker tone-${motivationMessage.tone}`} role="status" aria-live="polite" onClick={() => setMotivationMessage(null)}>
+            <span className="alert-ticker-icon"><MessageIcon tone={motivationMessage.tone} size={14} /></span>
+            <span>{motivationMessage.text}</span>
           </div>
         )}
 
@@ -2136,7 +2330,7 @@ export default function App() {
         <div className="app-scroll-body">
 
           {/* Header Dashboard Branding */}
-          <header className="app-brand-header">
+          <header className="app-brand-header kx-desktop-only">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className="glowing-logo">
                 <svg width="40" height="20" viewBox="0 0 100 50" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2149,6 +2343,10 @@ export default function App() {
             </div>
           </header>
 
+          {(activeTab === 'nourish' || activeTab === 'rewards') && (
+            <h1 className="kx-tab-title">{activeTab === 'nourish' ? 'Nourish' : 'Rewards'}</h1>
+          )}
+
           {/* ==================== TAB 1: TODAY ==================== */}
           {activeTab === 'vitals' && (
             <div className="tab-fade-in vitals-dashboard-grid">
@@ -2158,16 +2356,63 @@ export default function App() {
               <div className="vitals-hero-card">
                 <TrackLanes />
                 {getPersonalizedWelcome()}
-                <div className="kx-hero-foot">
-                  <p className="kx-hero-hint">Tap a card below to see your 7-day trend.</p>
-                  {streak > 0 && (
+                {streak > 0 && (
+                  <div className="kx-hero-foot">
                     <div className="kx-lap" aria-label={`${streak}-day streak`}>
                       <span className="kx-lap-num">{streak}</span>
                       <span className="kx-lap-label">day streak</span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+
+              {/* Connected, but Health Connect is empty — almost always a tracker app that isn't allowed to share yet */}
+              {isLiveHealthData && healthDataState === 'no-data' && Capacitor.getPlatform() === 'android' && (
+                <div className="hub-support-card kx-setup-card">
+                  <span className="vitals-label">One more step</span>
+                  <h3 className="card-header-title">
+                    {isSamsungDevice() ? 'Let Samsung Health share your data' : 'Let your tracker app share its data'}
+                  </h3>
+                  <p className="card-header-desc">
+                    {isSamsungDevice()
+                      ? 'KinetixFit is connected to Health Connect, but nothing from Samsung Health has arrived yet. Samsung Health only shares activity recorded after you allow it — older days stay in Samsung Health.'
+                      : 'KinetixFit is connected to Health Connect, but no app is sharing steps, heart rate or sleep with it yet.'}
+                  </p>
+                  <ol className="kx-steps">
+                    <li>Tap <strong>Open Health Connect</strong>, then <strong>App permissions</strong>.</li>
+                    <li>Choose <strong>{isSamsungDevice() ? 'Samsung Health' : 'the app that tracks your activity'}</strong> and turn on <strong>Allow all</strong>.</li>
+                    <li>{isSamsungDevice()
+                      ? <>Walk for a few minutes, then open Samsung Health and pull down on its home screen to sync. Come back here.</>
+                      : 'Open that app once so it syncs, then come back here.'}</li>
+                  </ol>
+                  <div className="kx-setup-actions">
+                    <button type="button" className="primary-btn" onClick={openHealthConnectSettings}>Open Health Connect</button>
+                    <button type="button" className="edit-bio-btn" onClick={() => setForegroundTick(t => t + 1)}>Check again</button>
+                  </div>
+                </div>
+              )}
+
+              {/* iPhone: Apple Health never tells an app whether it may read, so "nothing arrived" usually means the
+                  categories were left off in the permission sheet (or there's no data yet, e.g. no Apple Watch) */}
+              {isLiveHealthData && healthDataState === 'no-data' && Capacitor.getPlatform() === 'ios' && (
+                <div className="hub-support-card kx-setup-card">
+                  <span className="vitals-label">One more step</span>
+                  <h3 className="card-header-title">Let KinetixFit read Apple Health</h3>
+                  <p className="card-header-desc">
+                    Nothing has arrived from Apple Health yet. Apple doesn’t tell apps whether reading was allowed, so if you
+                    skipped any categories when asked, they stay off until you turn them on.
+                  </p>
+                  <ol className="kx-steps">
+                    <li>Tap <strong>Open Health</strong>, then your <strong>profile picture</strong> at the top right.</li>
+                    <li>Under Privacy, tap <strong>Apps</strong>, then <strong>KinetixFit</strong>, and choose <strong>Turn On All</strong>.</li>
+                    <li>Come back here. Your iPhone counts steps on its own; heart rate and sleep need an Apple Watch or another tracker.</li>
+                  </ol>
+                  <div className="kx-setup-actions">
+                    <button type="button" className="primary-btn" onClick={openAppleHealth}>Open Health</button>
+                    <button type="button" className="edit-bio-btn" onClick={() => setForegroundTick(t => t + 1)}>Check again</button>
+                  </div>
+                </div>
+              )}
 
               {/* 7-Day Health Trends — real device history, honest empty states when disconnected */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2183,7 +2428,6 @@ export default function App() {
                   color="var(--m-steps)"
                   chartType="bar"
                   isTrackable={isLiveHealthData}
-                  disconnectedMessage="Connect a device in Profile to see your 7-day steps trend."
                   minPoints={1}
                   expanded={expandedTrendId === 'BIO-1'}
                   onToggle={() => setExpandedTrendId(prev => prev === 'BIO-1' ? null : 'BIO-1')}
@@ -2192,7 +2436,7 @@ export default function App() {
                 />
                 <BiometricTrendCard
                   icon={<HeartIcon />}
-                  title="Heart Rate"
+                  title="Heart rate"
                   status={heartRateBio.status}
                   behavior={heartRateBio.behavior}
                   latestReading={String(heartRateBio.reading)}
@@ -2202,7 +2446,6 @@ export default function App() {
                   color="var(--m-heart)"
                   chartType="line"
                   isTrackable={isLiveHealthData}
-                  disconnectedMessage="Connect a device to see your 7-day heart rate trend."
                   minPoints={1}
                   expanded={expandedTrendId === 'BIO-2'}
                   onToggle={() => setExpandedTrendId(prev => prev === 'BIO-2' ? null : 'BIO-2')}
@@ -2221,104 +2464,94 @@ export default function App() {
                   color="var(--m-sleep)"
                   chartType="bar"
                   isTrackable={isLiveHealthData}
-                  disconnectedMessage="Connect a device in Profile to see your 7-day sleep trend."
                   minPoints={1}
                   expanded={expandedTrendId === 'BIO-4'}
                   onToggle={() => setExpandedTrendId(prev => prev === 'BIO-4' ? null : 'BIO-4')}
                   rangeDays={trendRangeDays}
                   onRangeChange={setTrendRangeDays}
                 />
-                <BiometricTrendCard
-                  icon={<StressIcon />}
-                  title="Stress (HRV estimate)"
-                  status={stressBio.status}
-                  behavior={stressBio.behavior}
-                  latestReading={String(stressBio.reading)}
-                  subMetrics={stressBio.details.subMetrics}
-                  trend={healthTrends.stress}
-                  unit=" ms HRV"
-                  color="var(--m-stress)"
-                  chartType="line"
-                  isTrackable={isLiveHealthData || hasStressHistory}
-                  disconnectedMessage="Connect a device to start tracking your stress trend."
-                  buildingMessage="Building your trend — check back in a few days."
-                  minPoints={2}
-                  trendFootnote="Estimated from your HRV — higher HRV generally means lower stress. This app has no way to directly measure stress hormones."
-                  expanded={expandedTrendId === 'BIO-5'}
-                  onToggle={() => setExpandedTrendId(prev => prev === 'BIO-5' ? null : 'BIO-5')}
-                  rangeDays={trendRangeDays}
-                  onRangeChange={setTrendRangeDays}
-                />
-              </div>
-
-              {/* Workout logging — a real log entry, independent of live heart rate/HRV data */}
-              <div className="ecg-module-card">
-                <h3 className="ecg-title">Log a workout</h3>
-                <div className="sport-workload-bar">
-                  {[
-                    { id: 'rest', label: 'Rest & recovery' },
-                    { id: 'run', label: 'Run' },
-                    { id: 'cycle', label: 'Cycle' },
-                    { id: 'swim', label: 'Swim' }
-                  ].map(mode => (
-                    <button
-                      key={mode.id}
-                      onClick={() => setActiveSportMode(mode.id as 'rest' | 'run' | 'cycle' | 'swim')}
-                      className={`sport-mode-btn ${activeSportMode === mode.id ? 'active-sport-btn' : ''}`}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={handleLogWorkout} className="primary-btn">
-                  Log workout
-                </button>
+                {!noHrvFromSource && (
+                  <BiometricTrendCard
+                    icon={<StressIcon />}
+                    title="Stress"
+                    status={stressBio.status}
+                    behavior={stressBio.behavior}
+                    latestReading={String(stressBio.reading)}
+                    subMetrics={stressBio.details.subMetrics}
+                    trend={healthTrends.stress}
+                    unit=" ms HRV"
+                    color="var(--m-stress)"
+                    chartType="line"
+                    isTrackable={isLiveHealthData || hasStressHistory}
+                    buildingMessage="Building your trend — check back in a few days."
+                    minPoints={2}
+                    trendFootnote="Estimated from your HRV — higher HRV generally means lower stress. This app has no way to directly measure stress hormones."
+                    expanded={expandedTrendId === 'BIO-5'}
+                    onToggle={() => setExpandedTrendId(prev => prev === 'BIO-5' ? null : 'BIO-5')}
+                    rangeDays={trendRangeDays}
+                    onRangeChange={setTrendRangeDays}
+                  />
+                )}
               </div>
 
               </div> {/* End Left Panel */}
 
               <div className="vitals-right-panel">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div className="kx-row-between">
-                  <h3 className="section-header">Device</h3>
-                  <span className={`kx-live-pill ${isLiveHealthData ? 'kx-live-on' : ''}`}>
-                    <span className="kx-live-dot" />
-                    {isLiveHealthData ? `Live · ${profile.smartDeviceConnected}` : 'Not connected'}
-                  </span>
+              {/* Workout logging — a real log entry, independent of live heart rate/HRV data */}
+              <div className="ecg-module-card kx-workout-card">
+                <div className="kx-card-head">
+                  <h3 className="ecg-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-heart)' }}><DumbbellIcon size={16} /></span>Log a workout</h3>
+                  {workoutsThisWeek > 0 && <span className="kx-count">{workoutsThisWeek} this week</span>}
                 </div>
-                {sexCard && (
+                <p className="kx-card-sub">Counts towards your streak and today's quests.</p>
+                <div className="kx-activity-grid" role="radiogroup" aria-label="Activity">
+                  {WORKOUT_MODES.map(mode => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={activeSportMode === mode.id}
+                      onClick={() => { if (activeSportMode !== mode.id) hapticSelection(); setActiveSportMode(mode.id); }}
+                      className={`kx-activity ${activeSportMode === mode.id ? 'is-on' : ''}`}
+                    >
+                      <span className="kx-activity-icon">{mode.icon}</span>
+                      <span className="kx-activity-label">{mode.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={handleLogWorkout} className="primary-btn">
+                  Log {WORKOUT_MODES.find(m => m.id === activeSportMode)!.label.toLowerCase()}
+                </button>
+              </div>
+
+                {sexCard && (profile.sex === 'female' || isLiveHealthData) && !(noHrvFromSource && sexCard.id === 'BIO-6') && (
                   <div className="biometric-item-card">
                     <div className="bio-card-header">
                       <span className="bio-system-label">{sexCard.system}</span>
-                      <span className={`bio-status-badge status-${sexCard.status.toLowerCase()}`}>
-                        {sexCard.status}
-                      </span>
+                      {isLiveHealthData && (
+                        <span className={`bio-status-badge status-${sexCard.status.toLowerCase()}`}>
+                          {sexCard.status}
+                        </span>
+                      )}
                     </div>
                     <h4 className="bio-metric-title">{sexCard.metric}</h4>
                     <p className="bio-metric-reading">{sexCard.reading}</p>
                     <span className="bio-behavior-log">{sexCard.behavior}</span>
                   </div>
                 )}
-              </div>
 
-              {/* Device connection shortcut — editing your details lives in Profile now, not duplicated here */}
-              <div className="profile-actions-row">
-                <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
-                  {isLiveHealthData ? 'Manage device' : 'Connect a device'}
-                </button>
-              </div>
-
+              <div className="kx-fab-clearance" aria-hidden="true" />
               </div> {/* End Right Panel */}
             </div>
           )}
 
           {/* ==================== TAB 2: NOURISH (QUANTUM SPECTRAL SCANNERS) ==================== */}
           {activeTab === 'nourish' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="tab-fade-in kx-nourish-grid">
 
               {/* Daily macro counters */}
               <div className="nourish-summary-card">
-                <span className="vitals-label">Today · NHS guidelines</span>
+                <span className="vitals-label">Today · your targets</span>
                 <h3 className="nourish-calories-remaining" style={{ color: caloriesRemaining > 0 ? 'var(--ink)' : 'var(--danger)' }}>
                   {Math.abs(caloriesRemaining).toLocaleString('en-GB')}
                   <span className="kx-unit">{caloriesRemaining > 0 ? 'kcal left' : 'kcal over'}</span>
@@ -2329,7 +2562,7 @@ export default function App() {
                   <div className="macro-progress-bar">
                     <div className="macro-bar-header">
                       <span>Fibre</span>
-                      <strong>{dailyConsumables.fiber}g <span className="kx-of">/ 30g</span></strong>
+                      <strong>{dailyConsumables.fiber}g <span className="kx-of">/ {nhsTargets.fiber}g</span></strong>
                     </div>
                     <div className="progress-track">
                       <div className="progress-fill green-fill" style={{ width: `${Math.min(100, (dailyConsumables.fiber / 30) * 100)}%` }}></div>
@@ -2350,7 +2583,7 @@ export default function App() {
               {/* Suggested Next Meal — generic food ideas fitted to what's actually left today */}
               {mealSuggestions.length > 0 && (
                 <div className="scanner-module-card">
-                  <h3 className="card-header-title">Ideas for your next meal</h3>
+                  <h3 className="card-header-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--good)' }}><BowlIcon size={16} /></span>Ideas for your next meal</h3>
                   <p className="card-header-desc">
                     Picked to fit what you have left today, with your allergens left out.
                   </p>
@@ -2367,66 +2600,83 @@ export default function App() {
                 </div>
               )}
 
-              {/* Food Scanner */}
-              <div className="scanner-module-card">
-                <h3 className="card-header-title">Check a food</h3>
-                <p className="card-header-desc">
-                  Type a food or scan it to see its nutrition and whether it contains your allergens.
-                </p>
+              {/* Food check: search, one-tap suggestions, barcode/photo, and a readable result */}
+              <div className="scanner-module-card kx-food-card">
+                <h3 className="card-header-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--accent)' }}><CameraIcon size={16} /></span>Check a food</h3>
+                <p className="kx-card-sub">Nutrition and allergens for anything you eat — checked against yours.</p>
 
-                {/* Scanner Input Row with Camera Trigger */}
-                <div className="scanner-input-row">
+                <form className="kx-search" role="search" onSubmit={(e) => { e.preventDefault(); if (!isScanLoading) handleMealScan(); }}>
+                  <span className="kx-search-icon" aria-hidden="true"><SearchIcon size={18} /></span>
                   <input
-                    type="text"
-                    placeholder="e.g. tomato pasta"
+                    type="search"
+                    placeholder="Search a food"
+                    aria-label="Food to check"
                     value={mealInput}
                     onChange={(e) => setMealInput(e.target.value)}
-                    className="scanner-text-input"
+                    className="kx-search-input"
+                    enterKeyHint="search"
+                    autoCapitalize="none"
+                    autoCorrect="on"
                   />
-                  <button onClick={() => setShowCameraModal(true)} className="scanner-camera-trigger" title="Scan with camera" aria-label="Scan with camera">
-                    <CameraIcon />
+                  {mealInput.trim() && (
+                    <button type="submit" disabled={isScanLoading} className="kx-search-go">
+                      {isScanLoading ? 'Checking…' : 'Check'}
+                    </button>
+                  )}
+                </form>
+
+                <div className="kx-food-suggest" aria-label="Try one">
+                  <span>Try</span>
+                  {FOOD_SUGGESTIONS.map(food => (
+                    <button key={food} type="button" className="kx-chip kx-chip-sm" disabled={isScanLoading}
+                      onClick={() => { setMealInput(food); handleMealScan(food); }}>
+                      {food}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="kx-food-actions">
+                  <button type="button" className="kx-food-action" onClick={() => { setShowCameraModal(true); handleBarcodeScan(); }}>
+                    <span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--info)' }}><BarcodeIcon size={16} /></span>
+                    <span><strong>Scan a barcode</strong><small>Packaged food</small></span>
                   </button>
-                  <button onClick={() => handleMealScan()} disabled={isScanLoading} className="scanner-submit-btn">
-                    {isScanLoading ? 'Checking…' : 'Check'}
+                  <button type="button" className="kx-food-action" onClick={() => setShowCameraModal(true)}>
+                    <span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--good)' }}><CameraIcon size={16} /></span>
+                    <span><strong>Photo of a meal</strong><small>Home-cooked or eating out</small></span>
                   </button>
                 </div>
 
-                {/* Scan Outcomes Panel */}
                 {scanResult && (
-                  <div className={`scan-outcome-panel border-${scanResult.complianceStatus.toLowerCase()}`}>
-                    <div className="scan-outcome-header">
-                      <span>Result</span>
-                      <span className={`compliance-badge badge-${scanResult.complianceStatus.toLowerCase()}`}>
-                        {scanResult.complianceStatus}
-                      </span>
+                  <div className={`kx-food-result ${scanResult.complianceStatus === 'HAZARD_DETECTED' ? 'is-warning' : 'is-clear'}`} aria-live="polite">
+                    <span className="kx-food-status">
+                      {scanResult.complianceStatus === 'HAZARD_DETECTED'
+                        ? `Contains ${scanResult.allergensFlagged.join(', ')}`
+                        : profile.personalAllergens.length ? 'None of your allergens' : 'Checked'}
+                    </span>
+                    <div className="kx-food-title">
+                      <h4>{scanResult.foodName}</h4>
+                      {scanResult.estimated && <span className="kx-food-portion">~{scanResult.estimatedPortionGrams} g, estimated</span>}
                     </div>
-                    {scanResult.estimated && (
-                      <span className="estimated-portion-badge">
-                        ~{scanResult.estimatedPortionGrams}g (estimated)
-                      </span>
-                    )}
-
-                    <div className="scan-macros-micros-grid">
-                      <div>
-                        <strong className="panel-sub-label">Macros</strong>
-                        <p>• Calories: {scanResult.calories} kcal</p>
-                        <p>• Carbs: {scanResult.macros.carbs}g</p>
-                        <p>• Protein: {scanResult.macros.protein}g</p>
-                        <p style={{ color: 'var(--good)', fontWeight: 650 }}>• Fibre: +{scanResult.macros.fiber}g logged</p>
-                      </div>
-                      <div>
-                        <strong className="panel-sub-label">Minerals</strong>
-                        <p>• Sodium: {scanResult.micros.sodium}</p>
-                        <p>• Potassium: {scanResult.micros.potassium}</p>
-                        <p>• Iron: {scanResult.micros.iron}</p>
-                        <p>• Calcium: {scanResult.micros.calcium}</p>
-                      </div>
+                    <p className="kx-food-kcal"><strong>{scanResult.calories.toLocaleString('en-GB')}</strong> kcal</p>
+                    <div className="kx-food-macros">
+                      <span><strong>{scanResult.macros.carbs}g</strong>carbs</span>
+                      <span><strong>{scanResult.macros.protein}g</strong>protein</span>
+                      <span><strong>{scanResult.macros.fiber}g</strong>fibre</span>
+                      <span><strong>{scanResult.macros.fat}g</strong>fat</span>
                     </div>
-
-                    <div className="scan-clinical-recommendation">
+                    <dl className="kx-food-minerals">
+                      <div><dt>Sodium</dt><dd>{scanResult.micros.sodium}</dd></div>
+                      <div><dt>Potassium</dt><dd>{scanResult.micros.potassium}</dd></div>
+                      <div><dt>Iron</dt><dd>{scanResult.micros.iron}</dd></div>
+                      <div><dt>Calcium</dt><dd>{scanResult.micros.calcium}</dd></div>
+                    </dl>
+                    <div className="kx-food-note">
                       <strong>What this means for you</strong>
                       <p>{scanResult.dietaryRecommendation}</p>
                     </div>
+                    <p className="kx-food-logged">
+                      {scanResult.complianceStatus === 'HAZARD_DETECTED' ? 'Not added to today — it has one of your allergens.' : "Added to today's totals above."}
+                    </p>
                   </div>
                 )}
               </div>
@@ -2434,363 +2684,385 @@ export default function App() {
             </div>
           )}
 
-          {/* ==================== TAB 3: USER DASHBOARD, QUESTS & B2B REWARDS ==================== */}
-          {activeTab === 'profile' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+          {/* ==================== TAB 3: REWARDS — points, quests, achievements, vouchers, charity ==================== */}
+          {activeTab === 'rewards' && (
+            <div className="tab-fade-in vitals-dashboard-grid">
 
-              {/* Symmetrical Dual-Grid Dashboard for Profile Overview on Desktop */}
-              <div className="vitals-dashboard-grid">
-
-                {/* LEFT PROFILE PANEL */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-
-                  {/* Bio Athlete Holographic Status Card */}
-                  <div className="vitals-hero-card kx-profile-hero">
-                    <TrackLanes />
-                    <div>
-                      <span className="kx-hero-eyebrow">Level {level} · {xp} XP</span>
-                      <h2 className="kx-hero-greeting">{profile.name || 'Your profile'}</h2>
-                      <p className="kx-hero-status">Goal: {profile.target === 'Autonomic Recovery' ? 'Recovery' : profile.target}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                {/* Bio Athlete Holographic Status Card */}
+                <div className="vitals-hero-card kx-profile-hero">
+                  <TrackLanes />
+                  <div>
+                    <span className="kx-hero-eyebrow">Level {level}</span>
+                    <h2 className="kx-hero-greeting">{profile.name || 'Your progress'}</h2>
+                    <div className="kx-level-track" role="progressbar" aria-label={`Level ${level} progress`} aria-valuemin={0} aria-valuemax={500} aria-valuenow={xpIntoLevel}>
+                      <span style={{ ['--fill' as string]: xpIntoLevel / 500 }} />
                     </div>
-                    <div className="kx-hero-foot">
+                    <p className="kx-hero-status">{(500 - xpIntoLevel).toLocaleString('en-GB')} XP to level {level + 1}</p>
+                  </div>
+                  <div className="kx-hero-foot">
+                    {streak === 0 && profile.workoutsLogged.length === 0 ? (
+                      <p className="kx-hero-status">Log a workout or finish a quest to start your streak.</p>
+                    ) : (
                       <div className="kx-stat-row">
                         <div className="kx-lap"><span className="kx-lap-num">{streak}</span><span className="kx-lap-label">day streak</span></div>
                         <div className="kx-lap"><span className="kx-lap-num">{profile.workoutsLogged.length}</span><span className="kx-lap-label">workouts</span></div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Smart Point balances Tracker */}
-                  <div className="rewards-summary-card">
-                    <span className="vitals-label">Your points</span>
-                    <h3 className="rewards-wallet-balance">{totalVoucherPoints.toLocaleString('en-GB')}<span className="kx-unit">pts</span></h3>
-                    <p style={{ fontSize: '15px', color: 'var(--ink-2)', lineHeight: '1.6', margin: '4px 0 12px 0' }}>
-                      Complete quests to earn points, then redeem them for coffee vouchers or charity donations.
-                    </p>
-                  </div>
-
-                  {/* Active Wearable Sensor Integration Panel */}
-                  <div className="biopoint-validator-card">
-                    <span className="vitals-label">Connected devices</span>
-                    <p className="validator-desc">
-                      Connect your wearable device to sync your activity, heart rate, and sleep data automatically.
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
-                        {profile.smartDeviceConnected ? `Manage ${profile.smartDeviceConnected}` : 'Connect a device'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Configure Biological Benchmarks Form */}
-                  <div className="hub-support-card">
-                    <h3 className="card-header-title">Your details</h3>
-                    <div className="drawer-form-grid">
-                      <label className="drawer-label">Name
-                        <input type="text" value={profile.name} onChange={(e) => saveProfileToStorage({...profile, name: e.target.value})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                      </label>
-                      <label className="drawer-label">Height (cm)
-                        <input type="number" value={profile.height} onChange={(e) => saveProfileToStorage({...profile, height: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                      </label>
-                      <label className="drawer-label">Weight (kg)
-                        <input type="number" step="0.1" value={profile.weight} onChange={(e) => saveProfileToStorage({...profile, weight: parseFloat(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                      </label>
-                      <label className="drawer-label">Age
-                        <input type="number" value={profile.age} onChange={(e) => saveProfileToStorage({...profile, age: parseInt(e.target.value) || 0})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                      </label>
-                      <label className="drawer-label">Sex
-                        <select value={profile.sex ?? ''} onChange={(e) => saveProfileToStorage({...profile, sex: e.target.value === '' ? null : e.target.value as UserProfile['sex']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          <option value="">Prefer not to say</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                        </select>
-                      </label>
-                      {profile.sex === 'female' && (
-                        <>
-                          <label className="drawer-label">Last period started
-                            <input type="date" value={profile.lastPeriodStartDate ?? ''} onChange={(e) => saveProfileToStorage({...profile, lastPeriodStartDate: e.target.value || null})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                          </label>
-                          <label className="drawer-label">Cycle length (days)
-                            <input type="number" value={profile.averageCycleLength} onChange={(e) => saveProfileToStorage({...profile, averageCycleLength: parseInt(e.target.value) || 28})} className="drawer-input" style={{ width: '100%', boxSizing: 'border-box' }} />
-                          </label>
-                        </>
-                      )}
-                      <label className="drawer-label">Activity level
-                        <select value={profile.activityLevel} onChange={(e) => saveProfileToStorage({...profile, activityLevel: e.target.value as UserProfile['activityLevel']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          <option value="sedentary">Sedentary</option>
-                          <option value="light">Light</option>
-                          <option value="moderate">Moderate</option>
-                          <option value="active">Active</option>
-                          <option value="very_active">Very active</option>
-                        </select>
-                      </label>
-                      <label className="drawer-label">Goal
-                        <select value={profile.target} onChange={(e) => saveProfileToStorage({...profile, target: e.target.value as UserProfile['target']})} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          <option value="Autonomic Recovery">Recovery</option>
-                          <option value="Weight Loss">Weight Loss</option>
-                          <option value="Weight Gain">Weight Gain</option>
-                          <option value="Cardio Endurance">Cardio Endurance</option>
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Natasha's Law Exclusions selection list */}
-                  <div className="scanner-module-card">
-                    <h3 className="card-header-title">Food allergies</h3>
-                    <p className="card-header-desc">
-                      Tap any you have. The food check flags them and meal ideas leave them out.
-                    </p>
-                    <div className="kx-chip-wrap">
-                      {the14Allergens.map(allergen => {
-                        const active = profile.personalAllergens.includes(allergen);
-                        return (
-                          <button
-                            key={allergen}
-                            type="button"
-                            onClick={() => handleTogglePersonalAllergen(allergen)}
-                            className={`kx-chip ${active ? 'kx-chip-on' : ''}`}
-                            aria-pressed={active}
-                          >
-                            {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Notification Settings */}
-                  <div className="hub-support-card">
-                    <h3 className="card-header-title">Reminders</h3>
-                    <label className="demo-toggle-label">
-                      <input
-                        type="checkbox"
-                        checked={hydrationRemindersEnabled}
-                        onChange={(e) => {
-                          setHydrationRemindersEnabled(e.target.checked);
-                          localStorage.setItem('kinetix_hydration_enabled', e.target.checked.toString());
-                        }}
-                        className="demo-toggle-checkbox"
-                      />
-                      Remind me to drink water during my active hours
-                    </label>
-                    <div className="drawer-form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                      <label className="drawer-label">Active from
-                        <select value={shiftStartHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
-                        </select>
-                      </label>
-                      <label className="drawer-label">Until
-                        <select value={shiftEndHour} onChange={(e) => { const v = parseInt(e.target.value); setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{h}:00</option>)}
-                        </select>
-                      </label>
-                      <label className="drawer-label">Every
-                        <select value={hydrationIntervalHours} onChange={(e) => { const v = parseInt(e.target.value); setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} className="drawer-select" style={{ width: '100%', boxSizing: 'border-box' }}>
-                          {[1, 2, 3, 4].map(h => <option key={h} value={h}>{h}h</option>)}
-                        </select>
-                      </label>
-                    </div>
-                    <p style={{ fontSize: '13px', color: 'var(--ink-3)', margin: '10px 0 0 0', lineHeight: '1.6' }}>
-                      Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
-                    </p>
-                  </div>
-
-                  {/* Account */}
-                  <div className="hub-support-card">
-                    <h3 className="card-header-title">Account</h3>
-                    {(session?.user?.email || profile.email) && (
-                      <p style={{ fontSize: '14px', color: 'var(--ink-2)', margin: '0 0 12px 0' }}>Signed in as <strong style={{ color: 'var(--ink)' }}>{session?.user?.email || profile.email}</strong></p>
                     )}
-                    <button onClick={handleLogout} className="edit-bio-btn" style={{ width: '100%' }}>
-                      Log out
+                  </div>
+                </div>
+
+                {/* Smart Point balances Tracker */}
+                <div className="rewards-summary-card">
+                  <span className="vitals-label">Your points</span>
+                  <h3 className="rewards-wallet-balance">{totalVoucherPoints.toLocaleString('en-GB')}<span className="kx-unit">pts</span></h3>
+                  <div className="kx-progress" role="progressbar" aria-label="Points towards a charity donation" aria-valuemin={0} aria-valuemax={CHARITY_DONATION_POINTS} aria-valuenow={Math.min(totalVoucherPoints, CHARITY_DONATION_POINTS)}>
+                    <span style={{ ['--fill' as string]: Math.min(1, totalVoucherPoints / CHARITY_DONATION_POINTS) }} />
+                  </div>
+                  <p className="kx-card-sub" style={{ marginTop: '10px' }}>
+                    {totalVoucherPoints >= CHARITY_DONATION_POINTS
+                      ? 'Enough to give £2.50 to a UK charity — see Give to charity below.'
+                      : `${(CHARITY_DONATION_POINTS - totalVoucherPoints).toLocaleString('en-GB')} pts until you can give £2.50 to a UK charity. Quests below earn points.`}
+                  </p>
+                </div>
+
+                {/* Today's Gamified Quests list */}
+                <div className="quests-card">
+                  <div className="quests-header">
+                    <h3 className="quests-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--accent)' }}><TargetIcon size={16} /></span>Today's quests</h3>
+                    <span className="kx-count">{tasksCompletedTodayCount} of {todayTasks.length} done</span>
+                  </div>
+                  <div className="quests-list-stack">
+                    {todayTasks.map(t => {
+                      const isVerifying = completingTaskId === t.id;
+                      return (
+                        <div
+                          key={t.id}
+                          onClick={() => toggleTask(t.id)}
+                          className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
+                          style={{ cursor: t.completed || isVerifying ? 'default' : 'pointer', opacity: isVerifying ? 0.6 : 1 }}
+                        >
+                          <div className="kx-quest-main">
+                            <span className="kx-check" aria-hidden="true" />
+                            <span className="kx-quest-text">{isVerifying ? 'Checking…' : t.text}</span>
+                          </div>
+                          <strong className="kx-quest-pts">+{t.pointsValue}</strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                {/* Achievements / Badges Gallery — computed live from existing tracked data */}
+                <div className="quests-card">
+                  <div className="quests-header">
+                    <h3 className="quests-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--warn)' }}><TrophyIcon size={16} /></span>Achievements</h3>
+                  </div>
+                  <div className="badges-gallery-grid">
+                    {[
+                      { id: 'first-steps', label: 'First workout', icon: <StepsIcon size={24} />, unlocked: profile.workoutsLogged.length >= 1 },
+                      { id: 'dedicated', label: '5 workouts', icon: <DumbbellIcon size={24} />, unlocked: profile.workoutsLogged.length >= 5 },
+                      { id: 'streak-3', label: '3-day streak', icon: <FlameIcon size={24} />, unlocked: streak >= 3 },
+                      { id: 'streak-7', label: '7-day streak', icon: <FlameIcon size={24} />, unlocked: streak >= 7 },
+                      { id: 'level-3', label: 'Level 3', icon: <MedalIcon size={24} />, unlocked: level >= 3 },
+                      { id: 'level-5', label: 'Level 5', icon: <TrophyIcon size={24} />, unlocked: level >= 5 },
+                    ].map(badge => (
+                      <div key={badge.id} className={`badge-tile ${badge.unlocked ? 'badge-unlocked' : 'badge-locked'}`}>
+                        <span className="badge-icon">{badge.icon}</span>
+                        <span className="badge-label">{badge.label}</span>
+                        {!badge.unlocked && <LockIcon size={12} className="badge-lock-overlay" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Accrued Point Validator Accelerometer controls */}
+                <div className="biopoint-validator-card">
+                  <h3 className="card-header-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-steps)' }}><StepsIcon size={16} /></span>How step points work</h3>
+                  <p className="validator-desc">
+                    Steps only earn points at a real walking or running pace (under 350 steps a minute), read from your connected device. Shaking the phone doesn't count.
+                  </p>
+                </div>
+
+                {/* Kinetix Rewards Vault Card (Gateway selection) */}
+                <div className="rewards-redemption-card">
+                  <div className="rewards-redemption-header">
+                    <div>
+                      <h3 className="redemption-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--info)' }}><GiftIcon size={16} /></span>Rewards</h3>
+                      <span className="charity-subtitle">Swap points for vouchers</span>
+                    </div>
+                    <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher || totalVoucherPoints < 2500} className="redeem-rewards-btn">
+                      {isRedeemingVoucher ? 'Redeeming…' : totalVoucherPoints < 2500 ? '2,500 pts to redeem' : 'Redeem · 2,500 pts'}
                     </button>
                   </div>
 
-                </div>
 
-                {/* RIGHT ACTIVE REWARDS PANEL */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-
-                  {/* Today's Gamified Quests list */}
-                  <div className="quests-card">
-                    <div className="quests-header">
-                      <h3 className="quests-title">Today's quests</h3>
-                      <span className="kx-count">{tasksCompletedTodayCount} of {todayTasks.length} done</span>
-                    </div>
-                    <div className="quests-list-stack">
-                      {todayTasks.map(t => {
-                        const isVerifying = completingTaskId === t.id;
-                        return (
-                          <div
-                            key={t.id}
-                            onClick={() => toggleTask(t.id)}
-                            className={`quest-item-pill ${t.completed ? 'quest-item-completed' : ''}`}
-                            style={{ cursor: t.completed || isVerifying ? 'default' : 'pointer', opacity: isVerifying ? 0.6 : 1 }}
-                          >
-                            <div className="kx-quest-main">
-                              <span className="kx-check" aria-hidden="true" />
-                              <span className="kx-quest-text">{isVerifying ? 'Checking…' : t.text}</span>
-                            </div>
-                            <strong className="kx-quest-pts">+{t.pointsValue}</strong>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Achievements / Badges Gallery — computed live from existing tracked data */}
-                  <div className="quests-card">
-                    <div className="quests-header">
-                      <h3 className="quests-title">Achievements</h3>
-                    </div>
-                    <div className="badges-gallery-grid">
-                      {[
-                        { id: 'first-steps', label: 'First Steps', icon: '👣', unlocked: profile.workoutsLogged.length >= 1 },
-                        { id: 'dedicated', label: 'Dedicated Athlete', icon: '💪', unlocked: profile.workoutsLogged.length >= 5 },
-                        { id: 'streak-3', label: '3-Day Streak', icon: '🔥', unlocked: streak >= 3 },
-                        { id: 'streak-7', label: '7-Day Streak', icon: '🔥🔥', unlocked: streak >= 7 },
-                        { id: 'level-3', label: 'Level 3 Reached', icon: '🥈', unlocked: level >= 3 },
-                        { id: 'level-5', label: 'Level 5 Reached', icon: '🏆', unlocked: level >= 5 },
-                      ].map(badge => (
-                        <div key={badge.id} className={`badge-tile ${badge.unlocked ? 'badge-unlocked' : 'badge-locked'}`}>
-                          <span className="badge-icon">{badge.icon}</span>
-                          <span className="badge-label">{badge.label}</span>
-                          {!badge.unlocked && <span className="badge-lock-overlay">🔒</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Accrued Point Validator Accelerometer controls */}
-                  <div className="biopoint-validator-card">
-                    <h3 className="card-header-title">How step points work</h3>
-                    <p className="validator-desc">
-                      Steps only earn points at a real walking or running pace (under 350 steps a minute). Shaking the phone doesn't count. Try both:
-                    </p>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => handleSimulateSteps(120)} className="cadence-btn-normal">
-                        Walk · 120/min
-                      </button>
-                      <button onClick={() => handleSimulateSteps(420)} className="cadence-btn-alert">
-                        Shake · 420/min
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Kinetix Rewards Vault Card (Gateway selection) */}
-                  <div className="rewards-redemption-card">
-                    <div className="rewards-redemption-header">
-                      <div>
-                        <h3 className="redemption-title">Rewards</h3>
-                        <span className="charity-subtitle">Swap points for vouchers</span>
-                      </div>
-                      <button onClick={triggerRewardVaultSettlement} disabled={isRedeemingVoucher} className="redeem-rewards-btn">
-                        {isRedeemingVoucher ? 'Redeeming…' : 'Redeem · 2,500 pts'}
-                      </button>
-                    </div>
-
-                    <p className="kx-note">Voucher redemption is launching soon — check back shortly.</p>
-
-                    {/* Active vouchers history ledger */}
-                    <div className="ledger-table-container">
-                      <table className="ledger-table">
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--line)' }}>
-                            <th>Ref</th>
-                            <th>Reward</th>
-                            <th>Value</th>
-                            <th>Status</th>
+                  {/* Redeemed vouchers */}
+                  {vouchers.length === 0 ? (
+                    <div className="kx-empty"><span className="kx-empty-icon"><GiftIcon size={22} /></span><p>Vouchers are launching soon. Anything you redeem will appear here.</p></div>
+                  ) : (
+                  <div className="ledger-table-container">
+                    <table className="ledger-table">
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--line)' }}>
+                          <th>Ref</th>
+                          <th>Reward</th>
+                          <th>Value</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vouchers.map(v => (
+                          <tr key={v.id} style={{ borderBottom: '1px solid var(--line)' }}>
+                            <td style={{ color: 'var(--ink-3)' }}>{v.id}</td>
+                            <td>{v.provider}</td>
+                            <td style={{ fontWeight: 700 }}>{v.value}</td>
+                            <td>
+                              <span className={`ledger-status-pill status-${v.state.toLowerCase()}`}>
+                                {v.state}
+                              </span>
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {vouchers.map(v => (
-                            <tr key={v.id} style={{ borderBottom: '1px solid var(--line)' }}>
-                              <td style={{ color: 'var(--ink-3)' }}>{v.id}</td>
-                              <td>{v.provider}</td>
-                              <td style={{ fontWeight: 700 }}>{v.value}</td>
-                              <td>
-                                <span className={`ledger-status-pill status-${v.state.toLowerCase()}`}>
-                                  {v.state}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-
-                  {/* UK Social Philanthropy match portal */}
-                  <div className="charity-matching-card">
-                    <div className="charity-card-header">
-                      <div>
-                        <h3 className="charity-title">Give to charity</h3>
-                        <span className="charity-subtitle">Turn points into a real donation to a UK charity.</span>
-                      </div>
-                      <span className="donations-count-pill">{charityDonations} given</span>
-                    </div>
-
-                    <div className="charity-options-grid">
-                      {ukCharities.map(charity => (
-                        <div key={charity.id} className="charity-item-subcard">
-                          <div>
-                            <span className="charity-item-tag">{charity.desc}</span>
-                            <h4 className="charity-item-name">{charity.name}</h4>
-                            <p className="charity-item-mission">{charity.mission}</p>
-                          </div>
-                          <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn">
-                            {isDonating ? 'Donating…' : 'Donate 1,000 pts · £2.50'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
+                  )}
                 </div>
 
+                {/* UK Social Philanthropy match portal */}
+                <div className="charity-matching-card">
+                  <div className="charity-card-header">
+                    <div>
+                      <h3 className="charity-title"><span className="kx-title-icon" style={{ ['--tint' as string]: 'var(--m-heart)' }}><HeartIcon size={16} /></span>Give to charity</h3>
+                      <span className="charity-subtitle">Turn points into a real donation to a UK charity.</span>
+                    </div>
+                    <span className="donations-count-pill">{charityDonations} given</span>
+                  </div>
+
+                  <div className="charity-options-grid">
+                    {ukCharities.map(charity => (
+                      <div key={charity.id} className="charity-item-subcard">
+                        <div>
+                          <span className="charity-item-tag">{charity.desc}</span>
+                          <h4 className="charity-item-name">{charity.name}</h4>
+                          <p className="charity-item-mission">{charity.mission}</p>
+                        </div>
+                        <button onClick={() => handleDonateToCharity(charity.id, charity.name)} disabled={isDonating} className="donate-points-btn">
+                          {isDonating ? 'Donating…' : 'Donate 1,000 pts · £2.50'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
             </div>
           )}
 
-          {/* ==================== TAB 4: HUB (CORPORATE PASSES & COMPLIANCE) ==================== */}
-          {activeTab === 'hub' && (
-            <div className="tab-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* ==================== TAB 4: ACCOUNT — a settings menu; each row opens its own page ==================== */}
+          {activeTab === 'account' && accountPage === null && (
+            <div className="tab-fade-in kx-account">
+              <div className="kx-account-head">
+                <span className="kx-avatar" aria-hidden="true">{(profile.name || accountEmail || 'K').trim().charAt(0).toUpperCase()}</span>
+                <div className="kx-account-id">
+                  <h2 className="kx-account-name">{profile.name || 'Your account'}</h2>
+                  {accountEmail && <p className="kx-account-email">{accountEmail}</p>}
+                </div>
+              </div>
 
-              {/* Subscription Status & Trial details */}
-              <div className="hub-billing-card">
-                <span className="vitals-label">Subscription</span>
-                <p className="billing-status-title">{revenueCatStatus}</p>
-                <p className="billing-disclaimer">
-                  KinetixFit Premium is <strong>£14.99 a month</strong> and starts with a <strong>7-day free trial</strong>.
-                </p>
-                <button
-                  onClick={handleManageSubscription}
-                  className="edit-bio-btn"
-                 
-                >
-                  Manage subscription
+              {accountSections.map((section, i) => (
+                <React.Fragment key={section.title}>
+                  {/* Appearance sits after Devices & reminders; it's a bottom sheet, not a page */}
+                  {i === 2 && (
+                    <section className="kx-account-section">
+                      <h3 className="kx-section-label">Appearance</h3>
+                      <div className="kx-rows kx-rows-menu">
+                        <SheetRow label="Theme" value={THEME_LABELS[themePref]}>
+                          {close => (
+                            <ChoiceCards label="Theme" hideLabel value={themePref}
+                              options={[
+                                { value: 'system', label: 'System', hint: 'Match your phone' },
+                                { value: 'light', label: 'Light' },
+                                { value: 'dark', label: 'Dark' }
+                              ]}
+                              onChange={v => { setThemePref(v); setThemePrefState(v); window.setTimeout(close, 180); }} />
+                          )}
+                        </SheetRow>
+                      </div>
+                    </section>
+                  )}
+                  <section className="kx-account-section">
+                    <h3 className="kx-section-label">{section.title}</h3>
+                    <div className="kx-rows kx-rows-menu">
+                      {section.rows.map(row => (
+                        <button key={row.page} type="button" className="kx-row" onClick={() => openAccountPage(row.page)}>
+                          <span className="kx-row-label">{ACCOUNT_PAGE_TITLES[row.page]}</span>
+                          {row.value && <span className="kx-row-value kx-row-truncate">{row.value}</span>}
+                          <ChevronIcon className="kx-row-chevron" />
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                </React.Fragment>
+              ))}
+
+              <section className="kx-account-section">
+                <div className="kx-rows kx-rows-menu">
+                  <button type="button" onClick={() => setShowLogoutConfirm(true)} className="kx-row kx-row-danger">
+                    <span className="kx-row-label">Log out</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'account' && accountPage !== null && (
+            <div className="tab-fade-in kx-account" key={accountPage}>
+              <div className="kx-page-head">
+                <button type="button" className="kx-back-btn" onClick={closeAccountPage} aria-label="Back to Account">
+                  <ChevronIcon size={20} className="kx-back-icon" />
                 </button>
+                <h2 className="kx-page-title">{ACCOUNT_PAGE_TITLES[accountPage]}</h2>
+              </div>
 
-                {/* Allocations columns */}
-                <div className="billing-stats-row">
-                  <div className="billing-stat-box">
-                    <span>Price</span>
-                    <strong>£14.99 / month</strong>
-                    <p>Billed through your app store account.</p>
-                  </div>
-                  <div className="billing-stat-box">
-                    <span>Free trial</span>
-                    <strong>7 days</strong>
-                    <p>Manage or cancel from the button above.</p>
+              {accountPage === 'details' && (
+                <div className="hub-support-card">
+                  <ProfileSettingsList profile={profile} onChange={patchProfile} />
+                </div>
+              )}
+
+              {accountPage === 'allergies' && (
+                <div className="scanner-module-card">
+                  <p className="card-header-desc">
+                    Tap any you have. The food check flags them and meal ideas leave them out.
+                  </p>
+                  <div className="kx-chip-wrap">
+                    {the14Allergens.map(allergen => {
+                      const active = profile.personalAllergens.includes(allergen);
+                      return (
+                        <button
+                          key={allergen}
+                          type="button"
+                          onClick={() => handleTogglePersonalAllergen(allergen)}
+                          className={`kx-chip ${active ? 'kx-chip-on' : ''}`}
+                          aria-pressed={active}
+                        >
+                          {allergen.charAt(0).toUpperCase() + allergen.slice(1)}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
+              )}
 
-                {/* Promo Code Input Panel */}
-                <div className="promo-input-box">
-                  <span className="promo-box-title">Have a promo code?</span>
-                  <p className="promo-box-desc">Enter it here to unlock your pass.</p>
+              {accountPage === 'devices' && (
+                <div className="biopoint-validator-card">
+                  <p className="validator-desc">
+                    {!profile.smartDeviceConnected
+                      ? 'Connect your wearable device to sync your activity, heart rate, and sleep data automatically.'
+                      : healthDataState === 'no-data'
+                        ? (Capacitor.getPlatform() === 'ios'
+                          ? `Connected to ${profile.smartDeviceConnected}, but nothing has arrived yet — check KinetixFit is allowed to read your data in the Health app (profile picture → Apps → KinetixFit).`
+                          : `Connected to ${profile.smartDeviceConnected}, but no app is sharing data with it yet.`)
+                        : `Syncing activity, heart rate and sleep from ${healthSource ? `${healthSource} via ${profile.smartDeviceConnected}` : profile.smartDeviceConnected}.`}
+                  </p>
+                  {profile.smartDeviceConnected && Capacitor.isNativePlatform() ? (
+                    <button onClick={openHealthSettings} className="connect-wearable-btn">
+                      {Capacitor.getPlatform() === 'ios' ? 'Open the Health app' : 'Open Health Connect settings'}
+                    </button>
+                  ) : (
+                    <button onClick={() => setShowDeviceSyncModal(true)} className="connect-wearable-btn">
+                      {profile.smartDeviceConnected ? `Manage ${profile.smartDeviceConnected}` : 'Connect a device'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {accountPage === 'reminders' && (
+                <div className="hub-support-card">
+                  <label className="demo-toggle-label">
+                    <input
+                      type="checkbox"
+                      checked={hydrationRemindersEnabled}
+                      onChange={async (e) => {
+                        const on = e.target.checked;
+                        setHydrationRemindersEnabled(on);
+                        localStorage.setItem('kinetix_hydration_enabled', on.toString());
+                        if (!on || !Capacitor.isNativePlatform()) return;
+                        // turning reminders on is an explicit yes — ask now if we haven't been allowed yet
+                        localStorage.removeItem(NOTIFICATIONS_SKIPPED_KEY);
+                        if (!(await ensureNotificationPermission())) {
+                          setHydrationRemindersEnabled(false);
+                          localStorage.setItem('kinetix_hydration_enabled', 'false');
+                          notify('warn', Capacitor.getPlatform() === 'ios'
+                            ? 'Notifications are off for KinetixFit. Turn them on in Settings → Notifications → KinetixFit.'
+                            : 'Notifications are off for KinetixFit. Turn them on in your phone’s Settings → Notifications.');
+                        }
+                      }}
+                      className="demo-toggle-checkbox"
+                    />
+                    Remind me to drink water during my active hours
+                  </label>
+                  <div className="kx-rows">
+                    <SheetRow label="Active from" value={formatHour(shiftStartHour)}>
+                      {close => (
+                        <ChoiceCards label="Active from" hideLabel columns={4} options={HOUR_OPTIONS} value={shiftStartHour}
+                          onChange={v => { setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); window.setTimeout(close, 180); }} />
+                      )}
+                    </SheetRow>
+                    <SheetRow label="Until" value={formatHour(shiftEndHour)}>
+                      {close => (
+                        <ChoiceCards label="Until" hideLabel columns={4} options={HOUR_OPTIONS} value={shiftEndHour}
+                          onChange={v => { setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); window.setTimeout(close, 180); }} />
+                      )}
+                    </SheetRow>
+                  </div>
+                  <Segmented label="Remind me every" value={hydrationIntervalHours}
+                    options={[1, 2, 3, 4].map(h => ({ value: h, label: `${h} h` }))}
+                    onChange={v => { setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} />
+                  <p style={{ fontSize: '13px', color: 'var(--ink-3)', margin: '10px 0 0 0', lineHeight: '1.6' }}>
+                    Activity and nutrition-target alerts are always on (native app only) and fire at most once per event per day — no spam. You'll be asked to allow notifications the first time one of these actually needs to fire.
+                  </p>
+                </div>
+              )}
+
+              {accountPage === 'subscription' && (
+                <div className="hub-billing-card">
+                  <span className="vitals-label">Your plan</span>
+                  <p className="billing-status-title">{revenueCatStatus ?? 'KinetixFit Premium'}</p>
+                  {/* Price and trial are in the boxes below; the web can only point people to the apps */}
+                  {!Capacitor.isNativePlatform() && (
+                    <p className="billing-disclaimer">Start your free trial in the KinetixFit app for Android or iPhone.</p>
+                  )}
+                  <button
+                    onClick={handleManageSubscription}
+                    className="edit-bio-btn"
+                  >
+                    Manage subscription
+                  </button>
+
+                  {/* Allocations columns */}
+                  <div className="billing-stats-row">
+                    <div className="billing-stat-box">
+                      <span>Price</span>
+                      <strong>£14.99 / month</strong>
+                      <p>Billed through your app store account.</p>
+                    </div>
+                    <div className="billing-stat-box">
+                      <span>Free trial</span>
+                      <strong>7 days</strong>
+                      <p>Manage or cancel from the button above.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {accountPage === 'promo' && (
+                <div className="hub-support-card">
+                  <p className="card-header-desc">Have a promo code? Enter it here to unlock your pass.</p>
                   <div className="promo-input-row">
                     <input
                       type="text"
@@ -2798,96 +3070,114 @@ export default function App() {
                       value={promoCodeInput}
                       onChange={(e) => setPromoCodeInput(e.target.value)}
                       className="promo-text-input"
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      autoComplete="off"
+                      spellCheck={false}
+                      enterKeyHint="done"
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !isRedeemingPromo && promoCodeInput.trim()) applyPromoCode(); }}
                     />
                     <button onClick={applyPromoCode} disabled={isRedeemingPromo || !promoCodeInput.trim()} className="promo-submit-btn">
                       {isRedeemingPromo ? 'Applying…' : 'Apply'}
                     </button>
                   </div>
                   {promoMessage && (
-                    <p className={`promo-response-msg ${promoMessage.includes('❌') ? 'response-error' : 'response-success'}`}>
-                      {promoMessage}
+                    <p className={`promo-response-msg ${promoMessage.tone === 'error' ? 'response-error' : 'response-success'}`}>
+                      {promoMessage.text}
                     </p>
                   )}
                 </div>
-              </div>
+              )}
 
-              {/* About Kinetix and Data GDPR Shields */}
-              <div className="hub-legal-stack">
-                <div className="legal-block-card">
-                  <h3 className="legal-card-title">About KinetixFit</h3>
-                  <p className="legal-card-text">
-                    KinetixFit helps you track your fitness, nutrition, and rewards all in one place.
-                  </p>
-                </div>
-
-                <div className="legal-block-card">
-                  <h3 className="legal-card-title">Your data</h3>
-                  <p className="legal-card-text">
-                    Your health readings, meal checks and rewards history are handled under the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Corporate Help Desk Widget */}
-              <div className="hub-support-card">
-                <h3 className="support-card-title">Contact support</h3>
-
-                {contactSuccess ? (
-                  <div className="support-success-banner">
-                    Message sent. We reply within 12 hours.
+              {accountPage === 'about' && (
+                <>
+                  <div className="legal-block-card">
+                    <p className="legal-card-text">
+                      KinetixFit helps you track your fitness, nutrition, and rewards all in one place.
+                    </p>
                   </div>
-                ) : (
-                  <form onSubmit={handleSendContact} className="support-form-stack">
-                    <label className="support-field-label">Your name
-                      <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} className="support-input" />
-                    </label>
-                    <label className="support-field-label">Email
-                      <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="support-input" />
-                    </label>
-                    <label className="support-field-label">Message
-                      <textarea rows={3} required value={contactMsg} onChange={(e) => setContactMsg(e.target.value)} className="support-textarea" />
-                    </label>
-                    <button type="submit" className="primary-btn">
-                      Send message
-                    </button>
-                  </form>
-                )}
+                  <div className="legal-block-card">
+                    <h3 className="legal-card-title">Not a medical device</h3>
+                    <p className="legal-card-text">
+                      KinetixFit is a fitness and nutrition tracking app, not a certified medical device. It doesn't replace professional medical advice — always consult a doctor before starting a new fitness or diet plan.
+                    </p>
+                  </div>
+                </>
+              )}
 
-                <div className="support-emails-box">
-                  <span>Support: <a href="mailto:info@kinetixfit.co.uk">info@kinetixfit.co.uk</a></span>
-                  <span>Partnerships: <a href="mailto:partnerships@kinetixfit.co.uk">partnerships@kinetixfit.co.uk</a></span>
+              {accountPage === 'privacy' && (
+                <>
+                  <div className="legal-block-card">
+                    <p className="legal-card-text">
+                      Your health readings, meal checks and rewards history are handled under the <strong>UK GDPR</strong> and the <strong>Data Protection Act 2018</strong>.
+                    </p>
+                  </div>
+                  <div className="kx-rows kx-rows-menu">
+                    <a className="kx-row" href={serverUrl('/privacy-policy')} target="_blank" rel="noopener noreferrer">
+                      <span className="kx-row-label">Privacy policy</span>
+                      <ChevronIcon className="kx-row-chevron" />
+                    </a>
+                    <a className="kx-row" href={serverUrl('/terms-of-service')} target="_blank" rel="noopener noreferrer">
+                      <span className="kx-row-label">Terms of service</span>
+                      <ChevronIcon className="kx-row-chevron" />
+                    </a>
+                  </div>
+                </>
+              )}
+
+              {accountPage === 'help' && (
+                <div className="hub-support-card">
+                  {contactSuccess ? (
+                    <div className="support-success-banner">
+                      Message sent. We reply within 12 hours.
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendContact} className="support-form-stack">
+                      <label className="support-field-label">Your name
+                        <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} className="support-input" />
+                      </label>
+                      <label className="support-field-label">Email
+                        <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="support-input" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+                      </label>
+                      <label className="support-field-label">Message
+                        <textarea rows={3} required value={contactMsg} onChange={(e) => setContactMsg(e.target.value)} className="support-textarea" />
+                      </label>
+                      <button type="submit" className="primary-btn">
+                        Send message
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="support-emails-box">
+                    <span>Support: <a href="mailto:info@kinetixfit.co.uk">info@kinetixfit.co.uk</a></span>
+                    <span>Partnerships: <a href="mailto:partnerships@kinetixfit.co.uk">partnerships@kinetixfit.co.uk</a></span>
+                  </div>
                 </div>
-              </div>
-
+              )}
             </div>
           )}
 
-          {/* ==================== FOOTER STATEMENT ==================== */}
-          <footer className="app-compliance-footer">
-            <h4 className="kx-footer-title">Not a medical device</h4>
-            <p>
-              KinetixFit is a fitness and nutrition tracking app, not a certified medical device. It doesn't replace professional medical advice — always consult a doctor before starting a new fitness or diet plan.
-            </p>
-          </footer>
 
         </div>
 
-        {/* --- FLOATING HOLLYWOOD QUICK ACCESS CAMERA BUTTON (FAB) --- */}
-        <button
-          onClick={() => {
-            handleTabChange('nourish');
-            setShowCameraModal(true);
-          }}
-          className="floating-hud-camera-fab"
-          title="Scan food"
-          aria-label="Scan food"
-        >
-          <CameraIcon size={24} />
-        </button>
+        {/* Scan-food shortcut on Today only — Nourish has its own camera button, and elsewhere it would cover controls */}
+        {activeTab === 'vitals' && (
+          <button
+            onClick={() => {
+              handleTabChange('nourish');
+              setShowCameraModal(true);
+            }}
+            className="floating-hud-camera-fab"
+            title="Scan food"
+            aria-label="Scan food"
+          >
+            <CameraIcon size={24} />
+          </button>
+        )}
 
         {/* --- STICKY BOTTOM NAVIGATION BAR --- */}
-        <nav className="phone-bottom-nav" aria-label="Main" style={{ ['--tab-index' as string]: Math.max(0, TAB_IDS.indexOf(activeTab)) }}>
-          {[
+        {/* iOS-style tab bar: glass lens, droplet stretch, slide-to-switch (src/components/TabBar.tsx) */}
+        <TabBar activeId={activeTab} onChange={handleTabChange} tabs={[
             {
               id: 'vitals',
               label: 'Today',
@@ -2907,8 +3197,18 @@ export default function App() {
               )
             },
             {
-              id: 'profile',
-              label: 'Profile',
+              id: 'rewards',
+              label: 'Rewards',
+              icon: (
+                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="6" />
+                  <path d="M15.5 13.2 17 22l-5-3-5 3 1.5-8.8" />
+                </svg>
+              )
+            },
+            {
+              id: 'account',
+              label: 'Account',
               icon: (
                 <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -2916,35 +3216,7 @@ export default function App() {
                 </svg>
               )
             },
-            {
-              id: 'hub',
-              label: 'Hub',
-              icon: (
-                <svg className="nav-svg-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-                  <line x1="6" y1="6" x2="6.01" y2="6" />
-                  <line x1="6" y1="18" x2="6.01" y2="18" />
-                </svg>
-              )
-            },
-          ].map(tab => {
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  handleTabChange(tab.id);
-                }}
-                className={`nav-item-btn ${active ? 'nav-item-active' : ''}`}
-                aria-current={active ? 'page' : undefined}
-              >
-                <span className="nav-icon">{tab.icon}</span>
-                <span className="nav-label">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+          ]} />
 
       </div>
 
@@ -2952,32 +3224,32 @@ export default function App() {
       {showLevelUpModal && (
         <div className="portal-overlay-modal" style={{ zIndex: 15000 }}>
           <div className="modal-content-card levelup-celebration-card" style={{ border: '2px solid var(--accent)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-            <span className="levelup-sparkle levelup-sparkle-1">✨</span>
-            <span className="levelup-sparkle levelup-sparkle-2">✨</span>
-            <span className="levelup-sparkle levelup-sparkle-3">✨</span>
-            <span className="levelup-trophy-icon" style={{ fontSize: '42px', display: 'block', marginBottom: '10px' }}>🏆</span>
+            <span className="levelup-trophy-icon"><TrophyIcon size={40} /></span>
             <h2 className="modal-title">
-              Level Up!
+              Level up
             </h2>
             <p className="modal-desc">
               You've reached
               <br/>
               <strong style={{ color: 'var(--info)', display: 'block', margin: '10px 0', fontSize: '20px' }}>
-                Level {level + 1}
+                Level {level}
               </strong>
               Here's a bonus for sticking with it.
             </p>
             <button
               onClick={() => {
                 setShowLevelUpModal(false);
-                setTotalVoucherPoints(prev => prev + 500); // 500 point bonus!
-                setMotivationMessage("🎁 Level up bonus! +500 points credited to your rewards wallet.");
-                setTimeout(() => setMotivationMessage(null), 5000);
+                setTotalVoucherPoints(prev => {
+                  const next = prev + 500; // level-up bonus
+                  localStorage.setItem('kinetix_voucher_points', next.toString());
+                  return next;
+                });
+                notify('success', 'Level-up bonus: +500 points added to your rewards.');
               }}
               className="primary-btn"
               style={{ width: '100%', marginTop: '15px', padding: '12px 20px' }}
             >
-              Claim Level-Up Bonus (+500 pts)
+              Claim +500 points
             </button>
           </div>
         </div>
@@ -2997,7 +3269,7 @@ export default function App() {
                 disabled={isConnectingHealth}
                 className="modal-sync-option-btn"
               >
-                <span>{Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect'}</span>
+                <span>{Capacitor.getPlatform() === 'ios' ? 'Apple Health' : isSamsungDevice() ? 'Samsung Health · via Health Connect' : 'Health Connect'}</span>
                 <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{isConnectingHealth ? 'Connecting…' : 'Connect'}</span>
               </button>
             </div>
@@ -3011,10 +3283,46 @@ export default function App() {
             <div className="kx-how">
               <span className="vitals-label">How it works</span>
               <p>Your watch, ring or chest strap already sends its data to Apple Health or Health Connect. KinetixFit reads it from there, so one connection covers every device you own.</p>
+              {Capacitor.getPlatform() === 'android' && isSamsungDevice() && (
+                <p>On Samsung phones, Samsung Health also has to be allowed to share with Health Connect — KinetixFit shows you how if nothing arrives.</p>
+              )}
             </div>
             <button onClick={() => setShowDeviceSyncModal(false)} className="modal-close-btn">
               Not now
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Log out: always confirmed first */}
+      {showLogoutConfirm && (
+        <div className="portal-overlay-modal" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-logout-title" aria-describedby="kx-logout-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-logout-title" className="modal-title">Log out of KinetixFit?</h3>
+            <p id="kx-logout-desc" className="modal-desc">You’ll need your email and password to log back in.</p>
+            <div className="kx-confirm-actions">
+              <button type="button" className="modal-close-btn" onClick={() => setShowLogoutConfirm(false)} autoFocus>Cancel</button>
+              <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Samsung Health doesn't share HRV, so Stress (and Recovery) are hidden — told once, on the first sync */}
+      {showNoStressNotice && (
+        <div className="portal-overlay-modal">
+          <div className="modal-content-card" role="dialog" aria-modal="true" aria-labelledby="kx-nostress-title">
+            <span className="kx-title-icon kx-modal-icon" style={{ ['--tint' as string]: 'var(--m-stress)' }}><StressIcon size={20} /></span>
+            <h3 id="kx-nostress-title" className="modal-title">Stress isn’t available from Samsung Health</h3>
+            <p className="modal-desc">
+              KinetixFit estimates stress from heart-rate variability (HRV), and Samsung Health doesn’t share HRV with
+              other apps — not even through Health Connect. So we’ve hidden the Stress card rather than leave it empty.
+            </p>
+            <p className="modal-desc">
+              Your steps, heart rate and sleep still sync as normal. If another app or watch shares HRV with Health
+              Connect later, Stress comes back by itself.
+            </p>
+            <button type="button" className="primary-btn" onClick={dismissNoStressNotice}>Got it</button>
           </div>
         </div>
       )}

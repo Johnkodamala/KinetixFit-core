@@ -1,0 +1,135 @@
+/* =============================================================================
+   Launch intro (src/components/LaunchIntro.tsx)
+   Five lanes → the mark runs a lap → the wordmark widens → the lanes sprint off right.
+   run phase ≈ 1.5s, exit ≈ 0.66s. Always on the launch colour, in both themes.
+   ============================================================================= */
+
+/* Before and during the run, the page itself is the launch colour and the app's own entrance
+   animations wait underneath (set in index.html, removed by the component on exit). */
+html[data-intro='run'],
+html[data-intro='run'] body {
+  background-color: var(--launch-bg);
+}
+html[data-intro='run'] .workspace-container,
+html[data-intro='run'] .workspace-container * {
+  animation-play-state: paused;
+}
+
+.kx-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-rows: repeat(5, 1fr);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Each lane is a slab of the launch colour with its line along the top edge */
+.kx-intro-lane {
+  position: relative;
+  background: var(--launch-bg);
+  /* overlap by a pixel so no seams show between lanes */
+  margin-bottom: -1px;
+  will-change: transform;
+}
+.kx-intro-lane::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--launch-lane);
+  transform-origin: left center;
+  animation: kx-intro-line 560ms var(--ease-out) both;
+  animation-delay: calc(var(--lane) * 55ms);
+}
+.kx-intro-lane:first-child::before { display: none; }
+
+.kx-intro-brand {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  pointer-events: none;
+}
+
+.kx-intro-mark {
+  width: clamp(136px, 40vw, 196px);
+  height: auto;
+  overflow: visible;
+}
+.kx-intro-mark path {
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* The lap: the clay trace fills in behind a short bright runner at its head */
+.kx-intro-trace {
+  stroke: var(--accent);
+  stroke-dasharray: 1 1;
+  animation: kx-intro-trace 950ms cubic-bezier(0.65, 0, 0.35, 1) 150ms both;
+}
+.kx-intro-mark .kx-intro-runner {
+  stroke: var(--launch-ink);
+  stroke-width: 5;
+  stroke-dasharray: 0.06 1;
+  animation:
+    kx-intro-runner 950ms cubic-bezier(0.65, 0, 0.35, 1) 150ms both,
+    kx-intro-runner-out 200ms ease-out 1080ms both;
+}
+
+/* The wordmark accelerates: Archivo's width axis opens from condensed to its wide cut */
+.kx-intro-word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(24px, 7vw, 36px);
+  letter-spacing: 0.14em;
+  /* optical centring: letter-spacing adds space after the last letter */
+  margin-right: -0.14em;
+  color: var(--launch-ink);
+  line-height: 1;
+  animation: kx-intro-word 720ms var(--ease-out) 620ms both;
+}
+
+/* --- Exit: brand leaves first, then the lanes sprint off, outer lane first --- */
+.kx-intro-exit { pointer-events: none; }
+.kx-intro-exit .kx-intro-brand {
+  animation: kx-intro-brand-out 220ms cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+.kx-intro-exit .kx-intro-lane {
+  animation: kx-intro-lane-out 440ms cubic-bezier(0.7, 0, 0.84, 0) both;
+  animation-delay: calc(60ms + (4 - var(--lane)) * 45ms);
+}
+
+@keyframes kx-intro-line {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes kx-intro-trace {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes kx-intro-runner {
+  from { stroke-dashoffset: 0.06; }
+  to   { stroke-dashoffset: -0.94; }
+}
+@keyframes kx-intro-runner-out {
+  to { opacity: 0; }
+}
+@keyframes kx-intro-word {
+  from { opacity: 0; font-stretch: 62%; letter-spacing: 0.32em; }
+  to   { opacity: 1; font-stretch: 125%; letter-spacing: 0.14em; }
+}
+@keyframes kx-intro-brand-out {
+  to { opacity: 0; transform: translateX(28px); }
+}
+@keyframes kx-intro-lane-out {
+  to { transform: translateX(101%); }
+}

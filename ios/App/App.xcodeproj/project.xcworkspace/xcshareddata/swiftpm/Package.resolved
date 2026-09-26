@@ -1,0 +1,42 @@
+{
+  "originHash" : "a5ddd012cdcb6fe0a2f74d0b078466922ccbcf5e5d583471ae9d8e2b1ae83f39",
+  "pins" : [
+    {
+      "identity" : "capacitor-swift-pm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ionic-team/capacitor-swift-pm.git",
+      "state" : {
+        "revision" : "4f71d0b979f2f957326f04353eca7604ee937e1e",
+        "version" : "8.5.0"
+      }
+    },
+    {
+      "identity" : "osbarcodelib-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/OutSystems/OSBarcodeLib-iOS.git",
+      "state" : {
+        "revision" : "7f9d166289c10601bfbed95cd3ec56019870ce1b",
+        "version" : "2.2.1"
+      }
+    },
+    {
+      "identity" : "purchases-hybrid-common",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RevenueCat/purchases-hybrid-common.git",
+      "state" : {
+        "revision" : "2b880c2bc583af88f95963840664eda33d34fe78",
+        "version" : "18.31.0"
+      }
+    },
+    {
+      "identity" : "purchases-ios-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RevenueCat/purchases-ios-spm",
+      "state" : {
+        "revision" : "48601a7f742b05abcd9d9c7d3d768b97e800aa2c",
+        "version" : "5.84.0"
+      }
+    }
+  ],
+  "version" : 3
+}

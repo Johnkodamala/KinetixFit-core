@@ -1,0 +1,268 @@
+/* =============================================================================
+   Onboarding "About you" flow (src/components/AboutYouFlow.tsx)
+   Progress lanes, short question screens, and the dark "moment" panels between them.
+   ============================================================================= */
+
+.ay-card { display: flex; flex-direction: column; }
+
+/* --- Top bar: back · four progress lanes · (sound) --- */
+.ay-top { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.ay-icon-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.ay-icon-btn:active { transform: scale(0.92); }
+.ay-icon-spacer { flex: none; width: 40px; }
+.ay-lanes { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ay-lanes span {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.ay-lanes span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--fill));
+  transition: transform 520ms var(--ease-out);
+}
+
+/* --- Each screen rises in; the button stays at the bottom --- */
+.ay-stage {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  animation: kx-rise 460ms var(--ease-out) both;
+}
+.ay-cta { margin-top: 24px; }
+@media (max-width: 599px) {
+  .ay-stage { flex: 1 0 auto; }
+  .ay-cta { margin-top: auto; }
+  .ay-stage + .ay-cta { margin-top: 24px; }
+}
+.ay-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ay-section {
+  margin: 26px 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* --- Moment panels: the dark track panel, text rising in one line at a time --- */
+.ay-hero {
+  justify-content: flex-end;
+  gap: 14px;
+  min-height: 360px;
+}
+.ay-hero > :not(.kx-lanes) { position: relative; z-index: 1; animation: kx-rise 620ms var(--ease-out) both; }
+.ay-hero > :nth-child(2) { animation-delay: 80ms; }
+.ay-hero > :nth-child(3) { animation-delay: 200ms; }
+.ay-hero > :nth-child(4) { animation-delay: 360ms; }
+.ay-hero > :nth-child(5) { animation-delay: 560ms; }
+.ay-place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--hero-ink-2);
+}
+.ay-place svg { color: var(--accent); }
+.ay-hello {
+  margin: 0;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: clamp(32px, 9.4vw, 44px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--hero-ink);
+}
+.ay-hello em { font-style: normal; color: var(--accent); }
+.ay-fact-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.ay-fact p { margin: 0; font-size: 17px; line-height: 1.5; color: var(--hero-ink); }
+.ay-quote {
+  margin: 4px 0 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.35;
+  color: var(--hero-ink);
+}
+
+/* --- Big counted number --- */
+.ay-big {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: clamp(52px, 16vw, 72px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--hero-ink);
+}
+.ay-big small { font-size: 18px; font-weight: 700; color: var(--accent); }
+.ay-hero-text { margin: 0; font-size: 16px; line-height: 1.5; color: var(--hero-ink-2); }
+
+.ay-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.ay-tile {
+  padding: 14px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  animation: kx-rise 620ms var(--ease-out) 700ms both;
+}
+.ay-tile:nth-child(2) { animation-delay: 820ms; }
+.ay-tile span { display: block; font-size: 12px; font-weight: 650; color: var(--ink-3); }
+.ay-tile strong {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Building your plan --- */
+.ay-build { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 60px; }
+.ay-build-lane {
+  height: 10px;
+  margin: 18px 0 26px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.ay-build-lane span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  animation: kx-build-fill 2100ms cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+.ay-build-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.ay-build-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-2);
+  animation: kx-rise 420ms var(--ease-out) both;
+}
+.ay-build-steps li::before {
+  content: '';
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='10'/%3E%3C/svg%3E");
+  animation: kx-pop 360ms var(--ease-spring) both;
+}
+.ay-build-steps li:nth-child(1), .ay-build-steps li:nth-child(1)::before { animation-delay: 250ms; }
+.ay-build-steps li:nth-child(2), .ay-build-steps li:nth-child(2)::before { animation-delay: 900ms; }
+.ay-build-steps li:nth-child(3), .ay-build-steps li:nth-child(3)::before { animation-delay: 1550ms; }
+@keyframes kx-build-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* --- The plan --- */
+.ay-targets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.ay-targets > div {
+  padding: 14px 10px;
+  border-radius: var(--r-md);
+  background: var(--hero-bg);
+  color: var(--hero-ink);
+  text-align: center;
+  animation: kx-pop 460ms var(--ease-spring) both;
+}
+.ay-targets > div:nth-child(2) { animation-delay: 90ms; }
+.ay-targets > div:nth-child(3) { animation-delay: 180ms; }
+.ay-targets strong {
+  display: block;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ay-targets span { font-size: 12px; font-weight: 600; color: var(--hero-ink-2); }
+
+/* timeline: a running lane with a marker at each milestone */
+.ay-timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+.ay-timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+.ay-timeline li {
+  position: relative;
+  padding: 0 0 18px 32px;
+  animation: kx-rise 520ms var(--ease-out) both;
+  animation-delay: calc(300ms + var(--i) * 140ms);
+}
+.ay-timeline li:last-child { padding-bottom: 0; }
+.ay-timeline li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--accent);
+  box-sizing: border-box;
+}
+.ay-week { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.ay-timeline strong { display: block; margin-top: 2px; font-size: 16px; color: var(--ink); }
+.ay-timeline p { margin: 3px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+
+/* --- Goal: the BMI-based suggestion ---
+   The suggested goal card carries a "Suggested for you" hint; the note under the cards says why. */
+.kx-goal-field { display: flex; flex-direction: column; gap: 10px; }
+.kx-goal-note { margin: 0; }
+.kx-choices-2 .kx-choice:not(.is-on) .kx-choice-hint { color: var(--accent-press); font-weight: 650; }
