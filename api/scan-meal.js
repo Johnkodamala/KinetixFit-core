@@ -150,22 +150,29 @@ export default async function handler(req, res) {
     // Award meal-scan points once per calendar day, regardless of how many scans happen —
     // dedup enforced server-side (a resettable localStorage flag could be gamed by re-scanning).
     result.pointsAwarded = 0;
-    if (appUserId) {
-      const today = new Date().toISOString().slice(0, 10);
-      const awardKey = `meal_scan_points_awarded:${appUserId}:${today}`;
-      const alreadyAwarded = await redis.get(awardKey);
-      if (!alreadyAwarded) {
-        const config = await getRewardConfig();
-        result.pointsAwarded = config.mealScanPointsAward;
-        await redis.set(awardKey, '1', { ex: 60 * 60 * 24 * 2 });
-        await logAuditEvent(appUserId, {
-          type: 'earn',
-          category: 'meal_scan',
-          verified: true,
-          verificationNote: 'Real Claude vision/USDA scan completed.',
-          points: result.pointsAwarded
-        });
+    // Points are a bonus: if Redis is unreachable (e.g. bad credentials), still return the nutrition —
+    // before, a Redis error turned every signed-in food check into a 500.
+    try {
+      if (appUserId) {
+        const today = new Date().toISOString().slice(0, 10);
+        const awardKey = `meal_scan_points_awarded:${appUserId}:${today}`;
+        const alreadyAwarded = await redis.get(awardKey);
+        if (!alreadyAwarded) {
+          const config = await getRewardConfig();
+          result.pointsAwarded = config.mealScanPointsAward;
+          await redis.set(awardKey, '1', { ex: 60 * 60 * 24 * 2 });
+          await logAuditEvent(appUserId, {
+            type: 'earn',
+            category: 'meal_scan',
+            verified: true,
+            verificationNote: 'Real Claude vision/USDA scan completed.',
+            points: result.pointsAwarded
+          });
+        }
       }
+    } catch (pointsError) {
+      console.error('Meal-scan points award failed:', pointsError);
+      result.pointsAwarded = 0;
     }
 
     return res.status(200).json(result);
