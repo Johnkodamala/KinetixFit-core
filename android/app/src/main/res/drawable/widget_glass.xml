@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget card: a solid gradient fill, a soft water glow in the top-left corner, a faint sheen and a crisp edge.
+     Corners = the launcher's own radius on Android 12+ (kx_widget_radius). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/kx_widget_radius" />
+            <gradient android:angle="270" android:startColor="@color/kx_glass_fill" android:endColor="@color/kx_glass_fill_2" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/kx_widget_radius" />
+            <gradient android:type="radial" android:centerX="0.05" android:centerY="0" android:gradientRadius="190dp"
+                android:startColor="@color/kx_glass_glow" android:endColor="#00000000" />
+        </shape>
+    </item>
+    <item android:bottom="40dp">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="@dimen/kx_widget_radius" android:topRightRadius="@dimen/kx_widget_radius" />
+            <gradient android:angle="270" android:startColor="@color/kx_glass_sheen" android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/kx_widget_radius" />
+            <stroke android:width="1dp" android:color="@color/kx_glass_edge" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,975 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "tea with milk",
+ "generic": [
+  {
+   "fdcId": 2710506,
+   "description": "Tea, hot, with milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 51
+    },
+    {
+     "nutrientId": 1003,
+     "value": 1.58
+    },
+    {
+     "nutrientId": 1005,
+     "value": 8.95
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.05
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.604
+    },
+    {
+     "nutrientId": 2000,
+     "value": 8.72
+    },
+    {
+     "nutrientId": 1093,
+     "value": 20
+    },
+    {
+     "nutrientId": 1092,
+     "value": 91
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.02
+    },
+    {
+     "nutrientId": 1087,
+     "value": 60
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    }
+   ]
+  },
+  {
+   "fdcId": 2710507,
+   "description": "Tea, ginger",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.02
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.01
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.002
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.02
+    },
+    {
+     "nutrientId": 1093,
+     "value": 4
+    },
+    {
+     "nutrientId": 1092,
+     "value": 4
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.01
+    },
+    {
+     "nutrientId": 1087,
+     "value": 3
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    }
+   ]
+  },
+  {
+   "fdcId": 2710508,
+   "description": "Tea, bubble",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 55
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.39
+    },
+    {
+     "nutrientId": 1005,
+     "value": 10.35
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.39
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.844
+    },
+    {
+     "nutrientId": 2000,
+     "value": 3.5
+    },
+    {
+     "nutrientId": 1093,
+     "value": 9
+    },
+    {
+     "nutrientId": 1092,
+     "value": 17
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.13
+    },
+    {
+     "nutrientId": 1087,
+     "value": 15
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 435
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 item, any size",
+     "gramWeight": 435
+    }
+   ]
+  },
+  {
+   "fdcId": 2710509,
+   "description": "Tea, kombucha",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 16
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.1
+    },
+    {
+     "nutrientId": 1005,
+     "value": 3.98
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.01
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 3.99
+    },
+    {
+     "nutrientId": 1093,
+     "value": 2
+    },
+    {
+     "nutrientId": 1092,
+     "value": 4
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.01
+    },
+    {
+     "nutrientId": 1087,
+     "value": 0
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 fl oz (no ice)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 can or bottle (12 fl oz)",
+     "gramWeight": 372
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 372
+    },
+    {
+     "disseminationText": "1 fl oz (NFS)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 fl oz (with ice)",
+     "gramWeight": 23
+    }
+   ]
+  },
+  {
+   "fdcId": 2710502,
+   "description": "Tea, hot, herbal",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.002
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 9
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.08
+    },
+    {
+     "nutrientId": 1087,
+     "value": 2
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    }
+   ]
+  },
+  {
+   "fdcId": 2710503,
+   "description": "Tea, hot, hibiscus",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 0
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 4
+    },
+    {
+     "nutrientId": 1092,
+     "value": 20
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.08
+    },
+    {
+     "nutrientId": 1087,
+     "value": 8
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    }
+   ]
+  },
+  {
+   "fdcId": 2710505,
+   "description": "Tea, hot, chamomile",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.002
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 9
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.08
+    },
+    {
+     "nutrientId": 1087,
+     "value": 2
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    }
+   ]
+  },
+  {
+   "fdcId": 2710488,
+   "description": "Tea, hot, leaf, black",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.002
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 37
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.02
+    },
+    {
+     "nutrientId": 1087,
+     "value": 0
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    }
+   ]
+  },
+  {
+   "fdcId": 2710490,
+   "description": "Tea, hot, leaf, green",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.22
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 8
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.02
+    },
+    {
+     "nutrientId": 1087,
+     "value": 0
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    }
+   ]
+  },
+  {
+   "fdcId": 2710492,
+   "description": "Tea, hot, leaf, oolong",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 1
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 12
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 1
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 large",
+     "gramWeight": 600
+    },
+    {
+     "disseminationText": "1 small",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 medium",
+     "gramWeight": 480
+    }
+   ]
+  },
+  {
+   "fdcId": 2710527,
+   "description": "Tea, iced, bottled, black",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 45
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 10.8
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.22
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 9.49
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 14
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 4
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 medium drink",
+     "gramWeight": 512
+    },
+    {
+     "disseminationText": "1 small drink",
+     "gramWeight": 372
+    },
+    {
+     "disseminationText": "1 child/senior drink",
+     "gramWeight": 279
+    },
+    {
+     "disseminationText": "1 fl oz (no ice)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 large drink",
+     "gramWeight": 744
+    },
+    {
+     "disseminationText": "1 extra large drink",
+     "gramWeight": 1023
+    },
+    {
+     "disseminationText": "1 can or bottle (20 fl oz)",
+     "gramWeight": 620
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 can or bottle (12 fl oz)",
+     "gramWeight": 372
+    },
+    {
+     "disseminationText": "1 Snapple bottle (16 fl oz)",
+     "gramWeight": 496
+    },
+    {
+     "disseminationText": "1 can or bottle (16.9 fl oz)",
+     "gramWeight": 524
+    },
+    {
+     "disseminationText": "1 fl oz (with ice)",
+     "gramWeight": 23
+    },
+    {
+     "disseminationText": "1 fl oz (NFS)",
+     "gramWeight": 31
+    }
+   ]
+  },
+  {
+   "fdcId": 2710533,
+   "description": "Tea, iced, bottled, green",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 27
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.2
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.22
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.32
+    },
+    {
+     "nutrientId": 1093,
+     "value": 21
+    },
+    {
+     "nutrientId": 1092,
+     "value": 12
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 1
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 fl oz (NFS)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 can or bottle (16.9 fl oz)",
+     "gramWeight": 524
+    },
+    {
+     "disseminationText": "1 extra large drink",
+     "gramWeight": 1023
+    },
+    {
+     "disseminationText": "1 small drink",
+     "gramWeight": 372
+    },
+    {
+     "disseminationText": "1 child/senior drink",
+     "gramWeight": 279
+    },
+    {
+     "disseminationText": "1 fl oz (with ice)",
+     "gramWeight": 23
+    },
+    {
+     "disseminationText": "1 large drink",
+     "gramWeight": 744
+    },
+    {
+     "disseminationText": "1 Snapple bottle (16 fl oz)",
+     "gramWeight": 496
+    },
+    {
+     "disseminationText": "1 fl oz (no ice)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 360
+    },
+    {
+     "disseminationText": "1 can or bottle (20 fl oz)",
+     "gramWeight": 620
+    },
+    {
+     "disseminationText": "1 medium drink",
+     "gramWeight": 512
+    },
+    {
+     "disseminationText": "1 can or bottle (12 fl oz)",
+     "gramWeight": 372
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

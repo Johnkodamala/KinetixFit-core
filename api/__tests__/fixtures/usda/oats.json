@@ -1,0 +1,744 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "oats",
+ "generic": [
+  {
+   "fdcId": 2708489,
+   "description": "Oats, raw",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 379
+    },
+    {
+     "nutrientId": 1003,
+     "value": 13.15
+    },
+    {
+     "nutrientId": 1005,
+     "value": 67.7
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.52
+    },
+    {
+     "nutrientId": 1079,
+     "value": 10.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.99
+    },
+    {
+     "nutrientId": 1093,
+     "value": 6
+    },
+    {
+     "nutrientId": 1092,
+     "value": 362
+    },
+    {
+     "nutrientId": 1089,
+     "value": 4.25
+    },
+    {
+     "nutrientId": 1087,
+     "value": 52
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 10
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 80
+    }
+   ]
+  },
+  {
+   "fdcId": 169705,
+   "description": "Oats (Includes foods for USDA's Food Distribution Program)",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 389
+    },
+    {
+     "nutrientId": 1003,
+     "value": 16.89
+    },
+    {
+     "nutrientId": 1005,
+     "value": 66.27
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.9
+    },
+    {
+     "nutrientId": 1079,
+     "value": 10.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.217
+    },
+    {
+     "nutrientId": 1093,
+     "value": 2
+    },
+    {
+     "nutrientId": 1092,
+     "value": 429
+    },
+    {
+     "nutrientId": 1089,
+     "value": 4.72
+    },
+    {
+     "nutrientId": 1087,
+     "value": 54
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2705441,
+   "description": "Yogurt, Greek, with oats",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 149
+    },
+    {
+     "nutrientId": 1003,
+     "value": 9.22
+    },
+    {
+     "nutrientId": 1005,
+     "value": 20.02
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.67
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.5
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.838
+    },
+    {
+     "nutrientId": 2000,
+     "value": 10.74
+    },
+    {
+     "nutrientId": 1093,
+     "value": 58
+    },
+    {
+     "nutrientId": 1092,
+     "value": 161
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.66
+    },
+    {
+     "nutrientId": 1087,
+     "value": 89
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 245
+    },
+    {
+     "disseminationText": "1 container, NFS",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 5.3 oz container",
+     "gramWeight": 150
+    }
+   ]
+  },
+  {
+   "fdcId": 172989,
+   "description": "Cereals, QUAKER, Quick Oats, Dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 371
+    },
+    {
+     "nutrientId": 1003,
+     "value": 13.7
+    },
+    {
+     "nutrientId": 1005,
+     "value": 68.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.87
+    },
+    {
+     "nutrientId": 1079,
+     "value": 9.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.42
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 358
+    },
+    {
+     "nutrientId": 1089,
+     "value": 4.64
+    },
+    {
+     "nutrientId": 1087,
+     "value": 47
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708467,
+   "description": "Cereal, frosted oats with marshmallows",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 372
+    },
+    {
+     "nutrientId": 1003,
+     "value": 8.17
+    },
+    {
+     "nutrientId": 1005,
+     "value": 76.61
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.07
+    },
+    {
+     "nutrientId": 1079,
+     "value": 6.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.68
+    },
+    {
+     "nutrientId": 2000,
+     "value": 33.72
+    },
+    {
+     "nutrientId": 1093,
+     "value": 639
+    },
+    {
+     "nutrientId": 1092,
+     "value": 221
+    },
+    {
+     "nutrientId": 1089,
+     "value": 11.73
+    },
+    {
+     "nutrientId": 1087,
+     "value": 357
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 prepackaged single serving",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 35
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 35
+    }
+   ]
+  },
+  {
+   "fdcId": 174640,
+   "description": "Cereals, QUAKER, Quick Oats with Iron, Dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 371
+    },
+    {
+     "nutrientId": 1003,
+     "value": 13.7
+    },
+    {
+     "nutrientId": 1005,
+     "value": 68.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.87
+    },
+    {
+     "nutrientId": 1079,
+     "value": 9.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.96
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.42
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 358
+    },
+    {
+     "nutrientId": 1089,
+     "value": 49.45
+    },
+    {
+     "nutrientId": 1087,
+     "value": 47
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 171661,
+   "description": "Cereals, oats, instant, fortified, plain, dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 362
+    },
+    {
+     "nutrientId": 1003,
+     "value": 11.92
+    },
+    {
+     "nutrientId": 1005,
+     "value": 69.52
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.9
+    },
+    {
+     "nutrientId": 1079,
+     "value": 10
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.346
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.5
+    },
+    {
+     "nutrientId": 1093,
+     "value": 220
+    },
+    {
+     "nutrientId": 1092,
+     "value": 366
+    },
+    {
+     "nutrientId": 1089,
+     "value": 24.72
+    },
+    {
+     "nutrientId": 1087,
+     "value": 351
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 173904,
+   "description": "Cereals, oats, regular and quick, not fortified, dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 379
+    },
+    {
+     "nutrientId": 1003,
+     "value": 13.15
+    },
+    {
+     "nutrientId": 1005,
+     "value": 67.7
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.52
+    },
+    {
+     "nutrientId": 1079,
+     "value": 10.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.99
+    },
+    {
+     "nutrientId": 1093,
+     "value": 6
+    },
+    {
+     "nutrientId": 1092,
+     "value": 362
+    },
+    {
+     "nutrientId": 1089,
+     "value": 4.25
+    },
+    {
+     "nutrientId": 1087,
+     "value": 52
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 173149,
+   "description": "Formulated bar, high fiber, chewy, oats and chocolate",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 389
+    },
+    {
+     "nutrientId": 1003,
+     "value": 5
+    },
+    {
+     "nutrientId": 1005,
+     "value": 69.82
+    },
+    {
+     "nutrientId": 1004,
+     "value": 10
+    },
+    {
+     "nutrientId": 1079,
+     "value": 22.5
+    },
+    {
+     "nutrientId": 1258,
+     "value": 3.397
+    },
+    {
+     "nutrientId": 2000,
+     "value": 25
+    },
+    {
+     "nutrientId": 1093,
+     "value": 237
+    },
+    {
+     "nutrientId": 1092,
+     "value": 447
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.9
+    },
+    {
+     "nutrientId": 1087,
+     "value": 250
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708106,
+   "description": "Cereal or granola bar, peanuts , oats, sugar, wheat germ",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 471
+    },
+    {
+     "nutrientId": 1003,
+     "value": 10.1
+    },
+    {
+     "nutrientId": 1005,
+     "value": 64.4
+    },
+    {
+     "nutrientId": 1004,
+     "value": 19.8
+    },
+    {
+     "nutrientId": 1079,
+     "value": 5.3
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.37
+    },
+    {
+     "nutrientId": 2000,
+     "value": 28.57
+    },
+    {
+     "nutrientId": 1093,
+     "value": 294
+    },
+    {
+     "nutrientId": 1092,
+     "value": 336
+    },
+    {
+     "nutrientId": 1089,
+     "value": 2.95
+    },
+    {
+     "nutrientId": 1087,
+     "value": 61
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 43
+    },
+    {
+     "disseminationText": "1 bar",
+     "gramWeight": 43
+    }
+   ]
+  },
+  {
+   "fdcId": 173920,
+   "description": "Cereals, oats, instant, fortified, maple and brown sugar, dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 386
+    },
+    {
+     "nutrientId": 1003,
+     "value": 9.25
+    },
+    {
+     "nutrientId": 1005,
+     "value": 76.67
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.73
+    },
+    {
+     "nutrientId": 1079,
+     "value": 7.2
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.778
+    },
+    {
+     "nutrientId": 2000,
+     "value": 30.28
+    },
+    {
+     "nutrientId": 1093,
+     "value": 505
+    },
+    {
+     "nutrientId": 1092,
+     "value": 361
+    },
+    {
+     "nutrientId": 1089,
+     "value": 10.36
+    },
+    {
+     "nutrientId": 1087,
+     "value": 258
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 169859,
+   "description": "Cereals ready-to-eat, POST, HONEY BUNCHES OF OATS, with almonds",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 409
+    },
+    {
+     "nutrientId": 1003,
+     "value": 7.7
+    },
+    {
+     "nutrientId": 1005,
+     "value": 79.6
+    },
+    {
+     "nutrientId": 1004,
+     "value": 7.3
+    },
+    {
+     "nutrientId": 1079,
+     "value": 5.5
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.8
+    },
+    {
+     "nutrientId": 2000,
+     "value": 20
+    },
+    {
+     "nutrientId": 1093,
+     "value": 417
+    },
+    {
+     "nutrientId": 1092,
+     "value": 211
+    },
+    {
+     "nutrientId": 1089,
+     "value": 33.8
+    },
+    {
+     "nutrientId": 1087,
+     "value": 35
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708381,
+   "description": "Oatmeal, regular or quick, made with water, no added fat",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 64
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.21
+    },
+    {
+     "nutrientId": 1005,
+     "value": 11.36
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.09
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.186
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.17
+    },
+    {
+     "nutrientId": 1093,
+     "value": 70
+    },
+    {
+     "nutrientId": 1092,
+     "value": 58
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.68
+    },
+    {
+     "nutrientId": 1087,
+     "value": 12
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup, dry, yields",
+     "gramWeight": 485
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 oz, dry, yields",
+     "gramWeight": 170
+    },
+    {
+     "disseminationText": "1 cup, cooked",
+     "gramWeight": 240
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

@@ -18,6 +18,12 @@ import { handleCors } from './_lib/cors.js';
 const redis = Redis.fromEnv();
 const MAX_EARN_EVENTS_PER_DAY = 20;
 const ACTIVITY_STEPS_THRESHOLD = 2000;
+// The most one quest claim can award. Points are worth real donations/vouchers and a perfect month should come to
+// about 1,000 (src/lib/points.ts, quests pay 5–8), so older app builds that still ask for 120–220 get the cap.
+// Keep in step with MAX_QUEST_POINTS / MAX_QUEST_XP in src/lib/points.ts.
+const MAX_QUEST_POINTS = 10;
+const MAX_QUEST_XP = 40;
+const clampAward = (value, max) => Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
 
 async function verifyQuest(appUserId, verificationType, today) {
   if (verificationType === 'unverifiable_by_design') {
@@ -65,7 +71,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { appUserId, taskId, verificationType, xpValue, pointsValue, completed } = req.body;
+  const { appUserId, taskId, verificationType, completed } = req.body;
+  const xpValue = clampAward(req.body.xpValue, MAX_QUEST_XP);
+  const pointsValue = clampAward(req.body.pointsValue, MAX_QUEST_POINTS);
   if (!appUserId || !taskId) {
     return res.status(400).json({ error: 'appUserId and taskId are required.' });
   }

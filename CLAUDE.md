@@ -10,83 +10,325 @@ builds + runs on the simulator. All three share `src/` and `api/`, so every chan
 fix one platform by breaking another. Work that unblocks several platforms (shared API, auth) is
 done once, in shared code.
 
-- App ID: `com.jnglobalventures.kinetixfit` · App name: `KinetixFit`
+- App ID: `com.jnglobalventures.kinetixfit` · App name: **Kinetix Fit** (with a space in everything users see; code and docs say KinetixFit)
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-09-26, end of session) — read this first in a new conversation
+## Current status (2026-09-30, ~01:00) — read this first in a new conversation
 
-**Production** is still PR #1 (`initial-changes` → `main`, merge `d066406`): Android toolchain, server URL + CORS,
-Health Connect permission trim, "track day" redesign. Restore point: tag `pre-redesign` = `a900b56` (roll back by
-reverting the merge, or Vercel → Deployments → Instant Rollback).
+**Production** = PR #2 merged (`bf46d08`, 2026-09-26): the app pass (navigation, glass look, health fixes, iOS build) +
+the non-fatal `scan-meal` points fix. PR #1 = `d066406`. Restore point: tag `pre-redesign` = `a900b56` (or Vercel →
+Deployments → Instant Rollback). Production Redis fixed 2026-09-27 (see Environment variables);
+`curl -X POST https://www.kinetixfit.co.uk/api/sync-health-data -H 'Content-Type: application/json' -d '{"appUserId":"test@example.invalid","steps":1}'`
+returns `{"success":true}`.
 
-**Blockers (user action needed)**
-1. ~~Production Redis is broken~~ **Fixed 2026-09-27.** Cause: the hand-added `UPSTASH_REDIS_REST_URL/TOKEN`
-   (Sep 12) were stale (WRONGPASS); the Upstash integration (`upstash-kv-camel-door`, db `aware-sculpin-175753`)
-   injects its own creds under `UPSTASH_REDIS_REST_KV_REST_API_URL/TOKEN`, which `Redis.fromEnv()` never reads.
-   The user copied the integration's URL + token into the two **Production** vars and redeployed; the re-test
-   `curl -X POST https://www.kinetixfit.co.uk/api/sync-health-data -H 'Content-Type: application/json' -d '{"appUserId":"test@example.invalid","steps":1}'`
-   now returns `{"success":true}`. Preview/Development Redis vars still hold the old creds (deliberately — don't
-   point previews at the production database). The integration token is "sensitive" in Vercel (can't be viewed);
-   get it from Upstash console → database → REST API. Optional hardening: read the `KV_REST_API_*` names in code.
-2. **`api/scan-meal.js` fix is local only** (points award made non-fatal, so food checks work even if Redis is down).
-   It reaches the apps only when `main` is deployed — ask before pushing.
-3. **Samsung Health hasn't written anything to Health Connect yet** on the S21 FE (`dumpsys healthconnect` →
-   Samsung Health "Contributed Data: false"), even though it has all write permissions. Samsung Health only shares
-   data created *after* it's allowed (no backfill) and syncs when its home screen opens / is pulled down. Needs the
-   user to walk a bit, pull down in Samsung Health, then open KinetixFit.
+**30 Sep ~01:00: the whole batch (~313 paths / 405 files) is committed on `initial-changes`, pushed, and a PR into `main` is open — the user asked to push it to production; the user merges it (a merge to `main` deploys production).** Before that, nothing had been pushed since PR #2 (`b73a8e6`). Lint 0,
+**`npm test` 1,068 tests pass** (`src/lib` + `src/site` + `api/__tests__`); `tsc -b`, `npm run build`, `cap sync` (Android + iOS) and
+`assembleDebug` pass (29 Sep, with the whole food-scan fix and the amount fix; the iOS simulator build is from before the
+28 Sep late-evening batch). **The food-scan fix: steps 0-6 done and step 7's local checks pass (see the first bullet below). Left: the
+real-photo preview test — it spends real Claude API credits, so it waits for the user's explicit OK.**
+Ask before committing. **Merge soon:** many fixes are server-side and only reach users once
+`api/` is on `main` — **the food-scan fix** (photo scans that failed whenever Claude thought, one food per photo,
+watermelon slice → candy, curd → soybean curd), the food lookup accuracy fix (the live server can still log a banana as 152 g carbs), vegetarian
+meal ideas + barcode status, AI meal ideas returning 9 (paged 3 at a time) and never repeating, the smaller rewards
+(quest claims capped at 10 points / 40 XP, first scan 2 points), **the 1,500-point voucher** (until the merge the live
+server still refuses vouchers under 2,500 points, though the app offers one at 1,500), UK days → the phone's own day,
+country checks, **AI meal ideas by country (Indian only in India, never beef) and typed allergies**, the privacy
+policy listing the new health data, and more. **A `config:rewards` value in production Redis overrides `mealScanPointsAward` and
+`voucherPointsCost`** — check it after the merge (the app deducts whatever the server says it took).
+**APK 1.7** (versionCode 8, 29 Sep 03:55) is in `Claude Space/KinetixFit-builds/Kinetix-Fit-1.7.apk`: 1.6 + the
+food-scan fix's app side (several foods per photo, typed meals, ml by density, the saved-food guard) + the amount fix
+(29 Sep, below). Against the live server it behaves as before for photos (an older server's answer → the old flow)
+until the merge. **APK 1.6** (versionCode 7, 28 Sep 21:56) is the previous one (1.5 from 21:39 said "Calories burned"
+for Samsung's workout calories; 1.4 lacks the late-evening list) — debug builds signed with this Mac's debug key like
+1.2, so each installs over older ones and keeps data.
 
-**Uncommitted work** on `initial-changes` — ~53 files (Android + iOS). Lint 0, `tsc -b`, `npm run build`,
-`cap sync`, `assembleDebug` and the iOS simulator build all pass. **Ask the user before committing/pushing** (a
-push to `main` deploys). What's in it, oldest first:
-- *Navigation:* tabs Today · Nourish · Rewards · Account (`TAB_IDS`); Account = settings menu whose rows open pages
-  at `#account/<page>`; iOS-style tab bar (`TabBar.tsx`: glass lens, droplet stretch, slide to switch); sign in /
-  finish onboarding / log out always open Today (`openTodayFresh()`); `@capacitor/app` for the Android back button.
-- *Look:* liquid glass (`glass.css`), light/dark/System theme, title chips, activity tiles, Check a food redesign,
-  iOS switch on Reminders, glass onboarding, launch intro, edge to edge, alignment pass.
-- *Android native:* local plugins `SystemThemePlugin` (WebView media query says light in night mode) and
-  `NativeFeedbackPlugin` (system haptic ticks), registered in `MainActivity`.
-- *Health bugs fixed:* effects ran only once after restart; HC sleep aggregation / `Promise.all` blanking cards;
-  background reads (HC refuses) now pause and re-run on resume; "connected but empty" setup card; source names from
-  `sample.sourceId`; server sync posts only real, changed readings; plus assorted form/ruler/CTA/copy fixes.
-- *Responsive pass:* `src/styles/responsive.css` (loaded last) — see "Screen sizes" under Frontend conventions.
-  Audited on 20 viewports (280–1024 px, portrait + landscape) at 100% and 130% font size.
-- *Five fixes:* (1) Log out asks first (confirm pop-up). (2) Onboarding numbers audited — weight-loss deficit −600
-  kcal (NHS), floor 1,200 women / 1,500 men, protein from the BMI-25 weight when BMI ≥ 30, "NHS guidelines" →
-  "your targets", quest no longer claims "150g". (3) Goal suggested from BMI (`src/lib/bmi.ts`). (4) Steps chart
-  missing today — UTC day keys replaced by `localDayKey()` (`src/lib/dates.ts`). (5) Stress + HRV Recovery cards
-  hidden for Samsung Health users, with a one-time explanation (no bypass exists — see Roadmap).
-- *iOS work:* see "iOS" under Roadmap — entitlement wired in, iOS 16.4, launch screen + icon, Keyboard plugin,
-  Apple Health setup card, Google button hidden in the apps, notification prompt fix, and fixes found on the
-  simulator (plain-word status pills, heart rate no longer needs HRV, single-point chart dot, keyboard reveal).
+### What's in the uncommitted batch (details in the Roadmap sections named in brackets)
+- **29–30 Sep — website redesign, all 4 steps done** (the user: the hero phone's Hydration / Steps /
+  Quests cards weren't the app's and weren't attractive; nothing moves when the site opens; features under-sold —
+  nutrients from the body/BMI, AI meal ideas from what's left of the day, periods, barcodes, workouts without a watch ("no
+  watch, no problem"), premium widgets). Agreed plan, one step per "go": **(1) opening animation + an app-accurate live
+  phone in the hero (done)**, **(2) feature sections (done)**, **(3) a widgets showcase (done, 29 Sep ~21:20)**, **(4) scroll
+  animations elsewhere + a shorter day timeline + checks (done, 30 Sep ~00:30)**. **Step 4:** "Your day" is four moments
+  that nothing else shows — 07:10 check-in, 08:40 synced health, 15:30 **"A nudge to move"** (the app's own movement
+  break notification, "Time to stretch your legs", with its badge; 45 min – 2 h, Android waits for stillness, water
+  reminders' Add a glass) and 20:00 gut check (lunch → Features 03, the water widget → Widgets and 21:30 points → Rewards
+  were dropped); its lane **fills in clay as you read down it and each time lights up once reached** (`src/site/day.ts`,
+  scroll-linked both ways). "Also in Kinetix Fit" = Allergies and diet, **Made for where you live** (nine countries),
+  Levels and achievements (3 columns). More motion: the Plans' app icons pop in one by one, the Trust promises rise with
+  their ticks/locks drawing, the FAQ questions arrive in turn, the early access panel draws its track and a runner
+  laps it once. **How it works now says "Four steps. Start where you are."** (the user: remove the text that says a gym
+  is required; tested: no "gym" anywhere). 37 unused card rules removed (~4.5 KB). Checked: 1,068 tests, lint, tsc, both
+  builds, **47/47 browser checks in Chromium and WebKit**, Lighthouse mobile 92/95/95 (the first, cold run lowest, as
+  before), desktop 98, the rest 100. **Open decision (asked 29 Sep, unanswered):** chapter 02 shows Maya the Plus upsell
+  (so she looks Free) while her widgets home screen uses Quick log (Plus) — keep, or swap in Water quick add (free).
+  **Step 3: a new `#widgets` section,
+  "Glance. Tap. Done.", between Features and "Your day"**: a phone home screen (the hero's phone frame) plays Maya's
+  15:30 — her Daily rings close, + on the Water glass (1.25 → 1.5 L), 500 ml on Quick log (2 L, "Goal reached", the
+  water ring closes; `TIMELINES.widgets` in features.ts); a **Light / Dark switch** (two radios; `src/site/widgets.ts`
+  sets `data-wtheme`, cross-fading with a view transition where there is one; without JS, CSS reads the radio via
+  `:has`); and **all 14 widgets on one wall, each marked Free or Plus** (desktop 5 columns, tablet 4, phones two rows
+  that scroll sideways). The widgets are drawn from the iPhone widgets' own code (WidgetViews.swift: colours, sizes,
+  wording, the glass/bottle/wave art ported to SVG), not the app's simpler Account → Widgets previews. The old stack of
+  three plain widgets beside "Also in Kinetix Fit" is gone (the list is one full-width grid now: 2 columns from 560px,
+  3 from 1,040px). **Also fixed (a latent Safari bug):** the site's script now waits for the stylesheet if it's still
+  loading — Safari ran the script first and kept the footer's text black (the axe flake noted in step 2). Checked:
+  1,060 tests (27 new in `widgets.test.ts`: every widget name/tier/description vs `WIDGETS`, every number vs the app's
+  code, words and colours vs WidgetViews.swift / WidgetStore.swift; 3 new in `init.test.ts`), lint, tsc, both builds (no
+  site code in the app build), **45/45 browser checks in Chromium and WebKit** (new: the home screen's story, the
+  switch by mouse and keyboard, the phone wall as a keyboard stop, axe in the dark look), Lighthouse mobile 92–95
+  (step 2: 94–96; ~10 KB more compressed page + CSS costs a point of Speed Index), desktop 98, the rest 100. (Step 4
+  then took the water widget out of the day and widgets / meal ideas / periods out of "Also in Kinetix Fit".) Step 1: the app's launch intro at page size (`src/site/intro.ts`, once a visit, shared
+  `kx_intro_seen` flag with the web app), the hero phone rebuilt from the app's own CSS as a looping "screen recording"
+  (`src/site/demo.ts`: Today → water added → Rewards quest claimed → Nourish nutrients → Today), two floating home-screen
+  widgets beside it, a feature ticker under the hero, new hero copy. **Step 2 (29 Sep ~15:45): a new `#features` section,
+  "Built around you.", right after Why** — five chapters, each copy + a stage where the app's real card plays
+  (`src/site/features.ts`): 01 Nutrition (Maya's plan from her BMI → Nourish's 11 nutrients needed vs eaten), 02 Meal
+  ideas (her ranked dinner ideas from `rankMeals`, Show 3 more, the AI ideas tab for Plus), 03 Food logging (the app's scan
+  animation → houmous caught for sesame; a photo of salmon, sweet potato and broccoli as 3 foods; "2 roti and dal" typed),
+  04 Cycle (her card walking through the month, `cycleToday`), 05 "No watch? No problem." (steps from the phone, Add a
+  workout → yoga 45 min, with the app's note that added workouts never earn points). The old "One app for the whole day"
+  timeline is now `#day` (eyebrow "Your day"), untouched then (step 4 shortened it and its "Also in Kinetix Fit"
+  grid). The hero's "2 roti · 136 g" became the app's "2 rotis · 136 g".
+  Checked: 1,026 tests (50 new in `features.test.ts`: every number and app string in the chapters against the app's own
+  code/sources), lint, tsc, both builds (no site code in the app build), 42/42 browser checks in Chromium and WebKit
+  (axe 0), Lighthouse mobile 94/96/96, desktop 98 (100 with the intro skipped: the intro holds the first screen). Seen in
+  the app while copying it (not changed; app work, the user decides): Nourish's ideas line reads "… and 0 g fibre to go"
+  once fibre is met; meal result titles are `text-transform: capitalize` ("Salmon With Sweet Potato And Broccoli", "2 Roti
+  And Dal"); the Hydration card wraps "1.25" and "L" at 390px (found in step 1). [Website]
+- **29 Sep (morning) — the website's own design** (the user: a premium UK fitness-tech landing page that markets the
+  vision, features, journey and rewards, "not a replica of the app"). **The marketing site is at `/` and the web app
+  moved to `/app/`** — only on the website: `npm run build` (the apps) is unchanged (its JS/CSS/index.html were checked
+  byte-identical before/after). Built from `site/` + `src/site/` (plain HTML + small TypeScript, no React on the site):
+  hero "Small wins. Real rewards." (Archivo's width axis: condensed → wide), Why, a day with Kinetix Fit (features as a
+  07:10 → 21:30 timeline with the app's cards), widgets + also, "Slow progress is still progress", **Rewards** (a
+  floodlit section where a coffee cup fills as an example run of small wins scrolls past: 5 → … → 1,000 charity →
+  1,500 coffee, numbers checked against the app's rules), How it works, Plans (Free / Plus, the real app icons, no
+  price), Trust, FAQ, early access form, footer (company, ICO, legal, share links). Details: Roadmap → Website.
+  New endpoint **`api/early-access.js`** (the form; Upstash Redis) and a short **privacy policy** addition for it.
+  Checked: 113 site unit/DOM tests + 11 endpoint tests, 35 end-to-end checks (`scripts/site-check/`) on the Vercel-like
+  build in Chromium and WebKit (routing, forwarder, nav, menu, form with mocked answers, the rewards story, reduced
+  motion, 23 screen sizes, axe WCAG 2.2 AA: 0 issues), Lighthouse 99/100/100/100 on mobile and 100 × 4 on desktop.
+  Not yet: a real iPhone/Android browser, the endpoint against real Redis (needs a deploy). [Website]
+- **29 Sep (early morning) — amounts that didn't stick** (the user: "I kept 5 grams for pickle and updated it but it is
+  showing 100 g"). Two causes, both reproduced: (1) typing **"pickle 5g"** — an amount after the name — looked up "pickle
+  5g", logged 100 g and saved a food called "pickle 5g"; `parseTypedPortion` now reads amounts after the name when they
+  have a unit ("rice (150 g)", "milk - 200 ml", "bread 2 slices"; "chicken 65" / "omega 3" stay names). (2) the edit
+  sheet's amount box (`FoodEntrySheet`) silently dropped a typed amount outside 5 g – 5 kg and saved the old one (a typed
+  "2" g stayed 100 g); on a phone the tap can undo its "select all", so a typed 5 could join the old 100 and be dropped
+  the same way. Now the box empties when tapped (the amount shows as its placeholder; left empty, nothing changes), every
+  typed number counts (kept within 1 g – 5 kg / 0.5 – 50 units, shown before saving), and the minimum is 1 g. [Food logging]
+- **29 Sep (night) — the food-scan fix, steps 0-6 of 7 + step 7's local checks** (the user: high protein on foods with little, a milk + muesli
+  bowl logged as one food with no amounts, a watermelon slice failing, "is it because USDA isn't Indian?", Claude's
+  cost). The approved plan is `~/.claude/plans/it-s-not-working-as-tidy-music.md`; the user approves **one step at a
+  time** and wants each step's files, behaviour changes and limitations reported. Causes found: the photo call read
+  `content[0].text` while Sonnet 5 thinks by default (a thinking block first → "Meal scan failed"); one food per photo ×
+  the whole bowl's weight; the USDA matcher needing every word ("watermelon slice" → a branded candy, 207 kcal) and
+  matching word starts ("chai" → "Chain"); branded results never checked; the server never used the app's food table.
+  Done: **(1)** tests pinning the old contract (`api/__tests__/`); **(2)** SDK call, structured output, thinking off,
+  effort low, every text block read, cut-off 502 / refused 422 not counted; **(3)** the table on the server too,
+  normalised names, whole-word matching, no sweets for foods, branded ml drinks per 100 ml, densities; **(4)** several
+  foods per photo in the one call, each looked up on its own (`items[]`, old fields kept); **(5)** the app logs each food
+  as its own entry under one meal, asks before logging unsure foods, labels guessed amounts, ml by density; **(6)** typed
+  meals split on the phone ("muesli with milk and banana", "2 roti and dal"), each food its own entry under one meal;
+  **(7, local)** tests, lint, tsc, build, `cap sync`, `assembleDebug` and 31 browser checks with every server answer
+  mocked. **Left — only with the user's explicit OK, because it spends real Claude API credits** (they're on free
+  credits; never call the real Claude or USDA API without it): a commit + push → the Vercel preview with real photos and
+  the real Claude API (not yet run anywhere: no key on this Mac), reporting the exact `scan-meal usage` tokens; then
+  APK 1.7 (versionCode 8) on the A55, then these docs again. [Food logging]
+- **28 Sep (late evening) — the user's third list** (APK 1.5, then 1.6 after checking it on the A55):
+  - **Heart rate sat on "Waiting"**: the live read only looked at the last 10 minutes (watches sync in batches), and on
+    Android the plugin's `readSamples({ limit: 1, ascending: false })` returns the newest sample of the *oldest* record in
+    the window (it reads oldest first and cuts at `limit` before sorting) — HRV had the same bug. Now the newest reading of
+    the last day with its time ("72 bpm · at 14:05"), today's range + average, resting heart rate when the source gives it
+    (`readLatestHeartRate` / `readLatest` in App.tsx, `src/lib/vitals.ts`). [Today → Body and vitals]
+  - **More health data**: a **Body and vitals** card (`VitalsCard`: resting heart rate, blood oxygen, breathing rate,
+    blood pressure, VO₂ max, weight + BMI, body fat — only what exists, with typical ranges) and **distance + calories**
+    in the Steps card ("Workout calories" when the records only cover workouts — Samsung Health's total-calories records
+    are exactly its workouts; `caloriesToday`). Today's steps bar now follows the live count. 9 new Health Connect read types (`MORE_HEALTH_TYPES`), asked once for older connections
+    (`kx_more_health_asked`, "Allow in Health Connect" on the card). **Play Console's health declaration must list them.**
+  - **Allergies**: vegetarians aren't offered fish / shellfish (no-egg: eggs) unless already picked; **type your own**
+    ("kiwi", "strawberries"; "shellfish"/"gluten"/"soy" become label allergens) — `src/lib/allergens.ts`,
+    `AllergyPicker` on onboarding and Account. Food checks, meal ideas, the gut report and AI ideas all use them.
+    [Food logging → Allergens]
+  - **Gut check timing**: it's about the whole day, so the card says "Best in the evening" (+ the 20:00 reminder); in the
+    morning, "Missed last night? Add yesterday's" logs yesterday. [Gut health and diet]
+  - **Meal ideas by country**: each country gets only its own dishes — **India Indian only, never beef**; the UAE
+    Middle Eastern, Mediterranean, Indian, never pork; Singapore its own + Asian + Indian; the West its everyday list.
+    ~35 new Indian meals, 11 UAE, 11 Singapore (117 in all); 42 new USDA foods (135) from `scripts/food-table/gen.py`
+    (now in the repo). AI ideas follow the same rules (server prompt + filter, and the phone filters too). [Meal ideas]
+- **28 Sep (night) — sign-up emails** (a tester's confirmation email only came after several tries) [Sign-up and
+  account emails]: sign-up with an email that already has an account now says so (Supabase sends nothing then, yet the
+  app said "check your email"); **Send the confirmation email again** on Log in (60 s apart), also offered when logging
+  in unconfirmed; Supabase errors in plain words (`src/lib/auth.ts`); the confirmation link lands on
+  `/email-confirmed` (new `public/email-confirmed.html`); **Forgot password** now works — the reset link opens the web
+  app's "Choose a new password" form (it used to just log them in on the website). The root cause of slow / missing
+  emails is Supabase's built-in email sender — needs the user's dashboard (below).
+- **28 Sep (night) — no Health Connect on the phone** (a tester with Google Fit couldn't connect): Connect now opens
+  `HealthConnectSheet` — "Get Health Connect" (Play Store) + "I've installed it", with a Google Fit note; or, on Android
+  < 9, why it can't work (`src/lib/healthConnect.ts`). It used to flash a two-second error.
+- **28 Sep (evening) — coffee voucher 1,500 points** (was 2,500; user's decision): `VOUCHER_POINTS` in
+  `src/lib/points.ts` = `voucherPointsCost` in `api/_lib/rewardConfig.js` (a test compares them). Still one a month (Plus).
+- **28 Sep (evening) — the user's second list of changes:**
+  - **Water glass widget** (was "Liquid glass (test)", which the user called "straight up just glass"): a clear
+    tumbler that fills with today's water (`WidgetArt.waterGlass` on Android, `WaterGlassArt` Canvas on iOS, an SVG in
+    the app's preview) on the frosted card, amount + "of 2 L · 3 glasses to go" + next reminder, the glossy water +.
+    Class/kind `GlassWidget` kept so placed widgets survive. [Today, quests, reminders, widgets]
+  - **KX icons:** KX Luxe and KX Neon replaced by **KX Monogram** (K and X interlocked, gold on emerald) and **KX Pulse**
+    (coral KX over a heartbeat line, white); KX Track and KX Chrome kept. `AppIconPlugin.java` now switches Classic back
+    on if no icon alias is enabled (an update that removes the one in use would otherwise leave no launcher entry).
+    [KinetixFit Plus → App icons]
+  - **"Kinetix Fit"** (with a space) in every user-visible string — app name (`capacitor.config.ts`, Android
+    `app_name`, iOS `CFBundleDisplayName`), widgets, notifications, legal pages, server messages — and in the logo's
+    wordmark: `assets/icon*.png`, the iOS `AppIcon-1024.png`, Android launcher layers at every density (regenerated from
+    the edited source; the unused Capacitor `splash.png` drawables still say KinetixFit). Code identifiers, the RevenueCat
+    entitlement `KinetixFit Pro`, bundle/target names and these docs keep "KinetixFit".
+  - **Notifications redesigned** (`src/lib/notifications.ts`, badges from `scripts/app-icons/notify.mjs`): a coloured
+    badge per kind (Android large icon; iOS attachment `public/notify/*.png`), a header line ("Hydration · 2 L goal"),
+    longer text when expanded, actions (**Add a glass**, **Remind me in 30 min**, **Check in**), a 19:30 **streak
+    reminder** on days without a check-in (Account → Reminders), new movement-break copy + badge. No emoji.
+  - **Period tracking rebuilt** (`src/lib/cycle.ts`, `CycleCard`): predictions from the person's own logged periods
+    (average of the last 6 cycles, a ± window, confidence, "3 days late", NHS irregular-cycle note, ovulation 14 days
+    before the next period). Sleep, training, eating and HRV are shown as **context** for the current cycle, never as a
+    forecast. [Period tracking]
+  - **Gut report** gets "What went with better days" — sleep, activity, water, fibre, late meals, HRV compared on
+    good vs rough days (associations, ≥ 3 days each side). [Gut health and diet]
+  - **Meal ideas:** a free on-device ranked list (55 meals with USDA nutrition, `src/lib/mealIdeas.ts`) — top 3, "Show 3
+    more", "Not for me", "I ate this" — and AI ideas (Plus) now 9 per request shown 3 at a time. [AI meal ideas]
+  - **iOS widgets caught up:** Streak, Check-in, Quick log, My stats (App Intents for the pips and buttons, locked card
+    without Plus) + `WidgetBridge` `takeCheckIns` / `takeWorkouts` / `installed` / `pin` on iOS.
+  - Fixes found rendering every size: Quick log labels cut off on short widgets (label only there, short labels when
+    narrow, icon only for workouts on four-button 2x1s); the 2x2 Streak's status squeezing "STREAK"; My stats 2x1 shows
+    two numbers; 4x2 My stats centred; Water glass 2x1 slim glass.
+- **28 Sep (morning) — the user's first list:** workouts with add / edit / remove, "Show more" types and any number of
+  minutes (`src/lib/workouts.ts`, `WorkoutSheet`); Account → Connected devices button aligned; **app icons**
+  (Classic + Midnight free, the rest Plus); **Plus widgets** Check-in, Quick log, My stats (colour, haptic, metrics,
+  buttons set in Account → Widgets; everyone can preview them) + a free **Streak** widget; **rewards made slower**:
+  about 1,000 points in a perfect month (`src/lib/points.ts` has the sums; `points.test.ts` checks the perfect month),
+  daily check-in 5 points, streak bonus 10 every 7 days, streak badges in Achievements.
+- Earlier on 28 Sep: onboarding/back-button fixes, gut check + report, vegetarian mode, the first unit tests, the AI
+  meal ideas schema fix. 27 Sep: food logging + USDA table, water in ml + widgets, Plus, 9 countries. [Roadmap]
 
-**On the phones** (secure lock screen on the S21 FE — Claude can't unlock it, and Health Connect only answers apps
-on screen, so on-device checks need the user holding it; don't send taps while they use it):
-- **S21 FE** (`RZCT815G2ND`): latest build, **22:29** — everything above. Installs and starts; not looked at since.
-- **A55** (`RZCY41ZL3HE`): the 17:09 build — the five fixes, but not the iOS-found fixes or the Keyboard plugin.
-- Seen working on a phone so far: Samsung setup card, Health Connect reads (empty), SystemTheme plugin, sticky CTA.
-  Not yet seen/felt on a device: tab bar slide, haptics, glass look, Check a food, responsive/landscape layouts,
-  largest font size, About-you flow + goal suggestion, logout confirm, Samsung stress notice (needs Samsung data).
-- If a phone doesn't show in `adb devices` and macOS lists no Samsung device on USB, it's the cable/port or the
-  phone's USB mode (set to Transferring files), not the adb prompt.
+### What's been checked, and what hasn't
+- **Unit tests** (`npm test`, 1,068) — run them before every commit. `api/__tests__/scan-meal.test.js` runs the real
+  handler with Redis / quota / rewards mocked and Anthropic + USDA answered from `api/__tests__/fixtures/usda/` (built
+  from the USDA CSVs; branded entries marked `_note`): its single-food snapshots are the contract older apps rely on.
+- **Food-scan fix (29 Sep):** old vs new USDA matching over ~495 food names on the USDA CSVs — 349 matched vs 346 before,
+  the only loss a wrong match ("chole" → mayonnaise "no cholesterol"). Playwright on the dev server with
+  `/api/scan-meal` mocked — 20 checks (multi-food entries, the unsure food waiting, "a guess", allergens per food,
+  "It's mango", editing one food, the meal as 1 of 3 food checks, the one-food card unchanged, an older server's answer)
+  + screenshots at 360/411 light and dark. A dev server from 28 Sep 05:12 was still listening on port 5199 (left alone).
+  **Step 7 (29 Sep ~03:40), on `npx vite --port 5198`:** those checks again + a 422 non-food photo (the message, nothing
+  logged) + typed meals — "2 roti and dal" (no server call), "muesli with milk and banana" (one, for muesli), "tea with
+  milk" (looked up whole, the one-food card), "rice, dal and chutney" (chutney not found → "Not added"), an allergen per
+  food, a typed meal as 1 of 3 food checks: **31 checks pass**, 14 `/api/scan-meal` requests all answered by the script,
+  anything else off localhost aborted (nothing tried). Script: `step7-check.mjs` in session b38f7593's scratchpad.
+- **Amount fix (29 Sep ~03:50)**, same setup (`pickle-after.mjs`): "pickle" logged at 100 g, then in the sheet 5 g →
+  5 g, 2 g → 2 g (was dropped), 9999 → 5,000 g shown (closing without Save changes nothing), a tapped but empty box →
+  unchanged; "pickle 5g" → 5 g of the saved pickle with no server call; "rice 150g" → 150 g. The 31 step-7 checks still
+  pass. Not checked on a real keyboard yet (the "select all" loss is a phone thing).
+- **Widgets, every size, light + dark:** Android on the `kx_pixel` emulator with seeded widget data (see below), iOS
+  with the simulator gallery (`renderGallery({ ml: 1250, plus: true })`), the app's previews with Playwright.
+- **Icons:** contact sheet with iOS rounded + Android circle masks (`OUT_DIR=… node scripts/app-icons/render.mjs`).
+- **28 Sep late-evening list, checked:** unit tests (vitals, allergens, meal ideas per country), Playwright at 360/411
+  light + dark (Your food, Account → Diet & allergies, the gut card morning/evening/yesterday, India's meal ideas).
+  **On the A55 (1.6, 21:57, over CDP):** heart rate "93 bpm · at 09:31 pm" (Synced), Body and vitals with blood oxygen
+  95% and VO₂ max 44.7, Steps with distance 6.4 km and "Workout calories 525 kcal"; the user allowed the new types
+  from the card themselves. The A55's **Galaxy Watch 7** (Samsung Health) has heart rate, SpO2 (nights), VO2 max,
+  distance and workout calories in Health Connect — no resting HR, HRV, breathing rate, BP, weight or body fat yet.
+- **Not yet on a device:** the new notifications (badges, actions, streak reminder), switching app icons, the Plus
+  widgets' buttons (Android broadcasts / iOS 17 App Intents) and haptics on a real home screen, the period card and
+  gut patterns with real data, the Android back button in onboarding, a Health Connect / Apple Health connect.
+- **Not yet anywhere:** every server change against production (needs the merge), AI meal ideas with the live API
+  (Plus account), a real photo / barcode scan end to end — including the new photo pipeline with the real Claude API
+  (the request shape follows the docs; tests use a stand-in client), iOS lock-screen widgets.
 
-**iOS:** builds and was **tested end to end on the iPhone 17 simulator** — Apple Health permission → Allow → steps
-+ heart rate from the Health app on Today (today's bar), keyboard on three screens, dark mode, launch intro. Driven
-with `scripts/ios-sim/`. Not yet: a real iPhone (paid Apple Developer team needed for HealthKit), sleep data, camera
-/ barcode, subscriptions (`VITE_REVENUECAT_IOS_PUBLIC_KEY` missing).
+### Waiting on the user
+- **Website (before the merge deploys it):** (a) social accounts — none exist yet (`instagram.com/kinetixfit` belongs to
+  someone else, so no handle was guessed): the footer's "Follow us" column says **"Coming soon"** (the user's choice, 30
+  Sep; written in the page, 5 footer columns from 1,040px) until real ones go into `SOCIAL_PROFILES` in
+  `src/site/config.ts`, which replaces it with links; (b) read the privacy policy's new "Early access list" paragraphs (section 2, 3's
+  table and 5; "Last updated" is now 29 September 2026); (c) the Vercel project must build with `vercel.json`'s
+  `buildCommand` (`npm run build:web`) and `outputDirectory` (`dist-web`) — check nothing in the dashboard overrides
+  them; (d) someone has to read the early access list (Upstash console: `ZRANGE early_access 0 -1`) and send the launch
+  email; (e) no testimonials were written (none exist; fake reviews are illegal in the UK) — add real ones later if wanted;
+  (f) the site names no charities (commercial-participator rules: name them once agreements exist) and shows no Plus price;
+  (g) Maya Free or Plus on the widgets home screen (see the redesign bullet); (h) a look on a real phone — 30 Sep ~00:45
+  no Android phone was connected, and the iPhone refused automation: **Web Inspector is off** (Settings → Apps → Safari
+  → Advanced → Web Inspector + Remote Automation on); with them on, `safaridriver -p 4447` + a WebDriver session with
+  `{"platformName":"iOS","browserName":"Safari","safari:deviceUDID":"00008110-001151D80291801E"}` drives Safari on it,
+  loading the Mac's serve.mjs at http://192.168.1.3:5190 (same Wi-Fi) or the live site.
+- **Food-scan fix:** an explicit OK for the real-photo preview test, the only step left that spends real Claude API
+  credits (a commit + push → Vercel preview; ~5 photos: muesli + milk + banana, watermelon slice, curd, porridge, a
+  blurry one; APK 1.6's request shape; the exact `scan-meal usage` tokens reported). Then APK 1.7 on the A55.
+  Open decision: USDA's only "tea with milk" (what chai maps to) is sweetened (51 kcal, 8.7 g sugars per 100 g) —
+  right for most chai, ~30 kcal high for unsweetened milky tea; an unsweetened entry of our own would fix it.
+0. **Fix sign-up email delivery in Supabase** (dashboard, project `qlsdmczmnmsjhqptnkym`) — see Roadmap → Sign-up and
+   account emails. Until then confirmation emails are slow / limited (and may not reach addresses outside the team).
+1. **Try the new build on the S21 FE** (installed 28 Sep 18:24, data kept): Water glass widget, the new icons
+   (Account → App icon), notifications, period card (female profile), meal ideas paging. Say which icons/widgets to keep.
+2. **Commit + PR + merge** (Claude commits / opens the PR when asked; the user merges — `gh pr merge` is blocked).
+   After merging: re-scan the badam milk bottle, a less common food, AI meal ideas with a Plus (promo) account, then APK 1.3.
+3. Still open: the smartwatch question on Today; Account → Reminders hours; Country (the S21 FE resolved to India);
+   pick the water widget styles to keep.
+4. Plus can't be bought yet: Play Console subscription + RevenueCat entitlement **`KinetixFit Pro`** + offering.
+5. Before any non-UK country goes live: charity agreements, Tremendous funding per currency, privacy policy + terms per
+   market, store availability; double-check Singapore's fibre figure and the onboarding facts. [Countries]
+6. Play Console Health Connect declaration: add **exercise** (READ_EXERCISE) and, since 28 Sep late evening, **distance,
+   active + total calories burned, oxygen saturation, respiratory rate, blood pressure, VO2 max, weight and body fat**
+   (shown on Today, phone-only); the data-safety form + privacy policy should cover the gut check, periods, the food log
+   and those (public/privacy-policy.html lists them; live after the merge).
 
-**Next up (user to choose):** (1) user fixes Redis in Vercel, Claude re-tests the endpoint; (2) check on the phones
-with them unlocked — Samsung Health data arriving, tab bar + haptics, landscape + largest font, scroll smoothness
-(frame rate over CDP); (3) commit + push to `initial-changes`, open a PR (deploys the `scan-meal` fix when merged);
-(4) iOS on a real iPhone once there's a paid developer team; (5) product gaps from the competitor review: a saved
-food diary (intake is in memory only and resets on restart), a daily Readiness score, manual entry for sleep /
-weight / water; (6) the website needs its own design — the phone layout doesn't suit it (decide marketing site vs
-web app first).
+### On the phones, the emulator and the simulator
+**Before any `am start`, install or tap, check `adb shell dumpsys activity activities | grep topResumedActivity`** (and
+`dumpsys power | grep mWakefulness` — `Dozing` = screen off) — the user uses the phone during sessions; if they're in
+another app, ask first. The S21 FE has a secure lock screen: Claude can't unlock it, and Health Connect only answers
+apps on screen. `adb` waits forever for a missing device — wrap with `perl -e 'alarm 30; exec @ARGV' adb …`.
+Old data from before the 27 Sep reset is in `Claude Space/KinetixFit-backups/2026-09-27/` (`s21fe-app-data.tar`,
+`iphone-app-data/`).
+- **S21 FE** (`RZCT815G2ND`): **APK 1.7 — current** (29 Sep 04:27, data kept; the health permissions new in 1.5 weren't
+  granted yet then — the Body and vitals card asks). When the Mac can't see it at all (not in `adb devices` nor the USB
+  device list, as on 29 Sep ~03:55–04:11), it's the cable or socket — a replug fixed it. The user's new test account, app icon **Midnight**. Widgets on its home screen: Water bottle, Today, Quick scan, Water level, Water quick add, Water ring,
+  Water this week, Daily rings (+ possibly the old Liquid glass, now Water glass). Drops off USB now and then.
+- **A55** (`RZCY41ZL3HE`): **APK 1.6 — current** (28 Sep 21:56, data kept, all 15 health permissions allowed); it has
+  a Galaxy Watch 7 (see "checked" above) — the phone for checking health cards.
+  USB debugging was off when it was plugged in on 28 Sep (MTP only, no adb) — if `adb devices` doesn't list it, ask
+  the user to turn it on (Developer options; Auto Blocker off) and replug.
+- **iPhone 13 mini** (UDID `00008110-001151D80291801E`): **the 29 Sep ~03:57 build — current** (everything above, incl.
+  the food-scan fix's app side and the amount fix; data kept). Free Personal Team `BMJ28C6NNY`: the profile lasts 7 days (until ~5 Oct), then rebuild + reinstall:
+  `cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Debug -destination 'id=<udid>'
+  -allowProvisioningUpdates -derivedDataPath build build`, then `xcrun devicectl device install app --device <udid>
+  build/Build/Products/Debug-iphoneos/App.app` (`kAMDRemoteConnectError` = off the cable or locked).
+- **iPhone 17 simulator**: the 28 Sep ~18:40 build (current). Shut down after use — it and the emulator don't fit
+  in 8 GB together.
+- **Android emulator `kx_pixel`** works headless when the simulator is shut down: `emulator -avd kx_pixel -no-window
+  -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-save -memory 2048` (boots in ~30 s), then
+  `adb -s emulator-5554 install -r …`; stop with `adb -s emulator-5554 emu kill`. It has the 28 Sep build with **seeded
+  widget data** (`kx_widgets.xml` pushed via `run-as … sh -c 'cat … > shared_prefs/kx_widgets.xml'`, app force-stopped).
+- Android widget gallery (debug builds): `adb shell am broadcast -a com.jnglobalventures.kinetixfit.RENDER_WIDGETS -n
+  com.jnglobalventures.kinetixfit/.WidgetGalleryReceiver --es theme dark [--ei ml 1250] [--ez plus true]` → `adb pull
+  /sdcard/Android/data/com.jnglobalventures.kinetixfit/files/widgets-dark[-1250][-plus].png`. Rows follow
+  `SizedWidget.all()`, each (94+212+16+16) dp tall. `--ez haptic true [--ez goal true]` plays the widget haptic instead.
+- iOS widget gallery (debug builds): `node scripts/ios-sim/wi.mjs "Capacitor.Plugins.WidgetBridge.renderGallery({ ml:
+  1250, plus: true }).then(r => window.__g = r.path)"`, then `node scripts/ios-sim/wi.mjs "window.__g"`.
+- Debug the WebView over CDP: `adb forward tcp:9223 localabstract:webview_devtools_remote_<pid>`, then a small Node CDP
+  script. Visual checks without a phone: `npx vite --port 5199` + Playwright from a scratch folder (Frontend conventions).
+- **iOS:** in sync with Android (`scripts/ios-sim/`: `sim.sh build|launch|shot|proxy`, `wi.mjs`, `ui.py`, `tap-el.sh`;
+  if ui.py can't connect, start the idb companion). Not yet: `VITE_REVENUECAT_IOS_PUBLIC_KEY`, TestFlight (paid team).
+
+**Next up (user to choose):** (0) finish the food-scan fix (the real-photo preview test, APK 1.7), try the builds, then commit / PR / merge; (1) Play
+Console + RevenueCat products for Plus, then Play internal testing (release signing); (2) syncing the food log, gut
+checks, periods, water and profile to the account (all phone-only; switching phones loses them); (3) rewards in more
+countries; (4) iOS paid team (TestFlight); (5) the website: redesign done (4 steps, 29–30 Sep) — check it on a real phone,
+then the waiting-on-user items above before the merge deploys it.
 
 - Only commit, push or merge when the user asks. Claude can open PRs, but `gh pr merge` is blocked in auto mode;
-  the user merges PRs themselves on GitHub.
+  the user merges PRs themselves on GitHub. Auto mode also blocks Claude from production deploys, POSTs that write
+  to production, and pulling secret env values — hand those commands to the user (typed with `!`, no space after it;
+  pasted text can carry a non-breaking space the shell rejects).
 - The user prefers plain-text questions over the AskUserQuestion widget, and likes changes checked on the real
-  phones (see "Driving the app on the phone" under Frontend conventions) — and now the iOS simulator.
+  phones (see "Driving the app on the phone" under Frontend conventions) — and the iOS simulator. For widgets, check
+  every size in light + dark with the galleries before handing over.
 
 ## Android toolchain
 
@@ -119,9 +361,11 @@ and retry.
 
 ```bash
 npm install                      # JS deps
-npm run dev                      # web dev server, http://localhost:5173 (fastest UI iteration)
-npm run build                    # tsc -b && vite build → dist/
+npm run dev                      # web dev server, http://localhost:5173 (the app; the website is at /site/)
+npm run build                    # tsc -b && vite build → dist/ (the app alone — what cap sync copies into the apps)
+npm run build:web                # tsc -b && vite build --mode web → dist-web/ (the website: site at /, app at /app/)
 npm run lint
+npm test                         # tests (Vitest: src/lib/*.test.ts + api/__tests__/*.test.js) — run before every commit
 
 # Android — always build web first, then sync, or the app ships stale JS
 npm run build && npx cap sync android
@@ -159,7 +403,9 @@ a new tab). In zsh, don't store `adb -s SERIAL` in a variable — it won't word-
 - [x] API calls + privacy/terms links point at the live server from the app; CORS added in `api/`
 - [x] Health Connect: plugin supplies the permissions-rationale activity and `health_connect_privacy_policy_url`
       is set in `res/values/strings.xml`. The plugin declares 47 read/write health permissions; the app
-      manifest strips all but the 5 it reads (`tools:node="remove"`) — Play rejects unused health permissions.
+      manifest strips all but the 15 it reads (`tools:node="remove"`; READ_EXERCISE kept since 27 Sep for workouts, and
+      since 28 Sep distance, active + total calories, oxygen saturation, respiratory rate, blood pressure, VO2 max,
+      weight, body fat) — Play rejects unused health permissions. The Play health declaration must list them all.
       If `requestAuthorization` in `App.tsx` gains a data type, delete that type's remove-line.
 - [x] Deploy the `api/` CORS change to Vercel (2026-09-25)
 - [x] Run on a real device — test phone above; launch + intro verified 2026-09-25
@@ -181,13 +427,12 @@ a new tab). In zsh, don't store `adb -s SERIAL` in a variable — it won't word-
       Data SDK (above); it never writes HRV to Health Connect; Health Connect heart rate is averaged bpm, not
       beat-to-beat intervals, so HRV can't be computed from it; reading a Galaxy Watch directly (Samsung Health
       Sensor SDK) needs our own Wear OS app *and* partner approval. So Stress/Recovery are hidden for Samsung Health
-      users with a one-time explanation. The Recover-better quest "Keep your stress load low today" still can't be
-      verified for them — consider swapping it for a sleep/heart-rate quest when the source has no HRV.
+      users with a one-time explanation. Quests are now data-driven (2026-09-27), so Samsung users never get an HRV quest.
 - [x] Trend day keys were UTC while Health Connect buckets start at local midnight (today's bar empty outside
       UTC) — fixed 2026-09-26 with `localDayKey()`. The `api/` functions still key days in UTC (server-side daily
       limits for quests, donations, food points) — harmless for now, but they reset at 1am in the UK in summer.
-- [ ] Food intake (`dailyConsumables`) lives in memory only — it resets when the app restarts, and a checked food is
-      added automatically with no portion, undo or history. A saved food diary is the top product gap.
+- [~] Food intake: per-entry log with amounts, edit/remove, saved foods, 90-day history and per-nutrient targets
+      (2026-09-27, see Food logging). Still phone-only — no sync across devices.
 - [x] `VITE_REVENUECAT_ANDROID_PUBLIC_KEY` in `.env` (2026-09-27). Real purchases still need Play Console products +
       RevenueCat entitlement/offering, and a Play-installed build (internal testing) — a sideloaded APK can't buy
 - [~] Grey status/nav bar strips: fixed in code (edge to edge + `kx_app_bg` fallback) — confirm on both phones
@@ -197,7 +442,9 @@ a new tab). In zsh, don't store `adb -s SERIAL` in a variable — it won't word-
 - [ ] Emulator (optional): needs a system image download (see toolchain)
 - [ ] Release signing: upload keystore + `signingConfigs`. Keystores (`*.jks`, `*.keystore`) are gitignored
       on purpose — losing the upload key means no more updates under this app ID. Play needs an AAB: `./gradlew bundleRelease`
-- [ ] Bump `versionCode` / `versionName` in `android/app/build.gradle` (currently 1 / "1.0") for every Play upload
+- [ ] Bump `versionCode` / `versionName` in `android/app/build.gradle` (now 4 / "1.3", uncommitted) for every upload / shared APK.
+      Shared debug builds in `Claude Space/KinetixFit-builds/`: **1.2** (27 Sep ~22:00 code) and **1.3**
+      (`Kinetix-Fit-1.3.apk`, 28 Sep 18:48) — both built before the `api/` changes were merged
 - [ ] Play Console: Health Connect data-use declaration, data-safety form, privacy policy URL
 - [ ] Google sign-in doesn't work in the apps (`handleGoogleSignIn` — needs a deep-link return URL), so the button is
       hidden there (2026-09-26); email/password works. On iOS, adding it back also needs Sign in with Apple (guideline 4.8).
@@ -271,8 +518,8 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
       Health users and iPhones without an Apple Watch waited forever — now heart rate alone is enough (HRV shown
       when present); steps shown with a thousands separator; a one-day line chart draws its point as a dot;
       keyboard reveal re-centres after the WebView resize and snaps if iOS's own focus scroll cancelled it.
-- [ ] Real iPhone: HealthKit needs a **paid Apple Developer Program** team (free personal teams can't use the
-      HealthKit capability). Set the team in Signing & Capabilities.
+- [x] Real iPhone (27 Sep): the free Personal Team signs HealthKit + the App Group fine (the old note that
+      HealthKit needs a paid team was wrong). Paid team still needed for TestFlight / App Store / subscriptions.
 - [ ] `VITE_REVENUECAT_IOS_PUBLIC_KEY` in `.env` (subscriptions run in demo mode until then)
 - [ ] App Store review risks to settle before submitting: promo codes that unlock Premium outside in-app purchase
       (guideline 3.1.1), charity donations via an external link (3.2.2 — fine if the charity page opens in Safari),
@@ -281,19 +528,579 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
 - [ ] (keep) `ios/App/CapApp-SPM/Package.swift` must use `/` paths — it was once committed with Windows `\`
       paths (breaks Xcode). Running `cap sync` on Windows reintroduces them; check the diff before committing.
 
+### KinetixFit Plus (added 2026-09-27, uncommitted until pushed)
+- Plans: **Free** = 2 photo/barcode scans a day (the phone's own midnight); **Plus** = 10 a day + vouchers (coffee etc.). Typed food
+  checks and charity donations stay free. Limits live in `src/lib/plus.ts` (display) and `api/_lib/scanQuota.js`
+  (enforced; counts only successful scans, fails open if Redis is down). Plus is checked server-side against
+  RevenueCat in `api/_lib/plus.js` (5-min Redis cache; strict/fresh for voucher payouts). Entitlement identifier
+  stays **`KinetixFit Pro`** (promo codes already grant it); customers see "KinetixFit Plus".
+- Buying: Account → Your plan sells `offerings.current.availablePackages[0]` via RevenueCat; until Play Console /
+  App Store products + a RevenueCat offering exist, the button says Plus isn't on sale yet. Restore purchase is there.
+- `lookup-barcode` now requires `appUserId` (older app builds that don't send it get "Sign in to scan a barcode").
+- Vouchers: **1,500 points** (user decision 2026-09-28; was 2,500) and **one coffee voucher per person per calendar
+  month** (user decision 2026-09-27) —
+  `reserveVoucherSlot` in `api/_lib/rewardConfig.js` (atomic INCR, released if the Tremendous order fails).
+  Vouchers no longer count against `monthlyRedemptionCapGBP` (£3, now donations only).
+- Photos: Camera plugin `getPhoto` (not `takePhoto` — only getPhoto survives Android killing the app behind the
+  camera; restored via `appRestoredResult`). Barcode from a saved photo: WebView `BarcodeDetector` on Android,
+  `html5-qrcode` fallback (iOS/web).
+
+- **App icons** (28 Sep; `src/lib/appIcons.ts`, Account → App icon): Classic + Midnight free; Aurora, Gold, Ember,
+  KX Track, KX Monogram, KX Pulse, KX Chrome are Plus (anyone sees them; a Plus icon reverts to Classic once the plan is
+  known and isn't Plus — `shouldRevertIcon`). Android: one launcher `activity-alias` per icon (`.Icon<CamelCase>`,
+  Classic enabled in the manifest), `AppIconPlugin.java` applies a choice when the person leaves the app
+  (`handleOnStop`) and re-enables Classic if no alias is on. iOS: alternate icon sets `AppIcon-<Name>` +
+  `ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES`, `App/AppIconPlugin.swift` (`setAlternateIconName`). Art:
+  `scripts/app-icons/render.mjs` (Playwright; writes iOS 1024 RGB PNGs, Android adaptive WebP layers + XML, the
+  picker previews `src/assets/app-icons/*.webp`; `OUT_DIR=…` for drafts + a contact sheet). Removing an icon later:
+  keep its alias out of IDS/manifest and rely on the Classic fallback.
+- **Plus widgets** (28 Sep): Check-in (tap an energy pip → checked in; points + streak when the app next opens),
+  Quick log (1–4 buttons: drinks or workouts), My stats (2–4 numbers); colour + haptic (Android) set in Account →
+  Widgets (`src/lib/widgets.ts` WidgetPrefs → `flattenPrefs` → the widget store). Without Plus they show a locked card
+  that opens `kinetixfit://plus`. The free **Streak** widget shows the check-in streak and the last 7 days.
+
+### Today, quests, reminders, widgets (2026-09-27, uncommitted until pushed)
+- **Quests** (`src/lib/quests.ts`): only what the user's data can show — steps/sleep/HRV/recorded workouts when the
+  device shares them, food checks in the app. Nothing self-reported (water, check-in, hand-added workouts) — points
+  become real donations/vouchers. The workout quest is offered once workouts are readable and the person has a watch or
+  has had a recorded workout in the last 30 days. No stress for Samsung. Real progress bars; a quest
+  can be claimed only once met. Claimed IDs persist per day (`kinetix_quests_claimed`); "Check 3 foods" counts today's
+  food-log entries (`kx_food_days`, see Food logging).
+- **Hydration** (`src/components/HydrationHero.tsx` card + `HydrationSheet` page, data in `src/lib/water.ts`, styles in
+  `src/styles/today.css`): water in **ml**. `kinetix_water_log` = local day → drinks, each `[time, ml]` (a bare number is
+  an older 250 ml glass; 35 days kept). Glass size `kinetix_glass_ml` (50/100/150/200/250/300/500, Hydration page →
+  Settings) is what + adds; goal `kinetix_water_goal_ml` (1.5/2/2.5/3 L — an old `kinetix_water_goal` in glasses converts,
+  8 → 2 L). Page: amount + progress bar + − (undo last) / **Add 250 ml**, next reminder line, This week bars, Today's
+  drinks folded (times + remove), Settings (glass size, goal, reminders). Self-reported → never quests/points. Drinks
+  added on a widget wait in the widget store (`waterPending`, `[[t, ml]]`, times 1 ms apart because a drink is removed by
+  its time) until the app calls `takeWidgetGlasses()` on open/resume. "Remind me in 30 min" survives only as the
+  notification action.
+- **Heart rate + Body and vitals** (28 Sep, `src/lib/vitals.ts`, `VitalsCard`): heart rate is the newest reading of the
+  last day with its time (`readLatestHeartRate`: hourly averages find the newest hour, then only that hour is read —
+  Android's plugin reads records oldest first and applies `limit` before sorting, so `limit: 1, ascending: false` gave
+  the newest sample of the oldest record), today's range + average (`queryAggregated` day, `['average','min','max']`),
+  resting heart rate from `restingHeartRate` when a source writes it (Samsung Health doesn't). Every 5 min + on resume:
+  the newest resting HR, SpO2, breathing rate, blood pressure, VO2 max, weight, body fat (`readLatest`: 1 → 7 → 30
+  days on Android, a newest-first query on iOS), distance and calories today (Android: Health Connect's total calories
+  from one app — `sumOneSource`; iOS: active energy). Tiles show only readings that exist, with typical ranges
+  (NHS / NEWS2) as information. `checkAuthorization` (Android) / `kx_more_health_asked` (iOS) decide whether the card
+  asks for the new types once ("Allow in Health Connect"). None of it leaves the phone (the server still only gets
+  steps, today's heart rate, HRV and sleep for quests).
+- **Check-in** (`src/lib/checkins.ts`, `kinetix_checkins`, 60 days). **Workouts** (`src/lib/workouts.ts`): detected ones
+  from `Health.queryWorkouts` (30 days, sessions under 5 min dropped, ids remembered in `kinetix_detected_workouts` so the
+  Rewards total keeps growing); hand-added ones stay in `profile.workoutsLogged` as "Run · 30 min (dd/mm/yyyy)".
+  `kx_workouts_asked` marks connections that already asked for the workouts permission (`HEALTH_READ_TYPES` in App.tsx).
+- **Movement breaks** (`src/lib/moveReminders.ts`; Android `MoveReminderPlugin` + `MoveReminderReceiver`, prefs `kx_move`,
+  inexact 15-min alarm re-armed on boot/update, own channel `kx-move`, notification id 9300; iOS ids 9300–9339). Keys
+  `kinetix_move_enabled`, `kinetix_move_minutes`, `kinetix_move_prompt`. Same active hours as water reminders.
+- **Notifications, redesigned 28 Sep** (`styled()` in `src/lib/notifications.ts`): each kind has a badge
+  (`kx_notif_<kind>` large icon on Android, `public/notify/<kind>.png` attachment on iOS — `scripts/app-icons/notify.mjs`),
+  a header (`summaryText`, e.g. "Hydration · 2 L goal"), a longer `largeBody` when expanded, a thread id, and actions:
+  `KX_HYDRATION` (Add a glass → logs one and opens Hydration; Remind me in 30 min) and `KX_STREAK` (Check in). Streak
+  reminder: 19:30 on days without a check-in, ids 9500–9506, channel `kx-streak`, `kx_streak_reminder` (Account →
+  Reminders). `scheduleNotifications()` retries without attachments if iOS refuses one. No emoji (tested).
+- **Notifications** (`src/lib/notifications.ts`): Android channels (Water reminders / Activity / Nutrition goals; the
+  native movement break uses its own `kx-move` "Movement breaks" channel),
+  white status-bar icons `ic_stat_water` / `ic_stat_kinetixfit`, rotating reminder copy, a "Remind me in 30 min"
+  action. Turning reminders off now cancels them (it used to leave them firing). In-app banner (`.alert-ticker`)
+  is a frosted-glass pill with a countdown bar; tap or swipe up to dismiss.
+- **Home-screen widgets, Android + iOS — 14, the same on both** (the 10 water/daily styles below, plus Streak and the
+  Plus widgets Check-in, Quick log, My stats — `StreakWidget` / `CheckInWidget` / `QuickLogWidget` / `StatsWidget` on
+  Android; `StreakView` / `CheckInView` / `QuickLogView` / `StatsView` + `CheckInIntent` / `QuickLogIntent` on iOS, where
+  a bundle takes at most 10 widgets so the rest sit in `MoreWidgets`) (redesigned 27 Sep after several rounds of user
+  feedback; the user is to pick which water styles to keep): **Water bottle** (`HydrationWidget`), **Water level**
+  (the card is the glass, water rises; text changes colour at the waterline), **Water ring**, **Water quick add**
+  (+ glass of your size / + 500 ml bottle; 1 L if the glass is 500), **Water this week** (bars in tracks + goal days),
+  **Daily rings** (steps / water / food), **Steps**, **KinetixFit today** (three equal columns: steps, kcal left, quests,
+  each number + label + bar), **Quick scan** (Snap food / Scan barcode), **Water glass** (28 Sep, was Liquid glass
+  (test)). Look: solid cards
+  (white → pale aqua / deep ink, crisp edge, water glow), header chip + small-caps label, Archivo numbers, glossy
+  gradient buttons (one gradient + hairline — a separate highlight shape once stuck out and looked like a shadow),
+  gradient rings with an end cap. Research behind it: GO Club (Liquid Glass look), WaterMinder / Waterllama, Apple
+  Activity rings / Gentler Streak, Google's widget quality tiers (fill the grid, system corner radius, light + dark,
+  48dp targets, previews, distinct names). Water is shown in ml / L everywhere. Taps use `kinetixfit://` (`scan/photo`,
+  `scan/barcode`, `today`, `hydration`; MainActivity intent-filter / iOS URL scheme), handled in App.tsx via
+  `CapacitorApp.getLaunchUrl()` + `appUrlOpen` (ignored until signed in). Data: `src/lib/widgets.ts` →
+  `WidgetBridgePlugin` (Android SharedPreferences `kx_widgets`; iOS App Group `group.com.jnglobalventures.kinetixfit`),
+  incl. `waterMl`, `waterGoalMl`, `glassMl`, `waterWeek` (ml), `kcalEaten`, `kcalTarget`; older keys (`waterGlasses`,
+  `waterGoal` = goal in glasses of the current size) are still sent.
+  - **Android** (`android/app/src/main/java/.../kinetixfit/`): every provider extends `SizedWidget` (`build(context,
+    sizeDp)` + `fallback()`; `SizedWidget.all()`; `WidgetStore.refreshAll()` redraws all). `WidgetStore.updateSized()`
+    hands the launcher a `RemoteViews(Map<SizeF, RemoteViews>)` built from `OPTION_APPWIDGET_SIZES` (Android 12+), so
+    resizing swaps layout + redraws art; each widget has short (h < 120dp) / square / wide layouts
+    (`res/layout/widget_*`). Root `@android:id/background` + `clipToOutline`, radius `kx_widget_radius` =
+    `system_app_widget_background_radius` on v31. Colours `values(-night)/widget_glass_colors.xml` (card) + `kx_lg_*`
+    (glass test). Art is drawn as bitmaps in `WidgetArt.java` (launchers ignore custom widget fonts): `amount` (big
+    number + small unit), `display`, `bottle`, `waterLevel`, `gradientRing`, `rings`, `trackBars`, `glowBar`,
+    `liquidGlass` / `glassButton` / `glassGroove`, `fitSp` (one number size for a row). Shared water data:
+    `WaterWidgets.java`. + buttons: `HydrationWidget.addGlass()` / `addGlasses(ml)` → `ADD_GLASS` broadcast →
+    `WidgetStore.addPendingDrinks`. **Haptics:** `HydrationWidget.haptic()` — `EFFECT_CLICK`, `EFFECT_DOUBLE_CLICK` when a
+    tap crosses the goal, with `USAGE_PHYSICAL_EMULATION`: a widget tap runs in the background and Android drops
+    `USAGE_TOUCH` vibrations from background apps ("Ignoring incoming vibration as process … is background"); it checks
+    `Settings.System.HAPTIC_FEEDBACK_ENABLED` itself. Quick scan + Water quick add have `maxResizeHeight` 130dp.
+    **Water glass** (`GlassWidget`, kind name kept): a clear tumbler filling with water (`WidgetArt.waterGlass` — as tall
+    as its box allows, tumbler to highball; a dark outline over light wallpapers) on a frosted card. Android can't
+    blur/refract what's behind a widget and apps can't read the wallpaper image on
+    Android 13+, so `GlassWidget` tints its drawn glass with `WallpaperManager.getWallpaperColors()` (no permission) and
+    uses dark text when `HINT_SUPPORTS_DARK_TEXT`. Refresh every 30 min + whenever the app changes the numbers (the shell
+    can't send `APPWIDGET_UPDATE`). One UI 2x2 = 176×212dp, 4x2 = 376×212dp, 2x1 = 176×94dp on the S21 FE.
+    Debug gallery: `android/app/src/debug/.../WidgetGalleryReceiver.java` (see Current status).
+  - **iOS** (`ios/App/KinetixFitWidgets/`, extension target `KinetixFitWidgets`, bundle id
+    `…kinetixfit.KinetixFitWidgets`, embedded via "Embed Foundation Extensions"): `WidgetViews.swift` (every look; views
+    take `family` as a parameter), `KinetixFitWidgets.swift` (bundle, `KXProvider` timeline — every 15 min for 6 h + each
+    reminder + midnight — and configs; small + medium, lock-screen variants for Water bottle / ring / Steps),
+    `WidgetStore.swift` (port of WidgetStore.java: ml, week, next reminder, pending drinks). Buttons: `AddGlassIntent`
+    / `AddBottleIntent` (AppIntents, iOS 17+; iOS 16 has no buttons). Water level uses `.contentMarginsDisabled()` and
+    draws its text twice (dark, and white masked by the wave). iOS widgets can't play haptics. Water glass: the tumbler
+    is `WaterGlassArt` (a SwiftUI Canvas port of the Android art) on `LiquidGlassBackground`.
+    `App/WidgetBridgePlugin.swift` writes the App Group and calls `reloadAllTimelines()`; `MainViewController.swift`
+    registers it. Debug gallery: `WidgetViews.swift` + `WidgetStore.swift` are also compiled into the app;
+    `App/WidgetGallery.swift` renders with `ImageRenderer` (fonts registered from the appex) via the debug-only
+    `WidgetBridge.renderGallery`. iOS 16.4 fallback: `widgetCard()` pads + draws the background itself. A real iPhone /
+    App Store build needs the App Group on the paid team.
+
+### Food logging (27 Sep; the food-scan fix 29 Sep — uncommitted until pushed)
+- **Log** (`src/lib/foodLog.ts`): `kx_food_days` = local day → entries (90 days; older `kx_food_log` /
+  `kinetix_today_intake` migrate in once — running totals become one "Earlier today" entry). An entry = food name +
+  `qty` × `unit` (`unitGrams`; `g` = grams / ml for drinks) × `eaten` (1, ¾, ½, ¼) + its own copy of `per100g` +
+  `missing` nutrients + `note` + `extras` (+ `meal` for a meal photo's foods, `amountGuess` for an amount the photo
+  couldn't show). Totals everywhere (`dailyConsumables`, quests, widgets, AI ideas) are derived from the entries; food
+  checks count a meal photo once (`mealCount`). Edit / remove / log again: `src/components/FoodEntrySheet.tsx` (+
+  `ExtrasPicker`). Its amount box empties when tapped (the amount as its placeholder — a phone's tap can undo "select
+  all", and a typed 5 used to join the old 100); every typed number counts, kept within 1 g – 5 kg (0.5 – 50 units).
+- **Saved foods** (`kx_foods`, 200 most recent): per-100 g values + known units (e.g. slice = 36 g) + `density` when
+  known, keyed `bc:<barcode>`, `name:<food>` or `usda:<fdcId>`. Re-scanning a barcode, typing a food logged before, the
+  "Again" chips and every edit never call the server or spend a scan.
+- **Typed checks, in order:** saved foods → the **USDA table** → the server. `parseTypedPortion` reads amounts on the
+  phone ("2 slices of bread", "150g rice", "2 eggs", "200 ml milk", "1.5 l water", and after the name with a unit:
+  "pickle 5g", "bread 2 slices"), so only the food's name is looked up; `savedFoodPortion` applies them to a saved food
+  (ml by density, below).
+- **Typed meals** (29 Sep; `splitTypedMeal` in foodLog.ts — on the phone, no AI): "muesli with milk and banana", "2 roti
+  and dal", "rice, dal + a glass of milk" are split on , + & "and" "with" — only when **at least two** of the foods are
+  known on the phone (saved, or the table) and **at most one** isn't (it goes to the server: never more lookups than the
+  whole phrase took). The longest known run stays one food ("tofu and vegetables"), so a known phrase is never split;
+  tea / coffee / chai keep their add-ons ("tea with milk and sugar" is one drink, looked up whole as before; "50 ml milk"
+  with its own amount is a food); an unknown add-on (salt, mayo) keeps the text whole. `logTypedMeal` (App.tsx) looks
+  each food up with its own amount (saved → table → server, `foodForName`) and logs it under one `meal` (`logMealFood`,
+  allergens per food) on the `MealResultCard`; a food that can't be looked up shows as "Not added". Dish names stay
+  whole ("mac and cheese", "sweet and sour chicken"), and so do "muesli with milk" / "butter chicken and naan" until the
+  unknown food has been logged once.
+- **USDA table** (`src/lib/foodTable.ts`, 135 foods): per-100 g values + USDA portion weights (banana 118 g, roti 68 g,
+  idli 38 g, a cup of rice 158 g) generated by `scripts/food-table/gen.py` from USDA FoodData Central's SR Legacy (2018)
+  and FNDDS 2021-23 CSV downloads (fdcId per food; how to run it is in the script's header; the CSVs go in the gitignored
+  `scripts/food-table/usda/`). 28 Sep added 42 for the meal ideas: Indian (chana saag, fish curry, vegetable curry,
+  vada, chaas, pulao, bhindi, baingan, puri, toor dal, moong, sprouts, besan, mutton, keema, surmai, dalia, sarson,
+  karela, lauki, lobia…), UAE (hummus, falafel, pitta, tabbouleh, lentil soup, kebabs, ful, hammour) and Singapore
+  (congee, rice noodles, dumplings, chow mein, pak choi, sea bass). The generator refuses a food without kcal, protein,
+  carbs, fat or fibre (the app shows those as known — USDA gives no fibre for makhana, so it isn't in). Includes Indian foods (roti, naan, paratha, dal, idli, dosa, masala dosa, upma, sambar,
+  biryani, samosa, chicken curry, palak paneer, paneer — USDA's standard recipes; USDA's paneer shows 22 g carbs).
+  Regenerate with the script rather than hand-editing. `findTableFood` ignores filler words ("a medium banana").
+  The script also writes **`api/_lib/foodTable.js`** (the same foods + each one's USDA description, for the server;
+  `api/__tests__/foodTable.test.js` checks the two agree) and gives the 8 drinks `drink: true` + `mlToG` and poured
+  foods (oil, ghee, honey, sambar, lentil soup, curry sauce) `mlToG` alone, from USDA's own volume portions (milk
+  1 cup = 244 g → 1.031; olive oil 0.913; honey 1.433). The unchanged script reproduced `foodTable.ts` byte for byte
+  before those fields were added (the CSVs were in an old session's scratchpad; download them again if gone).
+- **Accuracy guard:** `isPlausible(per100g)` (≤ 905 kcal, protein + carbs + fat ≤ 101 g, kcal within 40% of 4/4/9)
+  refuses impossible server results with a message; saved foods failing it — or, not from a barcode, plainly another
+  food than the table's one of the same name (`farFromTable`: the old server's candy "watermelon slice", soybean-curd
+  "curd") — are dropped on load; logged entries failing it get the table's numbers when the name matches (entries are
+  otherwise never rewritten). The result card says where numbers came from ("Nutrition from USDA SR Legacy: Banana",
+  "USDA: <matched food>" from the server, "an AI estimate", or "Open Food Facts").
+- **Server, typed checks (`api/scan-meal.js` → `api/_lib/nutrition.js`)** — why it was rebuilt: typing "banana" logged
+  152 g carbs / 47 g protein (a *Branded* "BANANA" spread treated as per 32 g serving; the search API gives every food
+  per 100 g), and on 29 Sep "watermelon slice" was a candy (207 kcal) because every typed word had to be in USDA's name,
+  "curd" was soybean curd cheese (12.5 g protein), "chai" matched "Chain", "milk" was buttermilk. Now:
+  `normalizeFoodName` (`api/_lib/foodNormalize.js`: drops amounts and piece / serving / size words; veg → vegetable;
+  whole names curd / dahi → yogurt, chai / masala chai / milk tea → tea with milk; "curd rice" stays a dish) → **the
+  app's table** (`findTableFood`, the phone's own rules — a test checks every name finds the same food) → USDA
+  Foundation / SR Legacy / FNDDS → branded only when nothing generic matches the words, never sweets (candy, gummies,
+  confectionery… by name or category) unless asked for. `matchScore()`: whole words only — plural, -ed / -ing, or two
+  typed words joined in USDA's name ("broad beans" → "Broadbeans") — then the old ranking (a whole part of the name,
+  plain over processed forms, whole food over parts, cooked for rice / meat / pulses, no capital-letter brands, "with …"
+  penalised). Checked over ~495 names: nothing valid lost. Branded foods are per 100 of their serving unit (USDA: ml
+  for drinks) → per 100 g by density. USDA fetch timeout 5 s. Returns `per100g` (`null` = not in the database),
+  `matchedFood`, `satFat` + `sugars`, and for liquids `drink` / `density` / `densityAssumed` (older apps ignore them).
+- **Server, photos** — `api/_lib/identifyClaude.js` asks Claude **once** (`SCAN_MODEL`, default `claude-sonnet-5`;
+  thinking off, effort low — none for Haiku 4.5 —, 1,200 tokens, SDK timeout 20 s + 1 retry; it used to read
+  `content[0].text` while Sonnet 5 thinks by default, so a thinking block first failed good scans). The contract is
+  model-independent, in `api/_lib/identify.js` (a Gemini provider would reuse it): `MEAL_SCHEMA` (kind meal / not_food
+  / unclear; each food: name, form raw / cooked / dry / drink / prepared, amount in g or ml, count + piece, confidence,
+  amountConfidence, ≤ 2 alternatives, `typicalPer100g`, packaged), the prompt (every separately seen food; a dish cooked
+  as one stays one — biryani, upma; portions from the plate / bowl / spoon / glass, rounded; low confidence rather than
+  false precision; the optional **note**), `validateMeal` (≤ 8 foods; amounts clamped and rounded to 5 / 10 / 25 g,
+  coarser when unsure; no usable amount → `null`, never a made-up one) and `applyNoteAmounts` (the person's amounts,
+  exact, one food each). Each food then goes through `lookupNutrition(name, { typical, form, unit })`: the model's
+  typical numbers are only a **guard** (`agrees()`: a database food over 60 kcal and 50% — or 4 g and 60% of protein —
+  away isn't what was seen, so the next one is tried; the numbers used always come from the table / USDA); a food seen
+  cooked / raw / dry is searched in that form first (porridge isn't dry oats); branded ones must agree; nothing that
+  fits → the model's numbers as a labelled **AI estimate** (`fromTypical`). Response: `items[]` (each food's amount +
+  unit, grams, density, `per100` per its own unit, matchedFood, source, confidence, amountConfidence, amountSource,
+  alternatives, needsReview) + `mealName`, **plus the old top-level fields** — one food exactly as before (the apple
+  snapshot), several as the whole meal by weight (`api/_lib/mealTotals.js`: totals from each food's unrounded numbers,
+  rounded once; per100g × weight = the totals). No food / unclear / no amount and a declined photo → 422, cut off → 502 —
+  none counted against the day's scans. Every call logs `scan-meal usage` (model, tokens, ms). `maxDuration` 30 s.
+- **Meal photos in the app** (`finalizeMealPhoto` in App.tsx, servers that send `items`; older ones get the old flow):
+  one food → the usual card (`foodFromScanItem` gives exactly the entry the old fields did); several → each its own
+  entry with `meal: { id, name }` (Today's food shows the meal's name under each), listed by
+  `src/components/MealResultCard.tsx` (tap → the usual FoodEntrySheet). Foods with `needsReview` are never logged on a
+  guess: "Yes, add it", "It's <alternative>" (the photo's amount, that food's numbers via saved → table → server), "Skip";
+  no amount / no numbers → "Type it". Allergens and diet notes per food. The note and its add-ons go with the first food
+  (`extrasFromNoteExcept`: no milk splash when milk is its own food). A low `amountConfidence` shows as "a guess" until
+  the amount is changed in the sheet.
+- **Liquids:** ml become grams only by a density, never 1:1 — the table's `mlToG`, an FNDDS volume portion,
+  `KNOWN_DENSITIES` (`api/_lib/density.js`, mirrored in `foodLog.ts`; a test checks they agree), else 1 g/ml marked as
+  assumed. Drinks are kept per 100 ml with amounts in ml, like barcode drinks: table drinks show ml ("1 glass · 237 ml",
+  same kcal as 244 g), "200 ml milk" = 126 kcal (not 122), grams typed for a drink become its ml. Oil / ghee / honey stay
+  by weight ("15 ml olive oil" = 13.7 g). Barcode drinks are unchanged.
+- **Known limits of the food-scan fix:** chai maps to USDA's only "tea with milk", which is sweetened (~30 kcal high for
+  an unsweetened mug); a photo food without a piece count logs as "1 portion · 200 ml" (the sheet's + then steps half a
+  portion); a typed drink that isn't in the table is logged by weight (300 ml lassi → 309 g); an unknown density is
+  1 g/ml; up to 3 USDA searches for a food outside the table, uncached; a typed meal's food without an amount gets its
+  usual portion (a glass of milk, 1 tbsp butter / ghee / honey, 100 g for a food from the server); "chips" is the
+  table's crisps ("egg and chips").
+- **Barcodes (`api/lookup-barcode.js`)**: Open Food Facts servings in g or ml (a bare "100" isn't trusted), pack size
+  (`packageGrams`), `liquid`; default = a serving → else a pack up to 1 kg / 1 L → else 100 g; `per100g` with `null` for
+  missing values; `servingLabel`. The app shows ml for drinks and offers "bottle".
+- **Allergens:** only the person's own (Account → Diet & allergies) warn — "None" means none; a barcode's label allergens
+  show as "Label lists: …" for information. Since 28 Sep (`src/lib/allergens.ts`, `AllergyPicker`): vegetarians aren't
+  offered fish / crustaceans / molluscs (no-egg: eggs) unless already picked; anything else can be typed ("kiwi"; names
+  of label allergens map to them: "shellfish" → crustaceans + molluscs, "gluten" → wheat, "soy" → soya), stored as typed
+  in `personalAllergens` (max 20 typed). Checks are by whole words, singular or plural (`allergiesIn`): label allergens
+  also by the foods they're in ("paneer" → milk, "roti" → wheat, not "coconut milk" / "peanut butter"; "gluten-free",
+  "eggless" clear them), typed ones by their own words ("kiwi" finds "kiwifruit"); barcodes also by the pack's allergens
+  and ingredients up to "may contain" (`flagAllergies`). Meal ideas, the gut report's foods and AI ideas leave them out.
+- **Notes + add-ons:** "Describe it (optional)" in the scan window (sent with photos, saved as the note);
+  `EXTRAS` (sugar tsp, salt pinch, honey, butter, ghee, oil, milk splash, cheese slice, mayo tbsp) as chips on the result
+  card and in the sheet, added to the entry × eaten; a note like "with 2 tsp sugar" pre-adds them (`extrasFromNote`;
+  ignores "almond milk", "sugar-free", "no/less sugar").
+- **Needed vs eaten** (`src/components/NutritionMeters.tsx`, targets `src/lib/nutrition.ts` with sources in its header):
+  protein / fibre = goals, calories / carbs / fat = aim-for targets (±10%), saturated fat / sugars / salt / potassium /
+  iron / calcium per the country's guidance (sugars have a target only in GB/IE). Nutrients a source doesn't give show
+  "from N of M foods" or "Not listed", never 0.
+- **Food history** (`src/components/FoodHistorySheet.tsx`, Today's food → History): 14-day calorie bars vs target, 7-day
+  averages + days on target, any day's meters + foods (change / remove on that day, **Log again today**).
+- **Scan animation** (`src/components/ScanProgress.tsx`, `.kx-scanfx` in app.css): while a typed / photo / barcode lookup
+  runs — frosted overlay, rings, spinning arc, scan beam, sparkles, a new line every 1.5 s with a selection haptic; on
+  the result: green tick + "Got it · <food>" + success haptic/chime, then it fades and scrolls to the result. Saved /
+  table foods are instant (no overlay); errors drop it. State `scanFx` in App.tsx.
+
+### Meal ideas: ranked list (free) + AI ideas (Plus) (27–28 Sep, uncommitted until pushed)
+- **Ranked list, on the phone** (`src/lib/mealIdeas.ts`, 28 Sep): 117 meals built from USDA table foods (nutrition from
+  `foodTable.ts`), ranked by `rankMeals()`: calories against what's left for this meal slot (`slotBudget`), the goal
+  (protein / fibre / carbs weights), today's gaps, the gut report (foods to favour / go easy on, fermented), diet +
+  allergens incl. typed ones (hard filters), dishes eaten recently (lower) and quick prep; `diversify` keeps each page
+  of 3 from repeating a main ingredient, and while it can, a staple (bread or rice).
+- **By country (user, 28 Sep: "for Indians show only Indian foods", "no beef for Indians")**: each meal has
+  `cuisines`; `CUISINES_BY_COUNTRY` is a hard filter — IN `indian` only; AE `mideast`, `med`, `indian`; SG `sg`,
+  `asian`, `indian`; GB/IE/AU/NZ/US/CA the Western list (`uk`, `american`, `med`, `asian`; a few curries and the falafel
+  wrap are cross-listed `uk`). The first cuisine gets +1.5, the second +0.5. `COUNTRY_AVOID`: IN beef / veal / steak,
+  AE pork / ham / bacon… (whole words, also applied to AI ideas on the phone, `avoidedThere`). Poha uses raw white rice
+  (USDA has no flattened rice); labneh is Greek yogurt. Tests check every country × slot has ≥ 9 (snacks 6) and a
+  vegetarian-no-egg person without milk or wheat still gets ≥ 3. "Show 3 more" pages through (`PAGE_SIZE`), "Not for me" hides a meal
+  (`kx_meals_hidden`), "I ate this" logs it with its USDA nutrition. No server, no cost, works offline.
+- **AI ideas (Plus):** 9 per request (`IDEAS = 9`), shown 3 at a time; the app sends the names already shown
+  (`exclude`, last 27) and the server drops repeats. Falls back to the ranked list on any error.
+- `api/suggest-meals.js`: official `@anthropic-ai/sdk`, `claude-opus-5` at effort `low`, structured JSON output
+  (`output_config.format` json_schema; the count is in the prompt + description and capped server-side — no
+  `minItems`/`maxItems`: structured outputs don't support array length constraints and `messages.create` sends the schema
+  as-is; `containsMeatOrFish` / `containsEgg` filter by `profile.diet`), server-side refusal fallback (`fallbacks: "default"`,
+  beta `server-side-fallback-2026-07-01`). Plus checked strictly; 6 generations a day (phone's time zone); the country shapes ingredients + guidance, and
+  `COUNTRY_FOOD` adds a rule for IN (Indian only, never beef), AE (Middle Eastern first, never pork) and SG, with
+  avoided meats filtered by name too; identical inputs cached 30 min (free re-open). Allergens (label + up to 20 typed,
+  34 in all, 40 chars) excluded in the prompt **and** filtered server-side from `containsAllergens` and, for typed
+  ones, by name (`mentions`).
+  `maxDuration: 60`. Not yet tested against the live API (no local key) — test on the Vercel preview/production.
+- App: Nourish "Ideas for your next meal" card — "Ranked for you" / "AI ideas (Plus)" switch; AI inputs: goal, BMI
+  band, profile, targets, today's totals + food names (`dailyConsumables.foods`), steps, sleep, today's workouts.
+  Gut and cycle data are never sent.
+- Bigger recipe catalogues later, if wanted: Spoonacular (`findByNutrients`, free tier ~150 points/day) or Edamam (paid)
+  — both add images/recipes; TheMealDB is free but has no nutrition. Open Food Facts stays for barcodes.
+
+### Period tracking (28 Sep, uncommitted until pushed)
+- `src/lib/cycle.ts` + `src/components/CycleCard.tsx` (Today, for a female profile): `kx_periods` = the days periods
+  started (the profile's old "last period started" moves in once). Cycle length = average of the last 6 cycles (the
+  entered length until there are two periods); next period = last start + that, shown as a window (± spread, ≥ 2 days);
+  confidence rough / fair / good; ovulation 14 days before the next period (not mid-cycle), fertile window the 5 days
+  before; phases period / follicular / fertile / ovulation / luteal / due / late; irregular per the NHS (outside 21–35
+  days or varying > 8). "My period started today" + a sheet to add past starts / remove one (a start within 10 days of
+  another = the same period). Days are local (`noon()` parsing — no UTC shift).
+- **Honest scope:** sleep, training, eating and HRV can't predict dates; `cycleContext()` only notes what's known to
+  delay a period (average sleep < 6.5 h, ≥ 7 h training a week, eating < 70% of target, HRV down 20%) as context.
+  "Not a way to prevent pregnancy" on the card. Phone-only (never sent to the server or the AI).
+
+### Countries (27 Sep, uncommitted until pushed)
+- One table: `src/lib/countries.ts` (app) + `api/_lib/countries.js` (server reward rules — keep charity ids and the
+  live flags in step; a Node check compared them on 27 Sep). `profile.country` (null → a UK region means GB, else the
+  phone's region via `navigator.languages`, else GB). Onboarding asks the country first (phone's region preselected),
+  then "Which part of the UK?" (optional) for the UK only; Account → Your details has Country (+ Region for the UK).
+- Per country: locale for numbers/dates (`fmtNumber`/`fmtDate`/`fmtMoney`; en-IN groups lakhs), currency, US units
+  (height in in with a "5 ft 6 in" caption, weight in lb — stored cm/kg), km/miles for the 10,000-steps moment,
+  onboarding fact, BMI cut-off (India and Singapore 22.9, others 24.9) + named source, weight-loss pace copy, fibre
+  target (UK 30 g, US 14 g/1,000 kcal, CA 25/38, AU+NZ 25/30, IE 25, SG 20/26, IN+AE WHO 25), the allergens that
+  country's labelling law lists (UK/IE 14, US 9, CA priority list, AU/NZ PEAL, IN/SG/AE Codex), allergen names
+  ("Soy", "Tree nuts", "Shellfish"…), charities + donation amount. Sources are in the header comment of countries.ts.
+- Server: daily limits (scans, AI meal ideas) use the phone's time zone (`timeZone` in the request; UK time for older
+  builds); donate-charity / redeem-voucher refuse countries that aren't live and charities from another country;
+  requests with no `country` are older UK-only builds. AI meal ideas get the country (local supermarkets + guidance).
+- Food follows the country too (28 Sep): meal ideas only show that country's dishes (India Indian only, never beef; the
+  UAE never pork) — `CUISINES_BY_COUNTRY` / `COUNTRY_AVOID` in `src/lib/mealIdeas.ts`, `COUNTRY_FOOD` in
+  `api/suggest-meals.js` (keep them in step); the gut report's foods have `only` / `notIn` countries.
+- Stored formats stay en-GB on purpose: workouts "Label (dd/mm/yyyy)" are parsed back by regex.
+- Needs the user (not code): charity agreements before any country goes live, Tremendous catalogue/funding per
+  currency, privacy policy + terms per market (US state health-data laws such as Washington's My Health My Data Act,
+  CCPA; EU GDPR + EU representative for Ireland; India DPDP Act; Australia Privacy Act; Canada PIPEDA), Play Console
+  / App Store country availability. **Worth a human check:** Singapore's 20/26 g fibre figure and each onboarding fact.
+
+### Onboarding and navigation (27–28 Sep, uncommitted until pushed)
+- **Sign-in first**: no welcome screens; steps 0-2 all render the sign-in screen (compact brand panel `.ob-hero-compact`).
+  Log in is preselected after logging out or when the phone has a saved profile.
+- **Who skips onboarding** (`src/lib/onboarding.ts`): `kinetix_onboarded_email` is set when onboarding finishes and kept
+  through log out, so the same account logging back in opens Today. `markLoggedInAccount()` (run once at start-up) marks
+  accounts that finished before the marker existed — only if still logged in (`kinetix_logged_in`). **Never infer
+  "finished" from the profile**: About you fills in the country on its first page, and that rule skipped people's pages.
+- **Only the sign-in screen acts on the Supabase session** (`onSessionChange` in App.tsx: `!isLoggedIn && onboardingStep
+  <= 2`). supabase-js fires SIGNED_IN / TOKEN_REFRESHED when the app returns to the foreground; acting on those
+  mid-onboarding jumped people ahead.
+- **Resuming**: the step reached (3–6) is saved per account in `kx_ob_step` and restored after sign-in or a restart;
+  cleared on finishing and on log out. About you restarts at its first page (answers are already saved in the profile).
+- **Back**: `src/lib/backButton.ts` — a stack of claims; `useBackHandler(active, onBack)`. `Sheet` (Pickers.tsx) claims
+  it while open; App.tsx claims it for the portal pop-ups (scan, device sync, log out, no-stress notice; the level-up
+  celebration swallows it) and each onboarding step (sign-in "forgot" → log in; steps ≤ 3 leave the app; 4 → 3;
+  About you handles its own pages; 6 → About you's Plan page via `openAboutYou(true)` / `initialStage`). Unclaimed, the
+  listener falls back to the WebView history (tabs, account pages), then `exitApp()`. **New sheets/pop-ups: use `Sheet`
+  or call `useBackHandler`.**
+- **Health step**: once connected it says so and shows Continue; connecting from it moves on to step 4 by itself.
+
+### Gut health and diet (28 Sep, uncommitted until pushed)
+- **Diet** (`src/lib/diet.ts`, `profile.diet`: `'everything' | 'vegetarian' | 'vegetarian-no-egg'`, null = not asked =
+  everything). "Vegetarian" alone is ambiguous (eggs: fine in the UK, usually not in India), hence two options. Asked on
+  onboarding step 6 "Your food" (required — Finish is disabled until chosen) and in Account → Diet & allergies.
+  `checkFood(name)` finds meat/fish/egg by whole words (strong meat words always count; burger/sausage/mince/keema…
+  unless the name says veg/soya/paneer…; "eggless"/"vegan" clear egg; "eggplant" is fine). `checkProduct()` for barcodes
+  also uses the ingredients (ignoring "may contain…" traces), Open Food Facts' `vegetarian` (from
+  `ingredients_analysis_tags`, new in `api/lookup-barcode.js`) and label allergens (eggs). Stored on the saved food as
+  `diet`. Applied: the food result card's `dietNote` (information only, still logged), the free meal-ideas list
+  (`diet` tag per idea), AI meal ideas (`profile.diet` → prompt rule + `containsMeatOrFish` / `containsEgg` in the schema,
+  filtered server-side), the gut report's suggestions (`tagFits`).
+- **Gut check** (`src/lib/gut.ts`, `kx_gut_checks` = day → `{ feel 1–5, symptoms[], at }`, 90 days): Today card
+  `.kx-gut` (same controls as the morning check-in, in green); Change/Cancel; a 7-day strip. **Report** unlocks when the
+  first check-in is ≥ 7 days old and ≥ 4 of the last 7 days have one (`gutReportStatus`, `reportProgressText`).
+  `buildGutReport()` (pure; App passes the food log, water per day, fibre target, diet, allergens): average feeling,
+  good/rough days (rough = 1–2, or 3 with a symptom), symptoms by days, fibre a day (≥ 3 logged days), different plants
+  (word → plant table; "30 a week" = American Gut Project), fermented days, water; **foods to try** = `GUT_FOODS` (≈30,
+  tagged fibre/fermented/gentle/settling/constipation/heartburn/nausea/gassy, diet + allergens) scored against what stood
+  out (a symptom on ≥ 2 days, fibre < 70% of target, ≤ 1 fermented day, < 15 plants), minus foods already eaten on ≥ 3
+  days and possible triggers; **maybe go easy on** = `possibleTriggers()` (eaten ≥ 2 days; rough that day = 1, the next
+  day = ½; ≥ 75% and ≥ usual + 25%; never when ≥ 75% of days were rough) + foods eaten that week known to cause the noted
+  symptom (gassy / heartburn / loose word lists); tips; see-a-doctor note (strong when ≥ 5 rough days, a symptom on ≥ 5
+  days or pain on ≥ 3). Wording follows the NHS pages (sources in gut.ts's header). **Never send gut data to the server**
+  (health data; see Future enhancements → health conditions).
+- **When** (user asked 28 Sep: morning or before sleep?): the evening — it asks about the whole day. Before 17:00 the
+  card says "Best in the evening — it's about your whole day. We'll remind you at 20:00." and asks "How's your gut been
+  today so far?"; later, "How was your gut today?". Until noon, if yesterday has no check, "Missed last night? Add
+  yesterday's" saves one for yesterday (`gutForYesterday`).
+- **Foods by country**: `GUT_FOODS` items can be `only` / `notIn` countries (idli, dosa, millet not suggested in the
+  West; kefir not in India, sauerkraut not in India or the UAE); `buildGutReport({ country })`.
+- **Reminder**: `gutReminderNotifications()` (notifications.ts, ids 9400–9406, channel `kx-checkin`, 20:00, next 7 days,
+  skipping answered days; extra `{ open: 'gut' }` → Today scrolled to the card). Rescheduled when check-ins change.
+  `kx_gut_reminder` on/off (Account → Reminders); off when "Skip for now" on the reminders step.
+- **Patterns** (28 Sep, `gutPatterns()`): over the last 14 days, sleep, active minutes, water, fibre, a late meal (after
+  21:00 the evening before) and HRV vs its median, compared on good and rough days — shown as "What went with better
+  days" only with ≥ 3 days on each side and a clear gap. Associations, never predictions (self-reported, a fortnight).
+- Not yet: the report on a real week of the user's data, the reminder on a phone, the gut data in the privacy policy /
+  Play data-safety form.
+
+### Sign-up and account emails (Supabase Auth, 28 Sep)
+- Project settings (public `GET /auth/v1/settings`): email sign-up on, **email confirmation required**
+  (`mailer_autoconfirm: false`), Google provider off. The emails come from Supabase's **built-in sender** unless custom
+  SMTP is set up — it only delivers to members of the Supabase team, a few emails an hour, often late or in spam. That is
+  why a tester's confirmation email only came after several tries. **The fix is in the dashboard (the user's login):**
+  1. Authentication → Emails → SMTP Settings → custom SMTP. E.g. Resend (free 3,000 emails/month, 100/day): verify
+     `kinetixfit.co.uk` with its DNS records, create an API key, then host `smtp.resend.com`, port 465, user `resend`,
+     password = the API key, sender `noreply@kinetixfit.co.uk`, name "Kinetix Fit".
+  2. Authentication → Rate Limits → raise "emails per hour" (custom SMTP starts at 30).
+  3. Authentication → URL Configuration: Site URL `https://www.kinetixfit.co.uk`; Redirect URLs add
+     `https://www.kinetixfit.co.uk/**` — **after** the merge deploys `/email-confirmed` (else confirmers land on a 404;
+     until the URL is allowed, Supabase just uses the Site URL).
+  4. Optional: Emails → Templates — brand "Confirm your signup" / "Reset password" (Kinetix Fit, no emoji).
+  Stopgap if needed: Authentication → Providers → Email → turn off "Confirm email" (the app then signs people straight
+  in — no email at all; weaker, anyone can use any address).
+- App (`src/lib/auth.ts`, `handleAuthSubmit` / `resendConfirmation` in App.tsx): `emailRedirectTo` =
+  `https://www.kinetixfit.co.uk/email-confirmed`; an email that already has an account is detected (`identities: []`)
+  and said; "Send the confirmation email again" (`supabase.auth.resend`, 60 s apart) after sign-up and on
+  `email_not_confirmed`; errors mapped to plain words (rate limit, wrong password, not authorised, network). Reset:
+  `redirectTo` the web app; `openedFromRecoveryLink` (read in `src/lib/supabase.ts` before the client clears the link)
+  opens authMode `'reset'` ("Choose a new password" → `updateUser` → sign out → log in); an expired link says so
+  (`openedLinkError`). Checked in Playwright with Supabase mocked (new / existing sign-up, unconfirmed log-in, 429,
+  reset link, expired link, the landing page). Not yet with real emails after an SMTP change.
+
 ### Website
 - Live at www.kinetixfit.co.uk (apex redirects to www; also kinetix-fit-core.vercel.app). Deploys through
-  Vercel's **GitHub integration** (team `kinetixfit`, project `kinetix-fit-core`; no Vercel CLI or `.vercel`
-  link on this Mac): a push to any branch builds a **Preview**, a merge to `main` deploys **Production**.
-  Preview URLs sit behind Vercel Authentication (401 without a team login), so the phone app can't point
-  `VITE_SERVER_URL` at a preview without a protection bypass.
+  Vercel's **GitHub integration** (team `kinetixfit`, project `kinetix-fit-core`): a push to any branch builds a
+  **Preview**, a merge to `main` deploys **Production**. Preview URLs sit behind Vercel Authentication (401 without a
+  team login), so the phone app can't point `VITE_SERVER_URL` at a preview without a protection bypass.
 - Previews probably share production's Upstash Redis and API keys (not verified — needs Vercel dashboard
   access). Don't redeem promo codes, vouchers or donations on a preview.
-- Same `src/`, so Android work generally ships to the web too — check `npm run dev` still works after native changes.
-- `vercel.json` rewrites `/privacy-policy`, `/terms-of-service`, `/donate/complete` to the HTML files in `public/`.
-- [ ] **The website needs its own design** (user, 2026-09-26): everything so far is designed for phones, and on a
-      desktop it's the phone layout in two columns. Decide first: marketing site that sends people to the stores,
-      a real desktop web app, or both (marketing home + app behind login). Keep shared `src/` logic; split layout.
+- **Two builds (29 Sep):** `npm run build` → `dist/` = the app alone (what `cap sync` copies into Android/iOS — unchanged).
+  `npm run build:web` (Vercel's `buildCommand`, `vite build --mode web`) → **`dist-web/`** (Vercel's `outputDirectory`):
+  the marketing site at `/` (`site/index.html`), the web app at `/app/` (`index.html`), the branded `404.html`
+  (`site/404.html`) and `site/public/` (robots.txt, sitemap.xml, og-image.png — website-only, so not in `public/`,
+  which the apps also get). Vercel serves a real `index.html` before any rewrite, hence the move in `webLayout()`
+  (vite.config.ts); its own folder so a website build can never reach the apps through `cap sync`.
+- **Dev:** `npm run dev` keeps the app at `/` (so `?ob=N` works); the site is at **`/site/`**; `/app/` and
+  vercel.json's page rewrites (`/privacy-policy`…) work as in production (`productionRoutesInDev()`).
+  Production-like check: `npm run build:web`, then serve `dist-web/` (a Vercel-like static server was used: filesystem
+  first, then rewrites, then 404.html).
+- **The forwarder** (first script in `site/index.html`, tested in `src/site/forward.test.ts`): Supabase sign-in /
+  password-reset / failed-link returns (`#access_token`, `type=recovery`, `?code=`, `error_code`) and old web-app
+  bookmarks (`#vitals`, `#nourish`, `#account/…`, `#profile`, `#hub`) go on to `/app/` with the rest of the address kept,
+  so `PASSWORD_RESET_URL` (`/`) and Google's `redirectTo` (origin) keep working unchanged — older app builds too.
+  `#rewards` stays on the site (it's the Rewards section). `email-confirmed.html`'s "Log in here" → `/app/`.
+- **Site code** (`src/site/`): `config.ts` (links, `REWARDS` — must equal points.ts + rewardConfig.js, tested;
+  `SOCIAL_PROFILES`), `init.ts` (first screen at once, the rest at the first idle moment), `nav.ts` (frosted header,
+  dark over `[data-header-dark]`, phone menu = modal with focus trap, scrollspy, "Log in" → "Open the app" when
+  `kinetix_logged_in`), `reveal.ts` (reveals, the hero entrance, `[data-sprint]` width animation after the font loads),
+  `rewards.ts` (the cup story: the beat past 55% of the screen sets the total), `parallax.ts` (hero only, scroll × speed
+  → `--py` → the CSS `translate` property), `faq.ts` (native `<details>`, animated), `earlyAccess.ts` (form),
+  `social.ts`, `format.ts`, `motion.ts`, `day.ts` ("Your day"'s lane: `--p` + `.is-passed`, scroll-linked, listening
+  only while the day is near the screen), `widgets.ts` (the widgets' Light / Dark switch and the phone wall's keyboard
+  stop), `site.css` (tokens from the app's palette; mobile-first; reduced motion and
+  reduced transparency handled). **Rules learned:** a `[data-sprint]` line must never re-wrap when it widens (parts
+  are `white-space: nowrap`, stacked on phones, sized in `cqi` from measured widths) — re-wrapping grew the page while
+  scrolling; the full nav needs ≥ 1,120px (at 1,040 its links wrapped); `svg { max-width: 100% }` caps the hero lanes
+  unless overridden. The phone and UI mockups are HTML/CSS copies of the app's real cards (numbers: the food table's
+  roti and dal, the app's quest values).
+- **Early access** — `api/early-access.js`: `early_access` sorted set (email → first join, ms) + `early_access:<email>`
+  hash (email, platform, source, createdAt, updatedAt); same answer for new and repeat emails; honeypot `company`;
+  8 sign-ups per hashed IP per hour; 400/429/500 with plain messages. Tests: `api/__tests__/early-access.test.js`.
+- **Opening animation (29 Sep)** — `src/site/intro.ts` + site.css → Opening animation: the app's LaunchIntro at page
+  size (five lanes draw, the mark laps, a runner sprints the middle lane, the wordmark widens, the lanes sprint off right).
+  A gate script in the head sets `<html data-intro="run">` before the first paint: not when `sessionStorage.kx_intro_seen`
+  is set (shared with the web app, so site → app shows it once), not with a `#hash`, not with reduced motion, not without
+  module support. The overlay is the body's first element with `hidden` (no CSS → nothing shows); the run is pure CSS,
+  intro.ts times the exit from the paint timing (`RUN_MS` 1600 after the first paint, `EXIT_MS` 760), any
+  pointerdown / keydown / wheel / touchmove skips it, and a CSS failsafe hides it at 5 s if the script never runs. The
+  hero's entrance (`initHero`) and then the demo start as the lanes leave.
+- **The hero phone = the app (29 Sep)** — `.ap-*` in site.css copy the app's CSS (index.css tokens, app.css, glass.css,
+  today.css) at the app's own px: `--u` = one app px at the phone's size (`calc(var(--pw) * 0.94 / 390)`), so values
+  read as the app's (`calc(16 * var(--u))`). Screens: Today (hero, Hydration bottle, check-in, Steps + Heart rate trend
+  cards), Rewards (level hero, points, quests in the app's order — claimed first), Nourish (targets + meters, Today's
+  food). Numbers are the app's for "Maya" (female, 29, 165 cm, 62 kg, moderate, Cardio Endurance: 2,085 kcal / 87 g
+  protein / 30 g fibre; quests from `questsForToday`; lunch from the food table) — `demo.test.ts` checks the quests
+  against `src/lib/quests.ts`. `src/site/demo.ts` is a timeline of states (`BEATS`, `LOOP_MS` 19.8 s) written onto
+  `.hero__stage` as data attributes (`data-scene`, `data-glass`, `data-claim`, `data-toast`…); words swap from
+  `data-a` / `data-b`, the points count up; a touch dot shows each tap (positions in app px in site.css). It plays only on
+  screen and in a visible tab (`.is-paused` otherwise); reduced motion shows Today with the glass added. The two
+  floating widgets (Daily rings, Streak) use the app's widget-preview look; the water ring follows the demo. Phone-width
+  parallax is off (the hero would clip the phone's foot). The ticker under the hero lists 14 features (doubled for a
+  seamless loop, the copy `aria-hidden`; still with reduced motion).
+- **The feature chapters (29 Sep, redesign step 2)** — `#features` ("Built around you.", after Why): five `.feat`
+  articles (copy + `figure.feat__stage[data-feature]`, `role="img"` with a full description, the app inside
+  `aria-hidden`), stage on alternate sides from 1,040px, stacked below it. Each stage is **one of the app's cards playing**:
+  `.apx-*` in site.css are copies of the app's CSS (glass.css, app.css, today.css, pickers.css, widgets.css) at app px
+  (`--u`, like the hero's `.ap-*`, which the chapters reuse for meters, food rows and the Steps card). Maya is the hero's
+  example member, with one more fact: she's allergic to sesame. Her day: porridge + banana (08:20), dal + 2 rotis (12:31)
+  = the hero's 1,023 kcal. **Every number and app string is tested against the app's code** (`features.test.ts`): the plan
+  (mirrors `nhsTargets` — the test checks App.tsx still has those constants), `suggestGoal`'s BMI sentence, the 10 meters
+  via `mainTargets`/`moreTargets`/`statusText`, dinner ideas = `pageOf(rankMeals(…), 0/1)` (23 ideas with her sesame
+  allergy), the houmous result (`flagAllergies`, USDA hummus at 30 g), the photo = the idea "Salmon with sweet potato and
+  broccoli" as 3 foods, `splitTypedMeal('2 roti and dal')`, the cycle days via `cycleToday` on 6 regular cycles (last start
+  5 Oct, so 13 Oct = day 9 = the still step), the workout choices from `src/lib/workouts.ts`, and wording found in App.tsx
+  / CycleCard / MealResultCard / WorkoutSheet / ScanProgress sources (`?raw` imports). The periods list uses Android's
+  date format ("Mon, 7 Sept 2026"; iPhone Safari writes "Sep").
+  **`src/site/features.ts`**: `TIMELINES` (steps per stage: body start→plan→fill→more · meals start→in→foot→page2→ai→back
+  · scan rest→bc-scan…bc-result→ph-…→type→ty-result · cycle d2→d9→d12→d15→d21→d27 · watch rest→sheet→yoga→min45→down→
+  added; `still` = what's shown when nothing plays, and the HTML is written in it). `paintStep` writes `data-step`, toggles
+  `.is-now` on `[data-when]` (words stacked in one grid cell, `.apx-swap` / `.apx-stack`) and `.is-on` on `[data-on]`,
+  counts `[data-count-to]` up from `data-count-zero` steps; `touchAt` puts the dot over `[data-touch-target]`; `scrollFor`
+  **measures** (offsetTop, a frame after the step) how far a card scrolls inside its `[data-viewport]` so the step's
+  `[data-scroll-when]` element is in view — works at any size. A stage readies (paints its first step, instantly) only as
+  it nears the screen, plays at 30% visible, pauses off screen / in a hidden tab, loops with a fade; reduced motion or no
+  IntersectionObserver → the still step. **Rules learned:** (1) never build font sizes on container units or container
+  queries — in Safari a `--cw` custom property made of `100cqi` feeding `--u` left the *footer's* text colour unresolved
+  (black) for ~0.5 s after load (axe flagged it 1 run in ~20; Playwright's request interception made it happen almost
+  always — a handy amplifier). `--cw` now comes from the viewport (`min(358px, 100vw − 2 gutters − 36px)`), float
+  positions use %; container queries only move floats and set stage heights. (2) Stages have fixed heights
+  (`--stage-h`), so `content-visibility: auto` skips their rendering off screen with no layout change (brought mobile
+  Lighthouse back from 90–95 to 94–96). (3) The workout sheet is `visibility: hidden` when closed (its backdrop blur is
+  costly). (4) Chapters' measured scrolls need the step's layout settled: with reduced motion even a card opening is a
+  1 ms transition, hence the frame's delay.
+- **The widgets showcase (29 Sep, redesign step 3)** — `#widgets` ("Glance. Tap. Done.", between Features and "Your
+  day"; not in the nav, which has no room below 1,120px): copy + the Light / Dark switch beside a home screen, then "All
+  14 widgets". **The widgets are the iPhone widgets' own design** (ios/App/KinetixFitWidgets/WidgetViews.swift +
+  WidgetStore.swift; the Android layouts match), not the app's Account → Widgets previews (simpler): `.kw` in site.css
+  at the widgets' points — `--k` is one point at the drawn size (small 158 × 158, medium 338 × 158, radius 22, padding 16;
+  the phone's `--k` = its `--u`; the wall's from the viewport, capped at 1.15px), set on `.wshow` / `.hs` /
+  `.wwall__grid` and inherited (never set on `.kw` itself). Palette = the Swift `kx(light, dark)` colours as `--kw-*`
+  tokens on `.wshow`, dark under `.wshow:is([data-wtheme='dark'], html:not(.js) .wshow:has(#wtheme-dark:checked))`
+  (`:is` is forgiving, so a browser without `:has` keeps the attribute branch). Art ported to static SVG by a scratch
+  generator: WaterGlassArt (the water group moves by `--w`, its surface scales `0.7918 + 0.2082 × --w`), BottleArt,
+  the Water level waves (the white copy of its text is clipped by an objectBoundingBox wave, `#kw-level-clip`),
+  GradientRing (with its white end cap), Rings, TrackBars; SF Symbols → `kw-*` symbols in the sprite (filled drop,
+  flame, walking figure, camera, barcode viewfinder…) + ring gradients `kw-g-*`. **The home screen** (`.phone--home`,
+  status bar 15:30, a Search pill, no dock — no other apps' icons): Kinetix Fit today (M), Water glass (S) + Daily rings
+  (S), Quick log (M, Plus), Streak (M). Maya at 15:30 = the hero's day: the app last opened at 12:48 ("Updated 12:48"),
+  1.25 L, 6,842 of 12,000 steps (her steps quest), 1,023 of 2,085 kcal, quests 2/3, streak 12 (best 12), next reminder
+  17:00 (the app's default 9–17 every 2 h). `TIMELINES.widgets` (features.ts, same player as the chapters): start (rings
+  wait: `--rg: 0`) → rings (they sweep in; the Today bars grow) → tap + → glass (1.5 L) → tap 500 ml → goal (2 L,
+  "Goal reached", "Logged 500 ml of water · 15:30", the water ring closes with a flash) → fade; still = goal. Words
+  that change are whole units in `.apx-swap` (number + unit, drop + amount), so a shorter amount never leaves a gap.
+  **The wall** (`ul[data-wwall]`, app order = `WIDGETS`): Check-in (done state: Maya checked in, energy 4/5), Quick log
+  (S), My stats, Streak, Kinetix Fit today, Daily rings, Steps, Water bottle, Water level, Water ring, Water quick add,
+  Water this week (her week 1.75 → 1.25 L, goal met 4/7; today's "1.2" is Swift's `%.1f`, half to even), Quick scan,
+  Water glass — sizes chosen so the grid packs with no holes (6 medium + 8 small = 4 rows of 5 / 5 rows of 4); each
+  item: the widget (`aria-hidden`), its name, a Free / Plus tag, the app's description (visually hidden). Phones (<
+  720px): two rows that scroll sideways (column flow, full-bleed, `scroll-snap-type: x proximity`), names stacked over
+  their tags; widgets.ts makes it a keyboard stop (`tabindex="0"`, labelled by the heading) only while it scrolls.
+  **Rules learned:** (1) Safari runs the page's module script before a stylesheet linked after it has arrived (the build
+  puts the CSS link last); what the script measured then stuck unstyled — the footer's text stayed black (the step-2
+  axe flake; 5/5 with the CSS delayed ≥ 150 ms). `initSite` now waits for any `link[rel=stylesheet]` without a
+  `.sheet` (load or error), and starts at once when none is pending (the usual case). (2) `content-visibility: auto` on
+  the items of a sideways scroller made Safari's arrow-key scrolling bounce near the start; it's only on the home
+  screen's `.phone__screen` (fixed size, not in a scroller). (3) An absolutely positioned child (the visually hidden
+  description) escapes a scroll container unless something between them is positioned: `.wwall__item` is
+  `position: relative`, else the page grew 1,549px wide on phones. (4) `.js .phone` hides every phone until the hero's
+  entrance, so the home screen overrides it (`.js .phone.phone--home`). (5) A CSS import is empty in vitest even with
+  `?raw`: widgets.test.ts reads site.css from disk (a dynamic `node:fs` import, since Node's types aren't in the site's
+  TypeScript setup). (6) The glow round the phone reaches past a 280–320px screen: `.wshow` is `overflow-x: clip`.
+- **Step 4 (30 Sep): the rest of the page** — "Your day" (`#day`, `ol[data-day]`) keeps only what no other section shows:
+  07:10 check-in, 08:40 synced health, 15:30 "A nudge to move" (`.ui-note`: the app's movement break notification word for
+  word — `IOS_LINES` = Android's `MoveReminderReceiver` LINES — with the `move` badge from scripts/app-icons/notify.mjs),
+  20:00 gut check. Its lane: `.day::after` (solid clay) over the dashed `::before`, `transform: scaleY(var(--p))`; the
+  reading line is 55% down the screen (`READING_LINE`); `.day` has `isolation: isolate` so both lanes sit under the
+  items' dots (`z-index: -1`). Without JS it stays dashed; with reduced motion it's full. "Also in Kinetix Fit": Allergies
+  and diet, Made for where you live, Levels and achievements. Motion (site.css → Motion): `.plan__icon-row img` pop in
+  after their plan (`--i` × 70 ms), `.trust__col li` rise and their icons draw (`stroke-dasharray: 64`, inherited into
+  `<use>`), the FAQ's `<details>` are `.reveal` (staggered), `.cta-panel__lanes` is a `.reveal` that draws its lanes
+  (`lane-draw`) and runs `.cta-panel__runner` once (`lane-run`; hidden with reduced motion). How it works: "Four steps.
+  Start where you are." (page.test.ts: no "gym" on any page). Removed with the old cards: `.ui-search`, `.ui-foods`,
+  `.ui-macros`, `.ui-widget*`, `.ui-tumbler`, `.ui-card--dark`, `.ui-streak*` and friends (37 rules).
+- **Checking the site:** `npm test` (src/site: page structure, links, copy vs the app's numbers, forwarder, nav, form,
+  rewards story, motion, the feature chapters, the widgets), then **`scripts/site-check/`**: `npm run build:web`, `node
+  scripts/site-check/serve.mjs` (dist-web/ routed like Vercel, compressed, /api answers 501) and `PW_DIR=<scratch with
+  playwright + axe-core> node scripts/site-check/e2e.mjs [base] [outDir — must exist]` — 47 checks (pages open as a
+  returning visitor — `kx_intro_seen` set — unless a check asks for `intro: true`; the 29 Sep additions: the intro plays
+  once / skips on a key or tap / never with reduced motion or a #hash, the demo's story, the demo resting off screen, the
+  feature chapters' stories in order with every tap landing on its button, their still steps with reduced motion; step 3:
+  the widgets' home screen in the same story check, the Light / Dark switch by mouse and arrow key with all 14 turning
+  dark, the phone wall scrolling sideways as a keyboard stop (keys at a person's pace — WebKit folds faster presses
+  into one), axe on the section in its dark look)
+  (routing + forwarder, nav, menu, CTAs, FAQ, the form with mocked answers, the rewards story, reduced motion, layout
+  stability, 23 sizes from 280 to 2560 incl. landscape, 130% text, touch targets, axe WCAG 2.2 AA); `ENGINE=webkit` runs
+  it in Safari's engine (47/47 in both on 30 Sep ~00:20 — step 4 added "Your day"'s lane filling and emptying with the
+  scroll, the early access track drawing, and the rest of the motion finished under reduced motion; in WebKit, Tab only visits text fields, so links/radios/buttons
+  are reached with Option+Tab, and Enter on a radio doesn't submit). **Known WebKit flake (from step 1):** right after a
+  very large resize (2560 → 667×375) the interlude's nowrap "is still progress." line is at its old size for a frame or
+  two (measured: stale at 0 ms, settled by 60 ms); since step 3 the overflow check re-measures once, 400 ms later, before
+  it reports a size, so only overflow that stays fails it. serve.mjs brotli-compresses every
+  response at max quality on each request (~160 ms for the HTML, ~125 ms for the CSS), so local first paints run ~0.3 s
+  later than Vercel's cached ones. Lighthouse 29 Sep ~15:40: mobile 94/96/96 · 100 · 100 · 100, desktop 98 × 100 × 100 ×
+  100 (100 with the intro skipped via a #hash: the intro holds the first screen, which costs Speed Index); ~21:10
+  (step 3): mobile 92/95/95 (Speed Index 4.6–4.7 s vs 4.5–4.6: the page is 30 KB and the CSS 26 KB brotli now, ~10 KB
+  more on the first load), desktop 98/98, the rest 100; ~00:20 (step 4): the same — mobile 92/95/95, desktop
+  98/98 (page 30.0 KB + CSS 25.9 KB brotli, a little lighter than step 3). Lighthouse's
+  *observed* first paint on mobile swings between ~1.3 s and ~2.35 s run to run, before and after step 2; score on the
+  simulated metrics. The app's own screenshot rules (360/411 etc.) still apply to `/app/`.
 
 ### Future enhancements (on hold — agreed with the user, not started)
 - **Health conditions for food suggestions** (on hold 2026-09-26). Optional "Health conditions" row in
@@ -312,8 +1119,9 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
 ## Structure
 
 ```
-src/App.tsx                 # ~3,300 lines — onboarding (steps 0-6), dashboard (DASHBOARD_STEP = 7), almost all logic + JSX
-src/main.tsx                # entry; RevenueCat setup; applyTheme()/followSystemTheme(); imports index.css + src/styles/*.css
+src/App.tsx                 # ~5,700 lines — onboarding (sign-in, then steps 3-6), dashboard (DASHBOARD_STEP = 7), almost all logic + JSX
+src/main.tsx                # the app's entry; RevenueCat setup; applyTheme()/followSystemTheme(); imports index.css + src/styles/*.css
+                            #   (the website's entry is src/site/main.ts)
 index.html                  # pre-paint inline scripts: launch intro (data-intro) and theme (data-theme)
 src/index.css               # design tokens (colour/type/motion/glass), light + [data-theme='dark'], keyframes, reduced-motion
 src/styles/app.css          # dashboard: shell, cards, controls, hero, tab bar + lens, modals, Account menu
@@ -323,47 +1131,133 @@ src/styles/glass.css        # liquid-glass layer, loaded after the others: ambie
 src/styles/onboarding.css   # onboarding screens (.ob-*)
 src/styles/onboarding-profile.css  # .primary-btn / .secondary-btn / .auth-input (shared with dashboard)
 src/styles/intro.css        # launch intro
+src/styles/today.css        # Today: hydration card + page, check-in, workouts, movement-break prompt
 src/styles/pickers.css      # ruler, segmented, choice cards, bottom sheet, settings rows
 src/styles/about-you.css    # onboarding About-you flow
 src/lib/feedback.ts         # haptics (selection/tap/tick/success) + synthesised sounds; Android ticks via NativeFeedback
 src/lib/theme.ts            # System/Light/Dark: getThemePref/setThemePref/applyTheme/followSystemTheme (+ SystemTheme plugin)
 src/lib/dates.ts            # localDayKey() / localDayKeyDaysAgo() — calendar days in local time (never toISOString)
-src/lib/bmi.ts              # bmiOf(), suggestGoal() — NHS adult BMI bands → onboarding goal suggestion
+src/lib/bmi.ts              # bmiOf(), suggestGoal() — the country's adult BMI bands → onboarding goal suggestion
 src/lib/keyboard.ts         # native keyboard: .kx-keyboard-open on <html>, focused field scrolled into view
 src/lib/healthSources.ts    # Health Connect writer package → name ("Samsung Health"); isSamsungDevice()
-src/lib/regions.ts          # onboarding regions, a fact each, motivational lines
+src/lib/regions.ts          # UK regions (after the country), a fact each, motivational lines
+src/lib/countries.ts        # the 9 countries: locale, currency, units, BMI/fibre/allergen guidance, charities; fmtNumber/fmtDate/fmtMoney
 src/lib/supabase.ts         # Supabase client; exports isSupabaseConfigured
 src/lib/server.ts           # serverUrl() — relative on web, absolute Vercel URL in native apps
+src/lib/plus.ts             # KinetixFit Plus: entitlement id, free/Plus scan limits, benefit list (display only)
+src/lib/quests.ts           # questsForToday() — data-driven quests (steps/sleep/HRV/food/workout), progress + claim rules
+src/lib/notifications.ts    # local notifications: styled() badges/headers/actions, channels, hydration + gut + streak reminders
+src/lib/widgets.ts          # updateWidgets() → WidgetBridge; takeWidgetGlasses/CheckIns/Workouts; WIDGETS catalogue; Plus widget prefs
+src/lib/appIcons.ts         # alternate app icons (ids, free vs Plus, previews) → AppIcon plugin (Android aliases / iOS alternate icons)
+src/lib/points.ts           # the points economy (~1,000 a perfect month): awards, XP/levels, the once-a-day ledger
+src/lib/streak.ts           # check-in streak, best streak, badges (3/7/14/30/60/100 days)
+src/lib/cycle.ts            # period tracking: logged starts (kx_periods), cycle stats, today's phase + next window, context
+src/lib/mealIdeas.ts        # the free ranked meal ideas: 117 meals (USDA nutrition), per-country cuisines + avoided meats, rankMeals(),
+                            #   pages of 3, "Not for me"
+src/lib/auth.ts             # sign-up / log-in messages, already-registered + reset-link detection, confirmation/reset URLs
+src/lib/healthConnect.ts    # no Health Connect on the phone: get it (Play Store) vs unsupported (Android < 9)
+src/lib/water.ts            # drinks in ml per day ([time, ml]), glass size, ml goal, week totals (self-reported: never quests/points)
+src/lib/checkins.ts         # morning check-in (sleep hours + energy), sleep-vs-energy insight
+src/lib/workouts.ts         # detected workouts (Health) + hand-added ones (kx_workouts: add / edit / remove, 24 types, 1–600 min)
+src/lib/moveReminders.ts    # movement breaks: Android MoveReminder plugin (detects), iOS scheduled reminders
+src/lib/foodLog.ts          # food log: entries (amount × unit × eaten, note, add-ons, meal, amountGuess), saved foods (per 100 g,
+                            #   units, density), 90-day history (kx_food_days), typed-amount parser (g / kg / ml / l), scan result →
+                            #   food (foodFromScan, foodFromScanItem for a meal photo's foods), savedFoodPortion, densities
+                            #   (KNOWN_DENSITIES = api/_lib/density.js, densityOf), EXTRAS + note parsing (extrasFromNoteExcept),
+                            #   findTableFood, isPlausible + farFromTable (saved foods from wrong lookups), mealCount,
+                            #   splitTypedMeal (a typed meal's foods)
+src/lib/foodTable.ts        # generated by scripts/food-table/gen.py: 135 foods from USDA SR Legacy / FNDDS (per 100 g + portion weights,
+                            #   drink / mlToG for liquids) — don't hand-edit
+src/lib/nutrition.ts        # needed vs eaten: plan targets + per-country guidance (sat fat, sugars, sodium, K, Fe, Ca), status
+src/lib/onboarding.ts       # who skips onboarding (kinetix_onboarded_email, markLoggedInAccount) + the step reached (kx_ob_step)
+src/lib/backButton.ts       # Android back: a stack of claims (useBackHandler) for sheets, pop-ups and onboarding steps
+src/lib/diet.ts             # everything / vegetarian / vegetarian, no eggs: meat/fish/egg word checks, notes, idea tags
+src/lib/allergens.ts        # allergies: label allergens offered by diet, typed ones ("kiwi"), allergiesIn / flagAllergies word checks
+src/lib/vitals.ts           # health numbers: latest reading (Android reads oldest first), heart-rate day, body and vitals tiles
+src/lib/gut.ts              # gut check-ins (kx_gut_checks), when the weekly report is ready, buildGutReport, GUT_FOODS, gutPatterns
+src/lib/*.test.ts           # Vitest unit tests (npm test); src/test/setup.ts = in-memory localStorage; vitest.config.ts
 src/components/             # TabBar (iOS-style tab bar), BiometricTrendCard (Recharts trend card), Icons (SVG set),
                             # TrackLanes (hero art), LaunchIntro (opening sequence, next to <App/> in main.tsx),
-                            # AboutYouFlow (onboarding step 5), Pickers (form controls), ProfileFields, DonateButton
+                            # AboutYouFlow (onboarding step 5), Pickers (form controls), ProfileFields, DonateButton,
+                            # HydrationHero (+ HydrationSheet: Today's water card and the Hydration page),
+                            # FoodEntrySheet (+ ExtrasPicker: amount / eaten / add-ons / note for one food),
+                            # MealResultCard (a meal photo's or typed meal's foods, each its own entry; foods to confirm first),
+                            # FoodHistorySheet (14-day bars, averages, any day's foods), NutritionMeters (needed vs eaten),
+                            # ScanProgress (animation + haptics while a food lookup runs), CycleCard (period tracking),
+                            # WorkoutSheet (add / edit a workout), WidgetGallery (Account → Widgets previews + Plus settings),
+                            # HealthConnectSheet (get Health Connect / why not), VitalsCard (Today → Body and vitals),
+                            # AllergyPicker (label chips + typed allergies, onboarding and Account)
 src/utils/justgiving.ts     # JustGiving donate link
 api/                        # Vercel serverless functions (NOT bundled into the apps — reached via serverUrl())
   _lib/cors.js              #   handleCors() — native-app origins + preflight; call first in every handler
-  scan-meal.js              #   photo/text → food ID (Anthropic API) → USDA FDC nutrition; daily points (Redis, non-fatal)
+  scan-meal.js              #   text → nutrition; photo (+ optional note) → every food seen (one Claude call) → each food's
+                            #   nutrition → items[] + the old one-food / whole-meal fields; quota, daily points (Redis, non-fatal)
+  _lib/identify.js          #   the photo answer's contract, any model: MEAL_SCHEMA, prompt, validateMeal, rounding, note amounts
+  _lib/identifyClaude.js    #   asks Claude with it (SCAN_MODEL, thinking off, effort low); cut off / declined → IdentifyError
+  _lib/nutrition.js         #   lookupNutrition: food table → USDA generic → branded (no sweets); matchScore, agrees, fromTypical
+  _lib/foodNormalize.js     #   "2 slices of watermelon" → "watermelon"; curd → yogurt, chai → tea with milk
+  _lib/density.js           #   grams per ml: table → USDA volume portion → KNOWN_DENSITIES → 1 (assumed)
+  _lib/mealTotals.js        #   a meal's totals (unrounded) and per 100 g by weight; ml → g by density
+  _lib/foodTable.js         #   generated with src/lib/foodTable.ts (+ USDA descriptions) — don't hand-edit
+  __tests__/                #   Vitest (npm test): scan-meal end to end (Redis etc. mocked, fixtures/usda/ = USDA search answers
+                            #   built from the CSVs), identify, nutrition, density, mealTotals, foodTable. "_" → Vercel skips it
+  lookup-barcode.js         #   Open Food Facts: per100g, g/ml serving, pack size, liquid, allergens; default portion
   verify-license.js         #   RevenueCat subscription check
   redeem-promo.js           #   promo codes, redemption tracked in Upstash Redis
-  redeem-voucher.js, lookup-barcode.js, sync-health-data.js, complete-quest.js, donate-charity.js
-  _lib/rewardConfig.js, _lib/auditLog.js
+  redeem-voucher.js, sync-health-data.js, complete-quest.js, donate-charity.js
+  early-access.js           #   the website's early access list (Upstash Redis; honeypot, rate limit per hashed IP)
+  suggest-meals.js          #   AI meal ideas (Plus): Anthropic SDK, claude-opus-5, structured JSON, 6/day
+  _lib/plus.js              #   isPlusUser() via RevenueCat (+5-min Redis cache), ENTITLEMENT_ID, entitlementIsActive()
+  _lib/scanQuota.js         #   free 2 / Plus 10 photo+barcode scans a day (phone's time zone)
+  _lib/countries.js         #   country reward rules (live flags, charity ids), safeTimeZone(), dayKey()
+  _lib/rewardConfig.js      #   reward economics, donation £ cap, one-voucher-a-month slot
+  _lib/auditLog.js
 android/                    # Capacitor Android project (Gradle). android/app/src/main/assets/public is generated by `cap sync` — don't edit
 android/app/src/main/java/com/jnglobalventures/kinetixfit/
                             # MainActivity (registers the local plugins), SystemThemePlugin (night mode → "System"
-                            # theme), NativeFeedbackPlugin (performHapticFeedback ticks)
-ios/                        # Capacitor iOS project
-public/                     # privacy-policy, terms-of-service, donate pages, favicons (Play listing needs the privacy policy URL)
-assets/                     # icon.png, icon-only.png, splash.png — source art for app icons/splash
+                            # theme), NativeFeedbackPlugin (performHapticFeedback ticks), WidgetBridgePlugin (app → widgets),
+                            # WidgetStore (widget data + next reminder + widget-added drinks, updateSized/refreshAll),
+                            # WidgetArt (bitmaps: amounts, bottle, water level, rings, bars, frosted card, water glass), SizedWidget (base),
+                            # WaterWidgets (shared water data), HydrationWidget (Water bottle + add-drink receiver + haptic),
+                            # WaterLevelWidget, WaterRingWidget, WaterQuickWidget, WaterWeekWidget, RingsWidget,
+                            # StepsWidget, TodayWidget, ScanWidget, GlassWidget (Water glass), StreakWidget,
+                            # CheckInWidget + QuickLogWidget + StatsWidget (Plus; PlusWidgets locked card, WidgetThemes),
+                            # MoveReminderPlugin + MoveReminderReceiver (movement breaks), AppIconPlugin (launcher aliases)
+android/app/src/debug/java/.../WidgetGalleryReceiver.java  # debug only: renders every widget to a PNG / plays the haptic
+android/app/src/main/res/   # layout/widget_*.xml (+ _short / _wide), xml/widget_*_info.xml, values(-night)/widget_glass_colors.xml,
+                            # values(-v31)/widget_dimens.xml, drawable/widget_* + btn_* + ic_widget_* + ic_stat_* (notification icons),
+                            # font/kx_*.ttf (Archivo Expanded + Hanken Grotesk, drawn into widget bitmaps)
+ios/                        # Capacitor iOS project; App/WidgetBridgePlugin.swift + AppIconPlugin.swift + MainViewController.swift,
+                            # App/WidgetGallery.swift (debug widget gallery), KinetixFitWidgets/ (WidgetKit extension:
+                            # KinetixFitWidgets.swift bundle + timeline, WidgetViews.swift looks + intents, WidgetStore.swift)
+site/index.html, site/404.html  # the website's pages (marketing home at /, branded 404); site/favicon.svg; site/public/ =
+                            #   robots.txt, sitemap.xml, og-image.png (website-only: copied into dist-web by `build:web`)
+src/site/                   # the website's TypeScript + site.css (see Roadmap → Website): demo.ts (hero phone), features.ts
+                            #   (the five feature chapters + the widgets' home screen), widgets.ts (Light / Dark switch),
+                            #   day.ts ("Your day"'s lane, scroll-linked),
+                            #   intro.ts, rewards.ts…; *.test.ts next to them (jsdom)
+public/                     # privacy-policy, terms-of-service, donate pages, favicons (Play listing needs the privacy policy URL),
+                            # notify/*.png (iOS notification badges), email-confirmed.html (sign-up link lands here)
+assets/                     # icon.png, icon-only.png, splash.png — the logo (symbol + "Kinetix Fit" wordmark, spaced 28 Sep):
+                            # source for the Classic icon (iOS AppIcon-1024 on white; Android launcher layers = Lanczos resizes)
 capacitor.config.ts         # appId, appName, webDir: 'dist', backgroundColor (launch colour)
 android/app/src/main/res/values/colors.xml, styles.xml  # launch splash (plain kx_launch_bg), DayNight app theme
 requirements.txt            # full toolchain + dependency checklist
 scripts/setup-android.sh    # installs requirements.txt and builds a debug APK
 scripts/ios-sim/            # build/launch/screenshot the iOS simulator app, run JS in its WebView, real taps (idb)
+scripts/app-icons/          # render.mjs (alternate app icons, all platforms) + notify.mjs (notification badges); Playwright via PW_DIR
+scripts/site-check/         # the website's end-to-end checks: serve.mjs (dist-web/ like Vercel) + e2e.mjs (47 checks); PW_DIR
+scripts/food-table/gen.py   # USDA CSVs → src/lib/foodTable.ts + api/_lib/foodTable.js (SPEC lists each food; DRINKS / POURED get
+                            #   densities; CSVs in the gitignored scripts/food-table/usda/)
 ```
 
 Capacitor plugins wired into Android (from `npx cap sync`): barcode-scanner 3.1.2, browser 8.0.4,
 local-notifications 8.3.1, @capgo/capacitor-health 8.10.6, @revenuecat/purchases-capacitor 13.4.1,
 @capacitor/haptics 8.0.2 (adds the VIBRATE permission), @capacitor/app 8.1.1 (Android back button + appStateChange),
-@capacitor/keyboard 8.0.5 (iOS resize + keyboard events; see iOS section).
-Two **local** plugins live in the Android project itself (`SystemTheme`, `NativeFeedback` — see Structure); they are
+@capacitor/keyboard 8.0.5 (iOS resize + keyboard events; see iOS section), @capacitor/camera 8.2.4 (food photos:
+use the deprecated `getPhoto`, not `takePhoto` — only getPhoto survives Android killing the app behind the camera).
+npm-only (no native part): `@anthropic-ai/sdk` (server: `api/suggest-meals.js`, `api/_lib/identifyClaude.js`), `html5-qrcode` (barcode from a photo).
+Four **local** plugins live in the Android project itself (`SystemTheme`, `NativeFeedback`, `WidgetBridge`, `MoveReminder` — see Structure); they are
 registered with `registerPlugin(...)` in `MainActivity.onCreate` *before* `super.onCreate`, and called from JS with
 `registerPlugin('Name')` from `@capacitor/core`. A new local plugin needs both halves.
 After adding/removing an npm plugin, re-run `npx cap sync android`.
@@ -383,8 +1277,9 @@ sign-up shows "not configured".
 - **Bundled into the app (`VITE_` prefix, public by design):** `VITE_REVENUECAT_ANDROID_PUBLIC_KEY`,
   `VITE_REVENUECAT_IOS_PUBLIC_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (anon key only, never service-role), `VITE_SERVER_URL` (optional).
   These are baked in at `npm run build` time — rebuild + `cap sync` after changing them.
-- **Server-only (set in Vercel, never `VITE_`-prefixed):** `ANTHROPIC_API_KEY`, `USDA_FDC_API_KEY`,
-  `REVENUECAT_API_KEY`, `PROMO_CODES_JSON`, `UPSTASH_REDIS_REST_URL/TOKEN` (injected by Vercel Marketplace).
+- **Server-only (set in Vercel, never `VITE_`-prefixed):** `ANTHROPIC_API_KEY` (photo scans + AI meal ideas), `USDA_FDC_API_KEY`,
+  `REVENUECAT_API_KEY`, `PROMO_CODES_JSON`, `UPSTASH_REDIS_REST_URL/TOKEN` (injected by Vercel Marketplace). Optional
+  `SCAN_MODEL` = the photo scan's model (default `claude-sonnet-5`; `claude-haiku-4-5` also works — it gets no `effort`).
   `TREMENDOUS_API_KEY` (`api/redeem-voucher.js`) is set in Vercel too. Production Redis fixed 2026-09-27 — see Current status.
 - **Vercel CLI:** this folder is linked (`.vercel/`, gitignored) to team `kinetixfit`, project `kinetix-fit-core`;
   log in as `johnkodamala` (the `sivadurga726-3709` account can't see it). `npx vercel env ls --scope kinetixfit`
@@ -397,8 +1292,10 @@ sign-up shows "not configured".
   `src/components/TabBar.tsx`. The active tab is mirrored in the URL hash (`#nourish`, `#account/details`);
   `LEGACY_TABS` maps old hashes. Signing in / finishing onboarding / logging out always go to Today (`openTodayFresh()`).
 - Messages: `notify(tone, text)` — see Design system. Keep them short, plain, no ALL CAPS.
-- Onboarding steps 0-4 render only when logged out; steps 5-6 render whenever `onboardingStep` is 5/6. In
-  `npm run dev` only, `?ob=N` opens step N (e.g. http://localhost:5173/?ob=5); production builds ignore it.
+- Onboarding steps 0-4 render only when logged out (0-2 all show the sign-in screen — there are no welcome screens);
+  steps 5-6 render whenever `onboardingStep` is 5/6 (6 = "Your food": diet + allergies). Android back: see Onboarding and
+  navigation — any new sheet or pop-up must claim the back button (`Sheet` does it; otherwise `useBackHandler`). In `npm run dev` only, `?ob=N` opens step N (e.g.
+  http://localhost:5173/?ob=5); production builds ignore it.
 - The test phones' web views are **360** (S21 FE) and **411** (A55) CSS px wide — test layouts at those widths.
 - Playwright is **not** a project dependency: install it in a scratch folder (`npm i playwright` there; the Chromium
   build is already in `~/Library/Caches/ms-playwright`) and run scripts from that folder against `npm run dev`.
@@ -428,7 +1325,8 @@ sign-up shows "not configured".
   `capacitor.settings.gradle`) — they're overwritten by `cap sync`.
 - Health data is sensitive: Play requires a Health Connect declaration and a privacy policy that covers it.
 - Commit style: `<type>: <description>` (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`). Work on
-  `initial-changes`, run `npm run lint` and `npm run build` before pushing, PR into `main`.
+  `initial-changes`, run `npm run lint`, `npm test` and `npm run build` before pushing, PR into `main`.
+- New logic goes in `src/lib` with a `*.test.ts` next to it (pure functions, localStorage only) — keep App.tsx for wiring.
 
 ## Design system ("track day")
 
@@ -455,7 +1353,7 @@ an opaque white box. `--surface-2` is translucent now (fills that sit on glass).
   `--m-sleep`, `--m-stress`, plus `--m-cycle`), fixed launch colours (`--launch-bg/-ink/-lane`), radii, shadows, motion (`--ease-out`, `--ease-spring`, `--dur*`).
   **Never hard-code a hex colour** in `App.tsx` or components — use `var(--token)`; dark mode depends on it.
 - **Stylesheets:** `src/styles/app.css` (dashboard), `onboarding.css`, `onboarding-profile.css`
-  (`.primary-btn`, `.secondary-btn`, `.auth-input`), `intro.css`, `pickers.css`, `about-you.css`, `glass.css`
+  (`.primary-btn`, `.secondary-btn`, `.auth-input`), `intro.css`, `today.css` (Today's newer cards), `pickers.css`, `about-you.css`, `glass.css`
   (restyles surfaces defined in the others), and `responsive.css` **last** (size adaptations). Imported once in `src/main.tsx`. No `!important`:
   inline styles intentionally win, so only use inline styles for genuinely per-element/dynamic values.
 - **Type:** Archivo (wide cut, `font-stretch: 125%`, 800) for display — greetings, big numbers, titles only;
@@ -516,6 +1414,9 @@ an opaque white box. `--surface-2` is translucent now (fills that sit on glass).
 - `.ob-sticky-cta` must keep `bottom: 0` (the container padding already clears the nav bar) and a fade shorter
   than its `margin-top`, or it covers the last content on the screen.
 - Rulers must keep `touch-action: pan-x pan-y` — `pan-x` alone blocks vertical page scrolling on phones.
+- **iOS simulator taps:** if `ui.py list` shows only the Application row and taps do nothing, the idb companion isn't
+  running (see the iOS line in Current status). `tap-el.sh` coordinates can be off by the scroll it just did — when a tap
+  misses, read the point off a screenshot (px ÷ 3 = pt on the iPhone 17) and use `tapxy`.
 - The scan-food button (FAB) shows only on **Today** (Nourish has its own barcode/photo tiles); Today ends with a
   `.kx-fab-clearance` spacer so the last card can scroll clear of it.
 - **Card patterns** (glass.css): every card title starts with a tinted icon chip —

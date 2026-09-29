@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Water bottle, short (about 2x1): bottle, count + amount, glossy round +. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="horizontal" android:gravity="center_vertical" android:padding="14dp">
+    <ImageView android:id="@+id/bottle" android:layout_width="wrap_content" android:layout_height="match_parent"
+        android:adjustViewBounds="true" android:scaleType="fitCenter" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:layout_marginStart="10dp" android:layout_marginEnd="10dp" android:orientation="vertical">
+        <TextView android:id="@+id/count_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="750 ml" android:textSize="24sp" android:textStyle="bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <ImageView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" android:visibility="gone" />
+        <TextView android:id="@+id/sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 2 L" android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+    </LinearLayout>
+    <TextView android:id="@+id/add_glass" android:layout_width="48dp" android:layout_height="48dp"
+            android:background="@drawable/widget_btn_water_round" android:gravity="center" android:includeFontPadding="false"
+            android:text="+" android:textSize="24sp" android:fontFamily="@font/kx_text_bold" android:textColor="#FFFFFFFF"
+            android:contentDescription="Add a glass of water" />
+</LinearLayout>

@@ -1,0 +1,622 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "curd",
+ "generic": [
+  {
+   "fdcId": 2707435,
+   "description": "Soybean curd",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 61
+    },
+    {
+     "nutrientId": 1003,
+     "value": 7.17
+    },
+    {
+     "nutrientId": 1005,
+     "value": 1.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.69
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.533
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.7
+    },
+    {
+     "nutrientId": 1093,
+     "value": 8
+    },
+    {
+     "nutrientId": 1092,
+     "value": 120
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 1087,
+     "value": 111
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cubic inch",
+     "gramWeight": 17.6
+    },
+    {
+     "disseminationText": "1 cup (1/2\" cubes)",
+     "gramWeight": 248
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 62
+    },
+    {
+     "disseminationText": "1 piece (2-1/2\" x 2-3/4\" x 1\")",
+     "gramWeight": 120
+    }
+   ]
+  },
+  {
+   "fdcId": 2707437,
+   "description": "Soybean curd cheese",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 151
+    },
+    {
+     "nutrientId": 1003,
+     "value": 12.5
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.9
+    },
+    {
+     "nutrientId": 1004,
+     "value": 8.1
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.172
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.6
+    },
+    {
+     "nutrientId": 1093,
+     "value": 20
+    },
+    {
+     "nutrientId": 1092,
+     "value": 199
+    },
+    {
+     "nutrientId": 1089,
+     "value": 5.6
+    },
+    {
+     "nutrientId": 1087,
+     "value": 188
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 225
+    },
+    {
+     "disseminationText": "1 slice",
+     "gramWeight": 18
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 56
+    }
+   ]
+  },
+  {
+   "fdcId": 169083,
+   "description": "Soybean, curd cheese",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 151
+    },
+    {
+     "nutrientId": 1003,
+     "value": 12.5
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.9
+    },
+    {
+     "nutrientId": 1004,
+     "value": 8.1
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.172
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.6
+    },
+    {
+     "nutrientId": 1093,
+     "value": 20
+    },
+    {
+     "nutrientId": 1092,
+     "value": 199
+    },
+    {
+     "nutrientId": 1089,
+     "value": 5.6
+    },
+    {
+     "nutrientId": 1087,
+     "value": 188
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2707448,
+   "description": "Soybean curd, deep fried",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 270
+    },
+    {
+     "nutrientId": 1003,
+     "value": 18.82
+    },
+    {
+     "nutrientId": 1005,
+     "value": 8.86
+    },
+    {
+     "nutrientId": 1004,
+     "value": 20.18
+    },
+    {
+     "nutrientId": 1079,
+     "value": 3.9
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.918
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.72
+    },
+    {
+     "nutrientId": 1093,
+     "value": 16
+    },
+    {
+     "nutrientId": 1092,
+     "value": 146
+    },
+    {
+     "nutrientId": 1089,
+     "value": 4.87
+    },
+    {
+     "nutrientId": 1087,
+     "value": 372
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 39
+    },
+    {
+     "disseminationText": "1 oz",
+     "gramWeight": 28.35
+    }
+   ]
+  },
+  {
+   "fdcId": 2705753,
+   "description": "Cheese, cottage, dry curd",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 72
+    },
+    {
+     "nutrientId": 1003,
+     "value": 10.34
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.66
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.29
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.169
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.85
+    },
+    {
+     "nutrientId": 1093,
+     "value": 372
+    },
+    {
+     "nutrientId": 1092,
+     "value": 137
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1087,
+     "value": 86
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup, NFS",
+     "gramWeight": 210
+    },
+    {
+     "disseminationText": "1 cup, creamed",
+     "gramWeight": 210
+    },
+    {
+     "disseminationText": "1 cup, dry type",
+     "gramWeight": 145
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 105
+    }
+   ]
+  },
+  {
+   "fdcId": 2707449,
+   "description": "Soybean curd, breaded, fried",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 150
+    },
+    {
+     "nutrientId": 1003,
+     "value": 8.39
+    },
+    {
+     "nutrientId": 1005,
+     "value": 8.71
+    },
+    {
+     "nutrientId": 1004,
+     "value": 9.62
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.08
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.29
+    },
+    {
+     "nutrientId": 1093,
+     "value": 91
+    },
+    {
+     "nutrientId": 1092,
+     "value": 134
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.58
+    },
+    {
+     "nutrientId": 1087,
+     "value": 120
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cubic inch",
+     "gramWeight": 17
+    },
+    {
+     "disseminationText": "1 slice (2-3/4\" x 1\" x 1/2\")",
+     "gramWeight": 29
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 39
+    }
+   ]
+  },
+  {
+   "fdcId": 2705754,
+   "description": "Cheese, cottage, salted, dry curd",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 71
+    },
+    {
+     "nutrientId": 1003,
+     "value": 10.24
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.59
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.29
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.167
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.83
+    },
+    {
+     "nutrientId": 1093,
+     "value": 755
+    },
+    {
+     "nutrientId": 1092,
+     "value": 136
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1087,
+     "value": 86
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 105
+    },
+    {
+     "disseminationText": "1 cup, dry type",
+     "gramWeight": 145
+    },
+    {
+     "disseminationText": "1 cup, NFS",
+     "gramWeight": 210
+    },
+    {
+     "disseminationText": "1 cup, creamed",
+     "gramWeight": 210
+    }
+   ]
+  },
+  {
+   "fdcId": 172179,
+   "description": "Cheese, cottage, creamed, large or small curd",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 98
+    },
+    {
+     "nutrientId": 1003,
+     "value": 11.12
+    },
+    {
+     "nutrientId": 1005,
+     "value": 3.38
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.3
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.718
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.67
+    },
+    {
+     "nutrientId": 1093,
+     "value": 315
+    },
+    {
+     "nutrientId": 1092,
+     "value": 104
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.07
+    },
+    {
+     "nutrientId": 1087,
+     "value": 83
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2705748,
+   "description": "Cheese, cottage, creamed, large or small curd",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 103
+    },
+    {
+     "nutrientId": 1003,
+     "value": 11.62
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.6
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.22
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.6
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.67
+    },
+    {
+     "nutrientId": 1093,
+     "value": 350
+    },
+    {
+     "nutrientId": 1092,
+     "value": 124
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 88
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 105
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 210
+    }
+   ]
+  },
+  {
+   "fdcId": 172181,
+   "description": "Cheese, cottage, nonfat, uncreamed, dry, large or small curd",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 72
+    },
+    {
+     "nutrientId": 1003,
+     "value": 10.34
+    },
+    {
+     "nutrientId": 1005,
+     "value": 6.66
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.29
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.169
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.85
+    },
+    {
+     "nutrientId": 1093,
+     "value": 372
+    },
+    {
+     "nutrientId": 1092,
+     "value": 137
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1087,
+     "value": 86
+    }
+   ],
+   "foodMeasures": []
+  }
+ ],
+ "branded": []
+}

@@ -8,6 +8,7 @@ import { Redis } from '@upstash/redis';
 import { getRewardConfig, checkMonthlyRedemptionCap, recordRedemption } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
+import { COUNTRY_REWARDS, requestCountry } from './_lib/countries.js';
 
 const redis = Redis.fromEnv();
 const MAX_DONATIONS_PER_DAY = 3;
@@ -22,6 +23,17 @@ export default async function handler(req, res) {
   const { charityId, charityName, appUserId } = req.body;
   if (!charityId || !charityName || !appUserId) {
     return res.status(400).json({ error: 'charityId, charityName and appUserId are required.' });
+  }
+
+  // Donations are live country by country (api/_lib/countries.js); elsewhere the app shows them as coming soon.
+  const country = requestCountry(req.body.country);
+  if (!country) return res.status(400).json({ error: 'Unsupported country.' });
+  const rules = COUNTRY_REWARDS[country];
+  if (!rules.donationsLive) {
+    return res.status(403).json({ error: `Charity donations in ${rules.name} are coming soon.`, code: 'COMING_SOON' });
+  }
+  if (!rules.charities.includes(charityId)) {
+    return res.status(400).json({ error: 'That charity isn’t available in your country.' });
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -41,7 +53,7 @@ export default async function handler(req, res) {
   try {
     const timestamp = new Date().toISOString();
     await redis.set(`donation_log:${appUserId}:${timestamp}`, JSON.stringify({
-      charityId, charityName, valueGBP: config.donationValueGBP, timestamp
+      charityId, charityName, country, valueGBP: config.donationValueGBP, timestamp
     }));
     await redis.set(countKey, countToday + 1, { ex: 60 * 60 * 24 });
     await recordRedemption(appUserId, config.donationValueGBP);

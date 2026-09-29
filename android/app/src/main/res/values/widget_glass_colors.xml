@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget cards (light): solid, so they read the same on any wallpaper — white fading to a whisper of aqua, a soft
+     water glow in one corner and a crisp edge. values-night/widget_glass_colors.xml is dark. The see-through
+     frosted-glass look is only on the Water glass widget, drawn in WidgetArt.liquidGlass. -->
+<resources>
+    <color name="kx_glass_fill">#FFFFFFFF</color>
+    <color name="kx_glass_fill_2">#FFEDF5F8</color>
+    <color name="kx_glass_sheen">#00FFFFFF</color>
+    <color name="kx_glass_edge">#FFDDE7EB</color>
+    <color name="kx_glass_glow">#2E21B7D9</color>
+    <color name="kx_glass_ink">#0E1A22</color>
+    <color name="kx_glass_ink_2">#4E5E67</color>
+    <color name="kx_glass_ink_3">#7A8A93</color>
+    <color name="kx_glass_chip">#1A1BA3C6</color>
+    <color name="kx_glass_track">#140E1A22</color>
+    <color name="kx_glass_btn_soft">#1A1BA3C6</color>
+    <color name="kx_glass_water">#0C8FB5</color>
+    <!-- Water glass: text on the frosted card — dark on light, white with a soft shadow on dark -->
+    <color name="kx_lg_ink">#FF0E1A22</color>
+    <color name="kx_lg_ink_2">#CC0E1A22</color>
+    <color name="kx_lg_shadow">#00000000</color>
+    <!-- Streak widget + Check-in (flame orange), "done" green, and the Plus lock badge -->
+    <color name="kx_streak">#FFF0602F</color>
+    <color name="kx_good">#FF1FA870</color>
+    <color name="kx_plus_from">#FFFF8A5E</color>
+    <color name="kx_plus_to">#FF7B61FF</color>
+</resources>

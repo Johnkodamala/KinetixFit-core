@@ -69,7 +69,7 @@ export default function LaunchIntro() {
           <path className="kx-intro-trace" d={MARK_PATH} pathLength={1} />
           <path className="kx-intro-runner" d={MARK_PATH} pathLength={1} />
         </svg>
-        <span className="kx-intro-word">KINETIXFIT</span>
+        <span className="kx-intro-word">KINETIX FIT</span>
       </div>
     </div>
   );

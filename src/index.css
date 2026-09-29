@@ -38,6 +38,7 @@
   --m-sleep: #6A4FD6;
   --m-stress: #B87708;
   --m-cycle: #C2417A;
+  --m-water: #0C8FB5; /* hydration */
 
   /* The dark "hero" panel stays dark in both themes */
   --hero-bg: #16181F;
@@ -122,6 +123,7 @@
   --m-sleep: #A08BFF;
   --m-stress: #F0B03C;
   --m-cycle: #F07AAE;
+  --m-water: #4FD1E8; /* hydration */
 
   --hero-bg: #1F232C;
   --hero-lane: rgba(244, 243, 238, 0.08);

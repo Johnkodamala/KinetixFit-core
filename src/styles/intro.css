@@ -95,6 +95,7 @@ html[data-intro='run'] .workspace-container * {
   margin-right: -0.14em;
   color: var(--launch-ink);
   line-height: 1;
+  white-space: nowrap; /* "KINETIX FIT" stays one line */
   animation: kx-intro-word 720ms var(--ease-out) 620ms both;
 }
 

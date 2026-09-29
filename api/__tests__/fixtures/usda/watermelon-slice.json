@@ -1,0 +1,738 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "watermelon slice",
+ "generic": [
+  {
+   "fdcId": 167765,
+   "description": "Watermelon, raw",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 30
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.61
+    },
+    {
+     "nutrientId": 1005,
+     "value": 7.55
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.016
+    },
+    {
+     "nutrientId": 2000,
+     "value": 6.2
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 112
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.24
+    },
+    {
+     "nutrientId": 1087,
+     "value": 7
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2709270,
+   "description": "Watermelon, raw",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 30
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.61
+    },
+    {
+     "nutrientId": 1005,
+     "value": 7.55
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.016
+    },
+    {
+     "nutrientId": 2000,
+     "value": 6.2
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 112
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.24
+    },
+    {
+     "nutrientId": 1087,
+     "value": 7
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 78
+    },
+    {
+     "disseminationText": "1 miniature melon",
+     "gramWeight": 1300
+    },
+    {
+     "disseminationText": "1 large melon",
+     "gramWeight": 6000
+    },
+    {
+     "disseminationText": "1 small wedge/slice",
+     "gramWeight": 218
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 155
+    },
+    {
+     "disseminationText": "1 ball",
+     "gramWeight": 15
+    },
+    {
+     "disseminationText": "1 large wedge/slice",
+     "gramWeight": 432
+    },
+    {
+     "disseminationText": "1 cube",
+     "gramWeight": 15
+    },
+    {
+     "disseminationText": "1 small melon",
+     "gramWeight": 3200
+    },
+    {
+     "disseminationText": "1 medium melon",
+     "gramWeight": 5200
+    },
+    {
+     "disseminationText": "1 medium wedge/slice",
+     "gramWeight": 325
+    }
+   ]
+  },
+  {
+   "fdcId": 2709333,
+   "description": "Watermelon juice, 100%",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 30
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.61
+    },
+    {
+     "nutrientId": 1005,
+     "value": 7.55
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.15
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.016
+    },
+    {
+     "nutrientId": 2000,
+     "value": 6.2
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 112
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.24
+    },
+    {
+     "nutrientId": 1087,
+     "value": 7
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 240
+    },
+    {
+     "disseminationText": "1 fl oz (no ice)",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 fl oz (with ice)",
+     "gramWeight": 23
+    },
+    {
+     "disseminationText": "1 fl oz (NFS)",
+     "gramWeight": 30
+    }
+   ]
+  },
+  {
+   "fdcId": 169066,
+   "description": "Luncheon slices, meatless",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 189
+    },
+    {
+     "nutrientId": 1003,
+     "value": 17.78
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.44
+    },
+    {
+     "nutrientId": 1004,
+     "value": 11.11
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.338
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.22
+    },
+    {
+     "nutrientId": 1093,
+     "value": 711
+    },
+    {
+     "nutrientId": 1092,
+     "value": 200
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.8
+    },
+    {
+     "nutrientId": 1087,
+     "value": 41
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 169407,
+   "description": "Seeds, watermelon seed kernels, dried",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 557
+    },
+    {
+     "nutrientId": 1003,
+     "value": 28.33
+    },
+    {
+     "nutrientId": 1005,
+     "value": 15.31
+    },
+    {
+     "nutrientId": 1004,
+     "value": 47.37
+    },
+    {
+     "nutrientId": 1258,
+     "value": 9.779
+    },
+    {
+     "nutrientId": 1093,
+     "value": 99
+    },
+    {
+     "nutrientId": 1092,
+     "value": 648
+    },
+    {
+     "nutrientId": 1089,
+     "value": 7.28
+    },
+    {
+     "nutrientId": 1087,
+     "value": 54
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2707467,
+   "description": "Breakfast link, pattie, or slice, meatless",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 255
+    },
+    {
+     "nutrientId": 1003,
+     "value": 20.28
+    },
+    {
+     "nutrientId": 1005,
+     "value": 8.09
+    },
+    {
+     "nutrientId": 1004,
+     "value": 18.16
+    },
+    {
+     "nutrientId": 1079,
+     "value": 2.8
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.926
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 888
+    },
+    {
+     "nutrientId": 1092,
+     "value": 231
+    },
+    {
+     "nutrientId": 1089,
+     "value": 3.72
+    },
+    {
+     "nutrientId": 1087,
+     "value": 63
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 patty",
+     "gramWeight": 38
+    },
+    {
+     "disseminationText": "1 slice",
+     "gramWeight": 28
+    },
+    {
+     "disseminationText": "1 link",
+     "gramWeight": 25
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 57
+    }
+   ]
+  },
+  {
+   "fdcId": 2707471,
+   "description": "Luncheon slice, meatless-beef, chicken, salami or turkey",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 189
+    },
+    {
+     "nutrientId": 1003,
+     "value": 17.78
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.44
+    },
+    {
+     "nutrientId": 1004,
+     "value": 11.11
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.338
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.22
+    },
+    {
+     "nutrientId": 1093,
+     "value": 711
+    },
+    {
+     "nutrientId": 1092,
+     "value": 200
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.8
+    },
+    {
+     "nutrientId": 1087,
+     "value": 41
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 56
+    },
+    {
+     "disseminationText": "1 thin slice",
+     "gramWeight": 14
+    },
+    {
+     "disseminationText": "1 regular slice (1 oz)",
+     "gramWeight": 28
+    }
+   ]
+  },
+  {
+   "fdcId": 168360,
+   "description": "Pork, cured, ham, slice, bone-in, separable lean only, unheated",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 130
+    },
+    {
+     "nutrientId": 1003,
+     "value": 24.36
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.59
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.099
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 760
+    },
+    {
+     "nutrientId": 1092,
+     "value": 370
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.23
+    },
+    {
+     "nutrientId": 1087,
+     "value": 13
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 168283,
+   "description": "Pork, cured, ham, center slice, separable lean and fat, unheated",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 203
+    },
+    {
+     "nutrientId": 1003,
+     "value": 20.17
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1004,
+     "value": 12.9
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 4.572
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1386
+    },
+    {
+     "nutrientId": 1092,
+     "value": 337
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.75
+    },
+    {
+     "nutrientId": 1087,
+     "value": 7
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 169177,
+   "description": "Pork, cured, ham, slice, bone-in, separable lean and fat, unheated",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 173
+    },
+    {
+     "nutrientId": 1003,
+     "value": 22.45
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.21
+    },
+    {
+     "nutrientId": 1004,
+     "value": 9.17
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.945
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 744
+    },
+    {
+     "nutrientId": 1092,
+     "value": 348
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.15
+    },
+    {
+     "nutrientId": 1087,
+     "value": 12
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 168282,
+   "description": "Pork, cured, ham, center slice, country-style, separable lean only, raw",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 195
+    },
+    {
+     "nutrientId": 1003,
+     "value": 27.8
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1004,
+     "value": 8.32
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.78
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 2695
+    },
+    {
+     "nutrientId": 1092,
+     "value": 510
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 1087,
+     "value": 10
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 169158,
+   "description": "Pork, cured, ham, slice, bone-in, separable lean only, heated, pan-broil",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 148
+    },
+    {
+     "nutrientId": 1003,
+     "value": 27.18
+    },
+    {
+     "nutrientId": 1005,
+     "value": 0.74
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.09
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.253
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.74
+    },
+    {
+     "nutrientId": 1093,
+     "value": 870
+    },
+    {
+     "nutrientId": 1092,
+     "value": 427
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.42
+    },
+    {
+     "nutrientId": 1087,
+     "value": 15
+    }
+   ],
+   "foodMeasures": []
+  }
+ ],
+ "branded": [
+  {
+   "fdcId": 900000001,
+   "description": "WATERMELON SLICE",
+   "dataType": "Branded",
+   "brandOwner": "THE SNEAKY CHEF FOODS, LLC",
+   "servingSizeUnit": "g",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 207
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0
+    },
+    {
+     "nutrientId": 1005,
+     "value": 51.8
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0
+    }
+   ],
+   "_note": "values observed live 2026-09-28; fdcId is a placeholder"
+  }
+ ]
+}

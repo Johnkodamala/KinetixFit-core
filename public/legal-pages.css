@@ -1,12 +1,15 @@
+/* The website's plain pages (privacy policy, terms, email confirmed, donation complete): the brand's chalk, ink and
+   track clay, set for long reading. System fonts on purpose: these pages load nothing else. */
 :root {
   color-scheme: light;
-  --ink: #1a1d24;
-  --ink-soft: #4b5261;
-  --bg: #fafafa;
-  --card: #ffffff;
-  --border: #e5e7eb;
-  --accent: #059669;
-  --accent-soft: #ecfdf5;
+  --ink: #16181F;
+  --ink-soft: #454A55;
+  --ink-mute: #626876;
+  --bg: #F3F4F0;
+  --card: #FFFFFF;
+  --border: #E1E3DC;
+  --accent: #BF3F1C;
+  --accent-soft: #FBE3DA;
 }
 
 * { box-sizing: border-box; }
@@ -17,17 +20,23 @@ body {
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
 }
 
 .legal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   border-bottom: 1px solid var(--border);
-  background: var(--card);
+  background: rgba(243, 244, 240, 0.86);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+  backdrop-filter: saturate(1.6) blur(14px);
 }
 
 .legal-header-inner {
   max-width: 760px;
   margin: 0 auto;
-  padding: 18px 24px;
+  padding: 16px 24px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -36,11 +45,13 @@ body {
 .legal-header-inner a {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-decoration: none;
   color: var(--ink);
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .legal-header-inner svg { flex-shrink: 0; }
@@ -48,25 +59,27 @@ body {
 .legal-doc {
   max-width: 760px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 48px 24px 80px;
 }
 
 .legal-doc h1 {
-  font-size: 30px;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.5px;
+  font-size: clamp(28px, 5vw, 38px);
+  line-height: 1.15;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
 }
 
 .legal-updated {
-  color: var(--ink-soft);
+  color: var(--ink-mute);
   font-size: 14px;
   margin: 0 0 32px 0;
 }
 
 .legal-intro {
-  background: var(--accent-soft);
-  border: 1px solid #d1fae5;
-  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid #E5532D;
+  border-radius: 12px;
   padding: 16px 18px;
   font-size: 15px;
   margin-bottom: 36px;
@@ -75,7 +88,7 @@ body {
 .legal-doc h2 {
   font-size: 19px;
   margin: 40px 0 12px 0;
-  padding-top: 12px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
 }
 
@@ -85,8 +98,8 @@ body {
 }
 
 .legal-doc p, .legal-doc li {
-  font-size: 15.5px;
-  color: #2a2e37;
+  font-size: 16px;
+  color: #2A2E37;
 }
 
 .legal-doc ul {
@@ -95,13 +108,26 @@ body {
 
 .legal-doc li { margin-bottom: 6px; }
 
-.legal-doc a { color: var(--accent); }
+.legal-doc a {
+  color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.legal-hint {
+  color: var(--ink-mute);
+  font-size: 14px;
+  margin-top: 24px;
+}
 
 .legal-doc table {
   width: 100%;
   border-collapse: collapse;
   margin: 16px 0;
-  font-size: 14.5px;
+  font-size: 15px;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .legal-doc th, .legal-doc td {
@@ -112,8 +138,8 @@ body {
 }
 
 .legal-doc th {
-  background: #f3f4f6;
-  font-weight: 600;
+  background: #ECEEE8;
+  font-weight: 650;
 }
 
 .legal-footer {
@@ -129,3 +155,13 @@ body {
 }
 
 .legal-footer a:hover { text-decoration: underline; }
+
+a:focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (max-width: 560px) {
+  .legal-doc table { display: block; overflow-x: auto; }
+}

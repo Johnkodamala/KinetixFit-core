@@ -1,9 +1,15 @@
 {
   "version": 2,
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "dist-web",
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/$1"
+    },
+    {
+      "source": "/app",
+      "destination": "/app/index.html"
     },
     {
       "source": "/privacy-policy",
@@ -16,6 +22,21 @@
     {
       "source": "/donate/complete",
       "destination": "/donate-complete.html"
+    },
+    {
+      "source": "/email-confirmed",
+      "destination": "/email-confirmed.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState, type MouseEvent, type ReactNode } from 'react';
+import { fmtNumber } from '../lib/countries';
+import { BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { ChevronIcon } from './Icons';
 
 export interface DailyPoint {
@@ -52,49 +53,95 @@ interface BiometricTrendCardProps {
   onToggle: () => void;
   rangeDays: 7 | 30;
   onRangeChange: (days: 7 | 30) => void;
+  /** Shows a value in full wherever it appears (readout, average, daily list), e.g. sleep minutes → "7h 20m". */
+  format?: (value: number) => string;
+  /** Y-axis labels for the open chart, e.g. minutes → "6h". */
+  axisFormat?: (value: number) => string;
+  /** Fixed Y-axis ticks (the top one is the axis top), e.g. every 3 hours for sleep. */
+  yTicks?: number[];
 }
 
 // Renders every real point as a small dot except the most recent real value ("today"), which
 // gets a larger, filled dot so the current reading stands out from its own history at a glance.
 // Recharts' own custom-dot prop type doesn't line up cleanly with a plain function component
 // (a known library quirk — see recharts/recharts#3799-style issues), so props are untyped here.
-function makeTodayDot(color: string, lastRealIndex: number) {
+function makeTodayDot(color: string, highlightIndex: number) {
   return function TodayDot(props: { cx?: number; cy?: number; index?: number; payload?: DailyPoint }) {
     const { cx, cy, index, payload } = props;
     if (cx === undefined || cy === undefined || payload?.value === null || payload?.value === undefined) return <></>;
-    const isToday = index === lastRealIndex;
+    const isToday = index === highlightIndex;
     return (
       <circle
         cx={cx}
         cy={cy}
         r={isToday ? 5 : 2.5}
-        style={{ fill: isToday ? color : 'var(--surface)', stroke: color }}
-        strokeWidth={isToday ? 0 : 1.5}
+        style={{ fill: isToday ? color : 'var(--surface)', stroke: isToday ? 'var(--surface)' : color }}
+        strokeWidth={isToday ? 2 : 1.5}
       />
     );
   };
 }
 
 const AXIS_TICK = { fontSize: 11, fill: 'var(--ink-3)' };
-const TOOLTIP_STYLE = {
-  fontSize: 12, borderRadius: 10, border: '1px solid var(--line)',
-  background: 'var(--surface)', color: 'var(--ink)', boxShadow: 'var(--shadow-md)'
+
+// 6842 → "6,842"; keeps decimals as they are.
+const formatValue = (value: number) => fmtNumber(value, 1);
+
+// A zero from Health Connect / HealthKit means "nothing synced for that day", not a real reading — treating
+// it as data drew a full-height bar (the chart had no scale for a lone 0) and hid the "waiting" message.
+const hasReading = (d: DailyPoint) => d.value !== null && d.value > 0;
+
+// Axis top rounded up to a tidy number (10,345 → 12,000), so the labels read cleanly.
+const niceCeil = (max: number) => {
+  if (max <= 1) return 1;
+  const step = 10 ** Math.floor(Math.log10(max));
+  const nice = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(m => m * step >= max) ?? 10;
+  return nice * step;
+};
+
+// Plot-area insets of the open chart: the Y axis on the left, the chart margin on the right.
+const PLOT_LEFT = 40;
+const PLOT_RIGHT = 8;
+
+// Which day a tap landed on, from where it landed. Recharts' own onClick only knows the column after a hover,
+// so on a phone the first tap on a bar selected nothing. Bars sit in equal bands; area points sit on the band
+// edges (first point at the left of the plot, last at the right).
+const dayAtTap = (event: MouseEvent<HTMLDivElement>, count: number, chartType: 'bar' | 'line'): number | null => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const width = rect.width - PLOT_LEFT - PLOT_RIGHT;
+  if (count === 0 || width <= 0) return null;
+  const x = event.clientX - rect.left - PLOT_LEFT;
+  const index = chartType === 'bar' ? Math.floor(x / (width / count)) : Math.round(x / (width / Math.max(1, count - 1)));
+  return Math.min(count - 1, Math.max(0, index));
 };
 
 export default function BiometricTrendCard({
   icon, title, status, behavior, latestReading, subMetrics, trend, unit, color, chartType,
   isTrackable, disconnectedMessage, buildingMessage, minPoints = 2, trendFootnote,
-  expanded, onToggle, rangeDays, onRangeChange
+  expanded, onToggle, rangeDays, onRangeChange, format, axisFormat, yTicks
 }: BiometricTrendCardProps) {
-  const visibleData = trend.slice(-rangeDays);
-  const nonNullCount = visibleData.filter(d => d.value !== null).length;
-  const showBuilding = isTrackable && nonNullCount < minPoints;
+  const show = format ?? formatValue;
+  const visibleData = trend.slice(-rangeDays).map(d => (hasReading(d) ? d : { ...d, value: null }));
+  const realPoints = visibleData.filter(hasReading);
+  const realPointCount = realPoints.length;
+  const showBuilding = isTrackable && realPointCount < minPoints;
   const gradientId = `btc-grad-${title.replace(/[^a-zA-Z0-9]/g, '')}`;
   let lastRealIndex = -1;
   visibleData.forEach((d, i) => { if (d.value !== null) lastRealIndex = i; });
-  const realPointCount = visibleData.filter(d => d.value !== null).length;
   const statusColor = STATUS_COLORS[status] || 'var(--ink-3)';
   const hasChart = isTrackable && !showBuilding;
+
+  // Tap a day on the open chart to read it; otherwise the latest day is the one shown.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const pickedIndex = pickedDate ? visibleData.findIndex(d => d.date === pickedDate && d.value !== null) : -1;
+  const selectedIndex = expanded && pickedIndex >= 0 ? pickedIndex : lastRealIndex;
+  const selected = selectedIndex >= 0 ? visibleData[selectedIndex] : null;
+  const average = realPointCount >= 2 ? realPoints.reduce((sum, d) => sum + (d.value ?? 0), 0) / realPointCount : null;
+  const onChartTap = (event: MouseEvent<HTMLDivElement>) => {
+    if (!expanded) return;
+    const index = dayAtTap(event, visibleData.length, chartType);
+    if (index !== null && visibleData[index]?.value !== null) setPickedDate(visibleData[index].date);
+  };
 
   return (
     <div className={`btc-card ${expanded ? 'btc-open' : ''}`} style={{ ['--metric' as string]: color }}>
@@ -113,10 +160,18 @@ export default function BiometricTrendCard({
       ) : showBuilding ? (
         <p className="btc-empty">{buildingMessage || 'Building your trend — check back in a few days.'}</p>
       ) : (
-        <div className="btc-chart-wrap" style={{ height: expanded ? 200 : 52 }}>
+        <>
+        {expanded && selected && selected.value !== null && (
+          <div className="btc-readout" aria-live="polite">
+            <strong>{show(selected.value)}<small>{unit || (title === 'Steps' ? ' steps' : '')}</small></strong>
+            <span>{selectedIndex === lastRealIndex ? `Latest · ${selected.label}` : selected.label}
+              {average !== null && ` · ${rangeDays}-day average ${show(Math.round(average))}${unit}`}</span>
+          </div>
+        )}
+        <div className="btc-chart-wrap" style={{ height: expanded ? 200 : 52 }} onClick={onChartTap}>
           <ResponsiveContainer width="100%" height="100%">
             {chartType === 'bar' ? (
-              <BarChart data={visibleData} margin={{ top: 4, right: expanded ? 8 : 0, left: 0, bottom: 0 }}>
+              <BarChart data={visibleData} margin={{ top: 4, right: expanded ? PLOT_RIGHT : 0, left: 0, bottom: 0 }} accessibilityLayer={false}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" style={{ stopColor: color, stopOpacity: 1 }} />
@@ -125,16 +180,18 @@ export default function BiometricTrendCard({
                 </defs>
                 {expanded && <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />}
                 {expanded && <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />}
-                {expanded && <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={36} />}
-                {expanded && <Tooltip cursor={{ fill: 'var(--surface-2)' }} contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}${unit}`, title]} />}
+                <YAxis hide={!expanded} tick={AXIS_TICK} axisLine={false} tickLine={false} width={PLOT_LEFT}
+                  domain={yTicks ? [0, Math.max(...yTicks)] : [0, niceCeil]} ticks={yTicks} tickCount={yTicks ? undefined : 4}
+                  tickFormatter={axisFormat ?? formatValue} />
+                {expanded && average !== null && <ReferenceLine y={average} stroke="var(--ink-3)" strokeDasharray="4 4" strokeOpacity={0.7} />}
                 <Bar dataKey="value" fill={`url(#${gradientId})`} radius={[5, 5, 2, 2]} animationDuration={700} animationEasing="ease-out" maxBarSize={28}>
                   {visibleData.map((d, i) => (
-                    <Cell key={d.date} fillOpacity={d.value === null ? 0 : i === lastRealIndex ? 1 : 0.4} />
+                    <Cell key={d.date} fillOpacity={d.value === null ? 0 : i === selectedIndex ? 1 : expanded ? 0.28 : 0.4} />
                   ))}
                 </Bar>
               </BarChart>
             ) : (
-              <AreaChart data={visibleData} margin={{ top: 6, right: expanded ? 8 : 0, left: 0, bottom: 0 }}>
+              <AreaChart data={visibleData} margin={{ top: 6, right: expanded ? PLOT_RIGHT : 0, left: 0, bottom: 0 }} accessibilityLayer={false}>
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.3 }} />
@@ -143,8 +200,10 @@ export default function BiometricTrendCard({
                 </defs>
                 {expanded && <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />}
                 {expanded && <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />}
-                {expanded && <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={36} domain={['auto', 'auto']} />}
-                {expanded && <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => [`${v}${unit}`, title]} />}
+                {expanded && <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={PLOT_LEFT} domain={['auto', 'auto']} tickFormatter={formatValue} />}
+                {/* a hairline down to the selected day */}
+                {expanded && selected && <ReferenceLine x={selected.label} stroke={color} strokeOpacity={0.35} strokeWidth={1} />}
+                {expanded && average !== null && <ReferenceLine y={average} stroke="var(--ink-3)" strokeDasharray="4 4" strokeOpacity={0.7} />}
                 <Area
                   type="monotone"
                   dataKey="value"
@@ -155,13 +214,14 @@ export default function BiometricTrendCard({
                   animationDuration={800}
                   animationEasing="ease-out"
                   // one day of data draws no line, so show that day as a dot instead of an empty chart
-                  dot={expanded || realPointCount === 1 ? makeTodayDot(color, lastRealIndex) : false}
-                  activeDot={expanded ? { r: 5, fill: color, stroke: 'var(--surface)', strokeWidth: 2 } : false}
+                  dot={expanded || realPointCount === 1 ? makeTodayDot(color, selectedIndex) : false}
+                  activeDot={false}
                 />
               </AreaChart>
             )}
           </ResponsiveContainer>
         </div>
+        </>
       )}
 
       {expanded && (
@@ -175,11 +235,12 @@ export default function BiometricTrendCard({
 
           {hasChart && (
             <div className="btc-daily-list">
-              {visibleData.map(d => (
-                <div key={d.date} className="btc-daily-row">
+              {visibleData.map((d, i) => (
+                <button type="button" key={d.date} disabled={d.value === null} onClick={() => setPickedDate(d.date)}
+                  className={`btc-daily-row${i === selectedIndex ? ' is-selected' : ''}`}>
                   <span>{d.label}</span>
-                  <span>{d.value !== null ? `${d.value}${unit}` : '—'}</span>
-                </div>
+                  <span>{d.value !== null ? `${show(d.value)}${unit}` : '—'}</span>
+                </button>
               ))}
             </div>
           )}
@@ -257,7 +318,9 @@ export default function BiometricTrendCard({
         .btc-chevron { color: var(--ink-4); display: grid; transition: transform var(--dur) var(--ease-out); }
         .btc-open .btc-chevron { transform: rotate(180deg); }
         .btc-empty { font-size: 13px; color: var(--ink-3); margin: 10px 0 0 50px; line-height: 1.5; }
-        .btc-chart-wrap { margin-top: 10px; transition: height var(--dur) var(--ease-out); }
+        .btc-chart-wrap { margin-top: 10px; transition: height var(--dur) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+        /* a tap must never leave the browser's focus ring around the plot (days are keyboard-reachable in the list below) */
+        .btc-chart-wrap :focus { outline: none; }
         .btc-details { animation: kx-rise var(--dur) var(--ease-out) both; }
         .btc-range-toggle {
           display: inline-flex; gap: 2px; margin-top: 12px; padding: 3px;
@@ -271,10 +334,21 @@ export default function BiometricTrendCard({
         }
         .btc-range-toggle button.btc-range-active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
         .btc-daily-list { display: flex; flex-direction: column; margin-top: 10px; max-height: 164px; overflow-y: auto; }
+        .btc-readout { display: flex; flex-direction: column; gap: 1px; margin: 12px 0 -2px; }
+        .btc-readout strong { font-size: 24px; font-weight: 750; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.1; }
+        .btc-readout small { font-size: 13px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
+        .btc-readout span { font-size: 12px; color: var(--ink-3); }
+        .btc-chart-wrap .recharts-surface { cursor: default; }
+        .btc-open .btc-chart-wrap .recharts-surface { cursor: pointer; }
         .btc-daily-row {
+          all: unset; box-sizing: border-box;
           display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2);
-          padding: 6px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+          padding: 6px 8px; margin: 0 -8px; width: calc(100% + 16px); border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+          border-radius: 8px; cursor: pointer;
         }
+        .btc-daily-row:disabled { cursor: default; color: var(--ink-3); }
+        .btc-daily-row.is-selected { background: color-mix(in srgb, var(--metric) 12%, transparent); color: var(--ink); font-weight: 650; border-bottom-color: transparent; }
+        .btc-daily-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
         .btc-daily-row:last-child { border-bottom: none; }
         .btc-footnote { font-size: 12px; color: var(--ink-3); margin: 10px 0 0 0; line-height: 1.5; }
         .btc-behavior { font-size: 13px; color: var(--ink-2); margin: 10px 0 0 0; line-height: 1.5; }

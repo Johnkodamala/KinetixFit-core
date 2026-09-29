@@ -3,6 +3,7 @@
 // (via Upstash) tracks which codes have already been redeemed so each one works exactly once.
 import { Redis } from '@upstash/redis';
 import { handleCors } from './_lib/cors.js';
+import { ENTITLEMENT_ID, clearPlusCache } from './_lib/plus.js';
 
 const redis = Redis.fromEnv();
 
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}/entitlements/KinetixFit Pro/promotional`,
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}/entitlements/${encodeURIComponent(ENTITLEMENT_ID)}/promotional`,
       {
         method: 'POST',
         headers: {
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
 
     await redis.set(usedKey, JSON.stringify({ appUserId, redeemedAt: new Date().toISOString() }));
 
+    await clearPlusCache(appUserId);
     return res.status(200).json({ success: true, tier });
   } catch (error) {
     return res.status(500).json({ error: 'Promo redemption failed', details: error.message });

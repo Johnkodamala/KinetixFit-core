@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Steps, short (2x1 / 4x1): the ring with the % inside | count + goal. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true"
+    android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp">
+    <FrameLayout android:layout_width="wrap_content" android:layout_height="match_parent">
+        <ImageView android:id="@+id/ring" android:layout_width="wrap_content" android:layout_height="match_parent"
+        android:adjustViewBounds="true" android:scaleType="fitCenter" android:src="@drawable/widget_preview_ring_steps" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/percent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+            android:text="62%" android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" />
+    </FrameLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:layout_marginStart="12dp" android:layout_marginEnd="8dp" android:orientation="vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="STEPS" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:letterSpacing="0.12"
+            android:textColor="#FF5B8CFF" android:maxLines="1" />
+        <ImageView android:id="@+id/steps" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" />
+        <TextView android:id="@+id/goal" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 12,000" android:textSize="11sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KinetixFit today (4x2): TODAY + date + today's water, then three equal columns — steps, calories left, quests —
+     each a number, a label and a progress bar on the same lines; last updated. TodayWidget.java sizes it (quests hidden
+     when narrow; bars and "updated" hidden when short). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true"
+    android:orientation="vertical" android:padding="16dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TODAY" android:textSize="11sp"
+            android:fontFamily="@font/kx_text_bold" android:letterSpacing="0.14" android:textColor="#FFFF6A3D" />
+        <TextView android:id="@+id/date" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="Sun 27 Sep" android:textSize="12sp" android:fontFamily="@font/kx_text"
+            android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/widget_status_pill"
+            android:paddingHorizontal="9dp" android:paddingVertical="3dp" android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:layout_width="12dp" android:layout_height="12dp" android:src="@drawable/ic_widget_drop"
+                android:tint="@color/kx_glass_water" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/next_sip" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="4dp" android:text="750 ml" android:textSize="12sp" android:fontFamily="@font/kx_text_bold"
+                android:textColor="@color/kx_glass_water" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="horizontal" android:gravity="center_vertical" android:baselineAligned="false">
+        <LinearLayout android:id="@+id/steps_col" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginEnd="14dp"
+            android:orientation="vertical">
+            <ImageView android:id="@+id/steps" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" />
+            <TextView android:id="@+id/steps_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="1dp" android:text="steps" android:textSize="11sp" android:fontFamily="@font/kx_text"
+                android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            <ImageView android:id="@+id/steps_bar" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/kcal_col" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginEnd="14dp"
+            android:orientation="vertical">
+            <ImageView android:id="@+id/kcal" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" />
+            <TextView android:id="@+id/kcal_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="1dp" android:text="kcal left" android:textSize="11sp" android:fontFamily="@font/kx_text"
+                android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            <ImageView android:id="@+id/kcal_bar" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/quests_col" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <ImageView android:id="@+id/quests" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" />
+            <TextView android:id="@+id/quests_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="1dp" android:text="quests" android:textSize="11sp" android:fontFamily="@font/kx_text"
+                android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            <ImageView android:id="@+id/quests_bar" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView android:id="@+id/updated" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="Open Kinetix Fit to update" android:textSize="10sp" android:fontFamily="@font/kx_text"
+        android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+</LinearLayout>

@@ -4,6 +4,8 @@ import type { UserProfile } from '../App';
 import { ChoiceCards, MeasureField, Segmented, SheetRow, type Choice } from './Pickers';
 import { HeartIcon, SleepIcon, TrendDownIcon, TrendUpIcon } from './Icons';
 import { REGIONS, regionById } from '../lib/regions';
+import { COUNTRIES, countryOf, detectCountry, type CountryCode } from '../lib/countries';
+import { useEffect } from 'react';
 import { localDayKey } from '../lib/dates';
 import type { GoalSuggestion } from '../lib/bmi';
 
@@ -31,6 +33,7 @@ const GOAL_OPTIONS: Choice<UserProfile['target']>[] = [
   { value: 'Autonomic Recovery', label: 'Recover better', icon: <SleepIcon /> },
 ];
 
+const COUNTRY_OPTIONS: Choice<string>[] = COUNTRIES.map(c => ({ value: c.code, label: `${c.flag}  ${c.name}` }));
 const REGION_OPTIONS: Choice<string>[] = REGIONS.map(r => ({ value: r.id, label: r.name }));
 
 const HEIGHT = { min: 120, max: 230, step: 1, labelEvery: 10, unit: 'cm' };
@@ -39,6 +42,50 @@ const AGE = { min: 13, max: 100, step: 1, labelEvery: 10, unit: 'years' };
 const CYCLE = { min: 20, max: 45, step: 1, labelEvery: 5, unit: 'days' };
 
 const labelOf = <T,>(options: Choice<T>[], value: T) => options.find(o => o.value === value)?.label ?? '';
+
+// US: height in feet and inches, weight in pounds. The profile always stores cm and kg.
+const CM_PER_IN = 2.54;
+const LB_PER_KG = 2.20462;
+const feetInches = (inches: number) => `${Math.floor(inches / 12)} ft ${inches % 12} in`;
+const heightText = (p: UserProfile) =>
+  countryOf(p).units === 'us' ? feetInches(Math.round(p.height / CM_PER_IN)) : `${p.height} cm`;
+const weightText = (p: UserProfile) =>
+  countryOf(p).units === 'us' ? `${Math.round(p.weight * LB_PER_KG)} lb` : `${p.weight.toFixed(1)} kg`;
+
+function HeightField({ profile, onChange }: { profile: UserProfile; onChange: Patch }) {
+  if (countryOf(profile).units !== 'us') {
+    return <MeasureField label="Height" value={profile.height} {...HEIGHT} onChange={height => onChange({ height })} />;
+  }
+  const inches = Math.round(profile.height / CM_PER_IN);
+  return (
+    <MeasureField label="Height" value={inches} min={48} max={90} step={1} labelEvery={12} unit="in" caption={feetInches(inches)}
+      onChange={v => onChange({ height: Math.round(v * CM_PER_IN * 10) / 10 })} />
+  );
+}
+
+function WeightField({ profile, onChange }: { profile: UserProfile; onChange: Patch }) {
+  if (countryOf(profile).units !== 'us') {
+    return <MeasureField label="Weight" value={profile.weight} {...WEIGHT} onChange={weight => onChange({ weight })} />;
+  }
+  return (
+    <MeasureField label="Weight" value={Math.round(profile.weight * LB_PER_KG)} min={66} max={550} step={1} labelEvery={10} unit="lb"
+      onChange={v => onChange({ weight: Math.round((v / LB_PER_KG) * 10) / 10 })} />
+  );
+}
+
+/** Country, then (UK only) the region, which picks the "Did you know?" fact. */
+function CountryChoice({ profile, onChange }: { profile: UserProfile; onChange: Patch }) {
+  return (
+    <>
+      <ChoiceCards label="Where are you based?" options={COUNTRY_OPTIONS} value={profile.country ?? ''}
+        onChange={code => onChange({ country: code as CountryCode, region: code === 'GB' ? profile.region : null })} columns={2} compact />
+      {profile.country === 'GB' && (
+        <ChoiceCards label="Which part of the UK? (optional)" options={REGION_OPTIONS} value={profile.region ?? ''}
+          onChange={region => onChange({ region })} columns={2} compact />
+      )}
+    </>
+  );
+}
 const todayIso = () => localDayKey();
 
 function NameInput({ profile, onChange, className }: { profile: UserProfile; onChange: Patch; className: string }) {
@@ -70,16 +117,22 @@ function PeriodDateInput({ profile, onChange, className }: { profile: UserProfil
   );
 }
 
-/** Onboarding screen 1: name + region */
+/** Onboarding screen 1: name + country (the phone's own region is preselected when it's one we support) */
 export function NameRegionFields({ profile, onChange }: { profile: UserProfile; onChange: Patch }) {
+  useEffect(() => {
+    if (profile.country) return;
+    const detected = detectCountry() ?? (profile.region && profile.region !== 'outside_uk' ? 'GB' : null);
+    if (detected) onChange({ country: detected });
+    // only on first show
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="kx-form">
       <label className="kx-field">
         <span className="kx-field-label">Your name</span>
         <NameInput profile={profile} onChange={onChange} className="auth-input" />
       </label>
-      <ChoiceCards label="Where are you based?" options={REGION_OPTIONS} value={profile.region ?? ''}
-        onChange={region => onChange({ region })} columns={2} compact />
+      <CountryChoice profile={profile} onChange={onChange} />
     </div>
   );
 }
@@ -99,8 +152,8 @@ export function BodyFields({ profile, onChange }: { profile: UserProfile; onChan
         </>
       )}
       <MeasureField label="Age" value={profile.age} {...AGE} onChange={age => onChange({ age })} />
-      <MeasureField label="Height" value={profile.height} {...HEIGHT} onChange={height => onChange({ height })} />
-      <MeasureField label="Weight" value={profile.weight} {...WEIGHT} onChange={weight => onChange({ weight })} />
+      <HeightField profile={profile} onChange={onChange} />
+      <WeightField profile={profile} onChange={onChange} />
     </div>
   );
 }
@@ -137,12 +190,20 @@ export function ProfileSettingsList({ profile, onChange }: { profile: UserProfil
         <NameInput profile={profile} onChange={onChange} className="kx-row-field" />
       </label>
 
-      <SheetRow label="Region" value={regionById(profile.region)?.name ?? 'Not set'} sheetTitle="Where are you based?">
+      <SheetRow label="Country" value={countryOf(profile).name} sheetTitle="Where are you based?">
         {close => (
-          <ChoiceCards label="Region" hideLabel options={REGION_OPTIONS} value={profile.region ?? ''} columns={2} compact
-            onChange={region => pickThenClose(() => onChange({ region }), close)} />
+          <ChoiceCards label="Country" hideLabel options={COUNTRY_OPTIONS} value={countryOf(profile).code} columns={2} compact
+            onChange={code => pickThenClose(() => onChange({ country: code as CountryCode, region: code === 'GB' ? profile.region : null }), close)} />
         )}
       </SheetRow>
+      {countryOf(profile).code === 'GB' && (
+        <SheetRow label="Region" value={regionById(profile.region)?.name ?? 'Not set'} sheetTitle="Which part of the UK?">
+          {close => (
+            <ChoiceCards label="Region" hideLabel options={REGION_OPTIONS} value={profile.region ?? ''} columns={2} compact
+              onChange={region => pickThenClose(() => onChange({ region }), close)} />
+          )}
+        </SheetRow>
+      )}
 
       <SheetRow label="Sex" value={labelOf(SEX_OPTIONS, profile.sex)}>
         {close => (
@@ -167,11 +228,11 @@ export function ProfileSettingsList({ profile, onChange }: { profile: UserProfil
       <SheetRow label="Age" value={`${profile.age}`}>
         {() => <MeasureField label="Age" value={profile.age} {...AGE} onChange={age => onChange({ age })} />}
       </SheetRow>
-      <SheetRow label="Height" value={`${profile.height} cm`}>
-        {() => <MeasureField label="Height" value={profile.height} {...HEIGHT} onChange={height => onChange({ height })} />}
+      <SheetRow label="Height" value={heightText(profile)}>
+        {() => <HeightField profile={profile} onChange={onChange} />}
       </SheetRow>
-      <SheetRow label="Weight" value={`${profile.weight.toFixed(1)} kg`}>
-        {() => <MeasureField label="Weight" value={profile.weight} {...WEIGHT} onChange={weight => onChange({ weight })} />}
+      <SheetRow label="Weight" value={weightText(profile)}>
+        {() => <WeightField profile={profile} onChange={onChange} />}
       </SheetRow>
       <SheetRow label="Activity" value={labelOf(ACTIVITY_OPTIONS, profile.activityLevel)} sheetTitle="How active are you?">
         {close => (

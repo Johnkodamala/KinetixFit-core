@@ -50,6 +50,7 @@
 }
 .kx-measure-input[aria-invalid] { color: var(--danger); }
 .kx-measure-unit { font-size: 16px; font-weight: 600; color: var(--ink-3); }
+.kx-measure-caption { margin-left: 10px; font-size: 15px; font-weight: 650; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 .kx-ruler { position: relative; height: 58px; margin: 4px -16px 0; }
 .kx-ruler-scroll {
@@ -392,3 +393,12 @@
 @media (max-width: 599px) {
   .ob-sticky-cta { box-shadow: 0 -12px 12px 2px var(--bg); }
 }
+
+/* --- Allergies (src/components/AllergyPicker.tsx): label allergens as chips, anything else typed in ---------------- */
+.kx-allergies { display: flex; flex-direction: column; gap: 12px; }
+.kx-chip.kx-chip-typed { display: inline-flex; align-items: center; gap: 6px; padding-right: 10px; }
+.kx-chip.kx-chip-typed svg { flex: none; opacity: 0.75; }
+.kx-allergy-add { min-height: 48px; }
+.kx-allergy-add .kx-search-input { height: 36px; font-size: 15px; }
+.kx-allergy-add .kx-search-go { height: 36px; padding: 0 16px; }
+.kx-allergy-hint { margin: -2px 0 0; font-size: 13px; line-height: 1.45; color: var(--ink-3); }

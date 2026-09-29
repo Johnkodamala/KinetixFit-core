@@ -2,4 +2,5 @@
 <resources>
     <!-- Dark-theme app background: matches the dark bg token in src/index.css -->
     <color name="kx_app_bg">#0F1116</color>
+    <color name="kx_widget_water">#4FD1E8</color>
 </resources>

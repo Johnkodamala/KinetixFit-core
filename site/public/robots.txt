@@ -1,0 +1,10 @@
+# kinetixfit.co.uk: the website is for everyone; the web app, the API and one-off pages aren't for search results.
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /api/
+Disallow: /admin-donate.html
+Disallow: /donate/
+Disallow: /email-confirmed
+
+Sitemap: https://www.kinetixfit.co.uk/sitemap.xml

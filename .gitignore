@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-web
 dist-ssr
 *.local
 
@@ -49,3 +50,4 @@ ios/App/App.xcodeproj/xcuserdata
 .vercel
 .env*
 !.env.example
+scripts/food-table/usda/

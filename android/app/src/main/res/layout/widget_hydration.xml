@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Water bottle, standard (about 2x2), liquid glass: header, the count + amount + next reminder beside a bottle that fills the height, a glossy Add a glass. HydrationWidget.java picks this, _small or _wide for the exact size. Also the picker preview. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="16dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip"
+            android:padding="5dp" android:src="@drawable/ic_widget_drop" android:tint="@color/kx_glass_water" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="WATER" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:layout_marginTop="6dp" android:orientation="horizontal">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+            android:orientation="vertical" android:gravity="bottom">
+        <TextView android:id="@+id/count_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="750 ml" android:textSize="34sp" android:textStyle="bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <ImageView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" android:visibility="gone" />
+        <TextView android:id="@+id/sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 2 L" android:textSize="13sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        <TextView android:id="@+id/next" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:background="@drawable/widget_status_pill" android:paddingHorizontal="9dp"
+            android:paddingVertical="3dp" android:text="Next 17:00" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:textColor="@color/kx_glass_water" android:maxLines="1" />
+        </LinearLayout>
+        <ImageView android:id="@+id/bottle" android:layout_width="wrap_content" android:layout_height="match_parent"
+            android:layout_marginStart="6dp" android:adjustViewBounds="true" android:scaleType="fitEnd"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+    <TextView android:id="@+id/add_glass" android:layout_width="match_parent" android:layout_height="42dp"
+        android:layout_marginTop="12dp" android:background="@drawable/widget_btn_water" android:gravity="center"
+        android:text="+  Add a glass" android:textSize="14sp" android:fontFamily="@font/kx_text_bold"
+        android:textColor="#FFFFFFFF" android:maxLines="1" android:contentDescription="Add a glass of water" />
+</LinearLayout>

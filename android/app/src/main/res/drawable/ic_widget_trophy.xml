@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Trophy (My stats) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M8,21h8M12,17v4M7,4h10v5a5,5 0 0 1 -10,0zM7,6H4.5a2.5,2.5 0 0 0 2.6,3.5M17,6h2.5a2.5,2.5 0 0 1 -2.6,3.5" />
+</vector>

@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en-GB" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Sign-in and password-reset links (Supabase puts tokens or an error in the address) and old bookmarks of the
+         web app (#nourish, #account/…) belong to the app, which lives at /app/ now that the website has its own home.
+         Runs before anything paints. #rewards stays here: it's this page's Rewards section. Tested in forward.test.ts. -->
+    <script data-forward>
+      (function (l) {
+        var h = l.hash, s = l.search;
+        if (/(^#|&)(access_token|refresh_token|error_code|error_description|error)=/.test(h) ||
+            /[#&?]type=recovery(&|$)/.test(h + s) ||
+            /(^\?|&)(code|error_code|error)=/.test(s) ||
+            /^#(vitals|nourish|account|profile|hub)(\/|$)/.test(h)) {
+          l.replace('/app/' + s + h);
+        }
+      })(location);
+    </script>
+    <script>
+      document.documentElement.className = document.documentElement.className.replace('no-js', 'js');
+    </script>
+    <!-- The opening animation (src/site/intro.ts) plays once per visit: not for a link to a section, never with reduced
+         motion, and only where the page's scripts can run it. Decided before the first paint, so the page opens straight
+         onto the track with no flash of the page first. The web app at /app/ reads the same flag, so someone who goes on
+         to log in doesn't sit through it twice. -->
+    <script>
+      (function (w, d) {
+        try {
+          if (w.sessionStorage.getItem('kx_intro_seen') || w.location.hash ||
+              !('noModule' in d.createElement('script')) ||
+              w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+          d.documentElement.setAttribute('data-intro', 'run');
+        } catch (e) { /* storage blocked: no intro */ }
+      })(window, document);
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Kinetix Fit | The fitness app that rewards consistency</title>
+    <meta name="description" content="A UK fitness and nutrition app that turns steady, everyday progress (steps, sleep, better meals) into real rewards, like your next coffee." />
+    <link rel="canonical" href="https://www.kinetixfit.co.uk/" />
+    <meta name="theme-color" content="#F3F4F0" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon-180.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kinetix Fit" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:url" content="https://www.kinetixfit.co.uk/" />
+    <meta property="og:title" content="Kinetix Fit: small wins, real rewards" />
+    <meta property="og:description" content="The UK fitness app that turns steady, everyday progress into real rewards, like your next coffee. Coming soon to iPhone and Android." />
+    <meta property="og:image" content="https://www.kinetixfit.co.uk/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Kinetix Fit. Small wins. Real rewards." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kinetix Fit: small wins, real rewards" />
+    <meta name="twitter:description" content="The UK fitness app that turns steady, everyday progress into real rewards, like your next coffee." />
+    <meta name="twitter:image" content="https://www.kinetixfit.co.uk/og-image.png" />
+
+    <link rel="preload" href="/node_modules/@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/node_modules/@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.kinetixfit.co.uk/#organization",
+            "name": "Kinetix Fit",
+            "legalName": "JN Global Ventures LTD",
+            "url": "https://www.kinetixfit.co.uk/",
+            "logo": "https://www.kinetixfit.co.uk/favicon-180.png",
+            "email": "info@kinetixfit.co.uk",
+            "address": { "@type": "PostalAddress", "addressLocality": "Sheffield", "addressCountry": "GB" }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.kinetixfit.co.uk/#website",
+            "url": "https://www.kinetixfit.co.uk/",
+            "name": "Kinetix Fit",
+            "inLanguage": "en-GB",
+            "publisher": { "@id": "https://www.kinetixfit.co.uk/#organization" }
+          },
+          {
+            "@type": "MobileApplication",
+            "name": "Kinetix Fit",
+            "operatingSystem": "iOS, Android",
+            "applicationCategory": "HealthApplication",
+            "description": "A UK fitness and nutrition app that turns steady, everyday progress into real rewards.",
+            "publisher": { "@id": "https://www.kinetixfit.co.uk/#organization" }
+          }
+        ]
+      }
+    </script>
+    <script type="module" src="/src/site/main.ts"></script>
+  </head>
+  <body>
+    <!-- The opening animation: hidden unless <html data-intro="run"> (set in the head) and the CSS show it; first in the
+         page so the first paint already has it. Five lanes draw in, the mark runs a lap, the wordmark widens, then the lanes sprint
+         off to the right (site.css → Intro; src/site/intro.ts times the exit and lets a tap, key or scroll skip it). -->
+    <div class="intro" aria-hidden="true" hidden data-intro-overlay>
+      <span class="intro__lane" style="--lane: 0"></span>
+      <span class="intro__lane" style="--lane: 1"></span>
+      <span class="intro__lane" style="--lane: 2"></span>
+      <span class="intro__lane" style="--lane: 3"></span>
+      <span class="intro__lane" style="--lane: 4"></span>
+      <div class="intro__brand">
+        <svg class="intro__mark" viewBox="-6 -6 112 62" fill="none">
+          <path class="intro__trace" pathLength="1" d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z"/>
+          <path class="intro__runner" pathLength="1" d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z"/>
+        </svg>
+        <span class="intro__word">KINETIX FIT</span>
+      </div>
+    </div>
+
+    <!-- Icon set: the app's own stroke icons (src/components/Icons.tsx), drawn on a 24px grid -->
+    <svg class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-steps" viewBox="0 0 24 24"><path d="M8.5 3.5c1.7 0 2.7 1.9 2.4 4.4-.2 1.6-.9 2.9-2.2 3.1-1.4.2-2.4-1-2.6-2.8C5.8 5.6 6.8 3.5 8.5 3.5Z"/><path d="M6.6 13.6 10.8 13l.3 2.4c.2 1.4-.7 2.6-2 2.7-1.2.2-2.2-.7-2.4-1.9Z"/><path d="M15.5 6.5c1.7 0 2.7 2.1 2.4 4.6-.2 1.8-1.2 3-2.6 2.8-1.3-.2-2-1.5-2.2-3.1-.3-2.5.7-4.3 2.4-4.3Z"/><path d="M13.2 16.1 17.4 16.7l-.4 2.4c-.2 1.2-1.2 2.1-2.4 1.9-1.3-.1-2.2-1.3-2-2.7Z"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.4-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.6 12 20 12 20Z"/><path d="M7 12h2.4l1.3-2.4 2 4.6 1.4-2.2H17"/></symbol>
+      <symbol id="i-sleep" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 1 1 9.4 4.5a6.3 6.3 0 0 0 10.1 10.1Z"/><path d="M15 4h3l-3 3.4h3"/></symbol>
+      <symbol id="i-bowl" viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M7 21h10"/><path d="M12 7c0-2 1.5-3.5 3.5-4"/><path d="M9 7.5c-.5-1.5-.2-3 .8-4"/></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+      <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+      <symbol id="i-cycle" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-3.1-6.6"/><path d="m17.8 2.8.2 3-3 .3"/><path d="M12 8.2c1.6 2 2.6 3.5 2.6 4.8a2.6 2.6 0 0 1-5.2 0c0-1.3 1-2.8 2.6-4.8Z"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.3l1.4-2h5.6l1.4 2h1.3A2.5 2.5 0 0 1 20 8.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5Z"/><circle cx="12" cy="12.5" r="3.5"/></symbol>
+      <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9.5a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4s2-1.5 2-6.5Z"/><path d="M10 19.5a2.2 2.2 0 0 0 4 0"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h3.5l2-5 3 10 2.5-7 1.5 2H21"/></symbol>
+      <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.5c3.4 4.2 6 7.7 6 10.8a6 6 0 0 1-12 0c0-3.1 2.6-6.6 6-10.8Z"/><path d="M9.2 14.6a2.9 2.9 0 0 0 2.6 2.6"/></symbol>
+      <symbol id="i-widget" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="17" height="7" rx="2"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14"/><path d="M5 19c2.5-3.5 5-6 9-8.5"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.5c0 4.4-3 7.6-7 9-4-1.4-7-4.6-7-9V6Z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+      <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 8h16"/><path d="M4 16h16"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7.5 8 5.5 8-5.5"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.8"/><path d="M10.5 18.5h3"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/></symbol>
+      <symbol id="i-whatsapp" viewBox="0 0 24 24"><path d="M4.5 19.5 5.6 16A7.9 7.9 0 1 1 8.4 18.6Z"/><path d="M9.3 8.6c.2-.4.5-.5.8-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.2 0 .5-.1.7l-.5.6c.6 1.2 1.6 2.1 2.8 2.7l.6-.6c.2-.2.4-.2.7-.1l1.6.7c.3.1.4.3.4.5v.5c0 .3-.2.6-.5.8-.6.4-1.4.5-2.3.2a8.3 8.3 0 0 1-5.1-5.1c-.3-.9-.2-1.7.2-2.4Z"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M4.5 4.5h4l11 15h-4Z"/><path d="M19 4.5 13.3 10.8M10.7 13.2 5 19.5"/></symbol>
+      <symbol id="i-linkedin" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V16M8 7.8v.01M11.5 16v-3.2c0-1.4.9-2.3 2.1-2.3s1.9.9 1.9 2.3V16M11.5 10.5V16"/></symbol>
+      <symbol id="i-facebook" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8"/><path d="M13.4 20.7V11c0-1.9.9-2.8 2.7-2.8h.9"/><path d="M10.4 13.2h5.4"/></symbol>
+      <symbol id="i-heart-hand" viewBox="0 0 24 24"><path d="M12 13.2s-4.6-2.7-4.6-6.2a2.6 2.6 0 0 1 4.6-1.6A2.6 2.6 0 0 1 16.6 7c0 3.5-4.6 6.2-4.6 6.2Z"/><path d="M3 15.5h3.3l3.4 1.2h3.1a1.5 1.5 0 0 1 0 3H9.5"/><path d="M12.8 19.7h3.7l4.2-3.2a1.4 1.4 0 0 0-1.8-2.2l-2.6 1.7"/></symbol>
+      <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4.5 9h12v5.5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5Z"/><path d="M16.5 10.5h1.2a2.3 2.3 0 0 1 0 4.6h-1.5"/><path d="M8.5 3.5c-.6.9-.6 1.6 0 2.5M12 3.5c-.6.9-.6 1.6 0 2.5"/></symbol>
+      <symbol id="i-infinity" viewBox="0 0 100 50"><path d="M25 45C35 45 45 35 50 25C55 15 65 5 75 5C85 5 95 15 95 25C95 35 85 45 75 45C65 45 55 35 50 25C45 15 35 5 25 5C15 5 5 15 5 25C5 35 15 45 25 45Z"/></symbol>
+      <!-- the app's tab bar (App.tsx) and a few of its card icons -->
+      <symbol id="i-today" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+      <symbol id="i-medal" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.5 13.2 17 22l-5-3-5 3 1.5-8.8"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-recovery" viewBox="0 0 24 24"><path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"/><path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1"/><path d="m11 7-3 5h4l-3 5"/><path d="M22 11v2"/></symbol>
+      <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.6A8.2 8.2 0 1 1 9.4 4a6.6 6.6 0 0 0 10.6 10.6Z"/></symbol>
+      <!-- The home-screen widgets' own symbols (filled, like the SF Symbols the iPhone widgets use) and ring colours -->
+      <symbol id="kw-drop" viewBox="0 0 24 24"><path d="M12 2.6c3.7 4.5 6.5 8.2 6.5 11.7a6.5 6.5 0 0 1-13 0c0-3.5 2.8-7.2 6.5-11.7Z"/></symbol>
+      <symbol id="kw-flame" viewBox="0 0 24 24"><path d="M13.2 2.1c.4 3.3 2.4 5.2 4.1 7.1 1.4 1.6 2.5 3.4 2.5 5.8a7.8 7.8 0 0 1-15.6.2c0-2.6 1.2-4.6 2.9-6.1-.1 2 .8 3.5 2.2 4.2-.6-4.6 1.4-8.1 3.9-11.2Z"/></symbol>
+      <symbol id="kw-walk" viewBox="0 0 24 24"><circle cx="13.8" cy="3.9" r="2.3"/><path d="M12 8.1 10.7 13.6M12 8.1 9 10l-.8 3M12 8.1l2.5 1.7.9 2.8 2.6 1.1M10.7 13.6l2.9 2.7.6 5.2M10.7 13.6l-1.5 3.8-3 3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="kw-plus" viewBox="0 0 24 24"><path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/></symbol>
+      <symbol id="kw-target" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9.2"/><circle cx="12" cy="12" r="5.1"/></g><circle cx="12" cy="12" r="1.8"/></symbol>
+      <symbol id="kw-trophy" viewBox="0 0 24 24"><path d="M6.6 2.8h10.8v1.6h3.4v2.4a4.7 4.7 0 0 1-4.2 4.7 5.4 5.4 0 0 1-3.3 2.9v2.4h2.9a1.3 1.3 0 0 1 1.3 1.3v2.9H6.5v-2.9a1.3 1.3 0 0 1 1.3-1.3h2.9v-2.4a5.4 5.4 0 0 1-3.3-2.9 4.7 4.7 0 0 1-4.2-4.7V4.4h3.4Zm-1.6 3.4v.6a2.5 2.5 0 0 0 1.6 2.3V6.2Zm12.4 0v2.9a2.5 2.5 0 0 0 1.6-2.3v-.6Z"/></symbol>
+      <symbol id="kw-camera" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M9.2 4h5.6l1.5 2.2h2.4A2.8 2.8 0 0 1 21.5 9v8.2a2.8 2.8 0 0 1-2.8 2.8H5.3a2.8 2.8 0 0 1-2.8-2.8V9a2.8 2.8 0 0 1 2.8-2.8h2.4ZM12 9.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/></symbol>
+      <symbol id="kw-code" viewBox="0 0 24 24"><path d="M3.5 8V5.8a2.3 2.3 0 0 1 2.3-2.3H8M16 3.5h2.2a2.3 2.3 0 0 1 2.3 2.3V8M20.5 16v2.2a2.3 2.3 0 0 1-2.3 2.3H16M8 20.5H5.8a2.3 2.3 0 0 1-2.3-2.3V16M8 8.5v7M10.7 8.5v7M13.3 8.5v7M16 8.5v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="kw-check" viewBox="0 0 24 24"><path d="m5 12.6 4.6 4.6L19.2 7.4" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="kw-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.3" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="m15.4 15.4 5.1 5.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+      <linearGradient id="kw-g-steps" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B8CFF" stop-opacity=".75"/><stop offset="1" stop-color="#5B8CFF"/></linearGradient>
+      <linearGradient id="kw-g-water" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2FC6E4" stop-opacity=".75"/><stop offset="1" stop-color="#2FC6E4"/></linearGradient>
+      <linearGradient id="kw-g-food" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF7A45" stop-opacity=".75"/><stop offset="1" stop-color="#FF7A45"/></linearGradient>
+      <linearGradient id="kw-g-ring-steps" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9C4FF"/><stop offset="1" stop-color="#3F7BFF"/></linearGradient>
+      <linearGradient id="kw-g-ring-water" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8BEBF8"/><stop offset="1" stop-color="#0E97C0"/></linearGradient>
+    </svg>
+
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header" data-header>
+      <div class="container site-header__inner">
+        <a class="brand" href="/" aria-label="Kinetix Fit home">
+          <svg class="brand__mark" viewBox="0 0 100 50" aria-hidden="true"><use href="#i-infinity"/></svg>
+          <span class="brand__word">Kinetix Fit</span>
+        </a>
+        <nav class="site-nav" aria-label="Main">
+          <ul class="site-nav__list">
+            <li><a class="site-nav__link" href="#why">Why Kinetix Fit</a></li>
+            <li><a class="site-nav__link" href="#features">Features</a></li>
+            <li><a class="site-nav__link" href="#rewards">Rewards</a></li>
+            <li><a class="site-nav__link" href="#how">How it works</a></li>
+            <li><a class="site-nav__link" href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <div class="site-header__actions">
+          <a class="site-header__login" href="/app/" data-app-link data-logged-in-text="Open the app">Log in</a>
+          <a class="btn btn--primary btn--small" href="#early-access">Get early access</a>
+          <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" data-menu-toggle>
+            <svg class="icon" aria-hidden="true"><use href="#i-menu"/></svg>
+            <span class="visually-hidden">Menu</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="mobile-menu" id="mobile-menu" role="dialog" aria-modal="true" aria-label="Menu" hidden data-menu>
+      <div class="mobile-menu__panel">
+        <div class="mobile-menu__top">
+          <span class="brand brand--static" aria-hidden="true">
+            <svg class="brand__mark" viewBox="0 0 100 50"><use href="#i-infinity"/></svg>
+            <span class="brand__word">Kinetix Fit</span>
+          </span>
+          <button class="menu-close" type="button" data-menu-close>
+            <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+            <span class="visually-hidden">Close menu</span>
+          </button>
+        </div>
+        <nav aria-label="Menu">
+          <ul class="mobile-menu__list">
+            <li><a href="#why">Why Kinetix Fit</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#rewards">Rewards</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <div class="mobile-menu__actions">
+          <a class="btn btn--primary btn--block" href="#early-access">Get early access</a>
+          <a class="btn btn--ghost btn--block" href="/app/" data-app-link data-logged-in-text="Open the app">Log in</a>
+        </div>
+      </div>
+    </div>
+
+    <main id="main" tabindex="-1">
+      <!-- ============================== Hero ============================== -->
+      <section class="hero" aria-labelledby="hero-title">
+        <svg class="hero__lanes" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" data-parallax="0.3">
+          <g class="lanes">
+            <path d="M -40 780 L 1040 780 A 280 280 0 0 0 1040 220 L -40 220" />
+            <path d="M -40 840 L 1040 840 A 340 340 0 0 0 1040 160 L -40 160" />
+            <path d="M -40 900 L 1040 900 A 400 400 0 0 0 1040 100 L -40 100" />
+            <path d="M -40 960 L 1040 960 A 460 460 0 0 0 1040 40 L -40 40" />
+            <path d="M -40 1020 L 1040 1020 A 520 520 0 0 0 1040 -20 L -40 -20" />
+          </g>
+          <path class="lanes__runner" pathLength="1" d="M -40 900 L 1040 900 A 400 400 0 0 0 1040 100 L -40 100" />
+        </svg>
+
+        <div class="container hero__grid">
+          <div class="hero__copy">
+            <p class="eyebrow hero__eyebrow">Made in the UK · Coming soon to iPhone and Android</p>
+            <h1 class="hero__title" id="hero-title">
+              <span class="hero__line hero__line--small">Small wins.</span>
+              <span class="hero__line hero__line--big" data-sprint><span>Real</span> <span>rewards.</span></span>
+            </h1>
+            <p class="hero__lead">
+              Your steps, sleep, food, water and cycle in one calm app, with daily targets built from your own body.
+              Keep showing up and your points turn into something real, like your next coffee.
+            </p>
+            <div class="hero__actions">
+              <a class="btn btn--primary" href="#early-access">Get early access</a>
+              <a class="btn btn--quiet" href="#how">
+                See how it works
+                <svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>
+              </a>
+            </div>
+            <ul class="hero__facts" aria-label="At a glance">
+              <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Free to start</li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>No watch needed</li>
+              <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Built for UK life</li>
+            </ul>
+          </div>
+
+          <!-- The app, playing like a screen recording (src/site/demo.ts writes its state as data attributes on the
+               stage; site.css → "The app in the hero" draws each state). Copied from the app's own screens, sizes
+               and colours (src/index.css, app.css, glass.css, today.css); the numbers are the app's own for Maya: her
+               targets from nhsTargets, real quests from src/lib/quests.ts, and lunch from the USDA food table. -->
+          <div class="hero__visual">
+            <div class="hero__stage" data-parallax="0.1" data-demo-stage data-scene="today">
+              <figure class="phone" role="img" aria-label="A demo of the Kinetix Fit app. On the Today screen a glass of water is added and the bottle fills to 1.25 of 2 litres, next to 6,842 steps and a 12-day streak. On Rewards, the quest “Sleep 7 hours or more” is claimed for 7 points. On Nourish, today’s calories, protein, carbs, fat and fibre sit against Maya’s own targets." data-demo>
+                <div class="phone__screen" aria-hidden="true">
+                  <div class="ap">
+                    <div class="ap__view" data-view="today">
+                      <div class="ap__scroll">
+                        <div class="ap-hero">
+                          <svg class="ap-lanes" viewBox="0 0 340 280" preserveAspectRatio="xMaxYMax meet">
+                            <path d="M 0 179 L 190 179 A 44 44 0 0 0 190 91 L 0 91"/><path d="M 0 201 L 190 201 A 66 66 0 0 0 190 69 L 0 69"/><path d="M 0 223 L 190 223 A 88 88 0 0 0 190 47 L 0 47"/><path d="M 0 245 L 190 245 A 110 110 0 0 0 190 25 L 0 25"/><path d="M 0 267 L 190 267 A 132 132 0 0 0 190 3 L 0 3"/>
+                            <path class="ap-lanes__run" d="M 0 223 L 190 223 A 88 88 0 0 0 190 47 L 0 47"/>
+                          </svg>
+                          <div>
+                            <p class="ap-eyebrow">Tuesday 13 October</p>
+                            <p class="ap-greeting">Good afternoon,<br /><em>Maya</em></p>
+                            <p class="ap-hero__status">Synced with Apple Health</p>
+                          </div>
+                          <div class="ap-targets">
+                            <p class="ap-eyebrow">Today’s targets</p>
+                            <p class="ap-targets__row"><span><b>2,085</b>kcal</span><span><b>87g</b>protein</span><span><b>30g</b>fibre</span></p>
+                          </div>
+                          <p class="ap-laps"><span class="ap-lap"><b>12</b>day streak</span></p>
+                        </div>
+
+                        <div class="ap-hydro">
+                          <svg class="ap-bottle" viewBox="0 0 120 200">
+                            <defs>
+                              <clipPath id="ap-bottle-clip"><path d="M40 44 h40 v10 q0 4 6 8 q18 12 18 34 v78 q0 16 -16 16 h-56 q-16 0 -16 -16 v-78 q0 -22 18 -34 q6 -4 6 -8 z"/></clipPath>
+                              <linearGradient id="ap-bottle-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C8FB5" stop-opacity="0.85"/><stop offset="1" stop-color="#0C8FB5"/></linearGradient>
+                            </defs>
+                            <rect class="ap-bottle__cap" x="38" y="16" width="44" height="26" rx="8"/>
+                            <rect class="ap-bottle__band" x="38" y="34" width="44" height="6" rx="2"/>
+                            <g clip-path="url(#ap-bottle-clip)">
+                              <rect class="ap-bottle__glass" x="0" y="40" width="120" height="160"/>
+                              <g class="ap-bottle__liquid">
+                                <path class="ap-bottle__wave ap-bottle__wave--back" d="M-120 6 q15 -8 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 v200 h-360 z"/>
+                                <path class="ap-bottle__wave" fill="url(#ap-bottle-water)" d="M-120 4 q15 -9 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 v200 h-360 z"/>
+                                <circle class="ap-bottle__bubble" cx="46" cy="60" r="3"/>
+                                <circle class="ap-bottle__bubble ap-bottle__bubble--2" cx="70" cy="80" r="2"/>
+                                <circle class="ap-bottle__bubble ap-bottle__bubble--3" cx="58" cy="100" r="2.5"/>
+                              </g>
+                            </g>
+                            <path class="ap-bottle__outline" d="M40 44 h40 v10 q0 4 6 8 q18 12 18 34 v78 q0 16 -16 16 h-56 q-16 0 -16 -16 v-78 q0 -22 18 -34 q6 -4 6 -8 z"/>
+                            <path class="ap-bottle__shine" d="M26 104 q0 -14 8 -22"/>
+                            <path class="ap-bottle__shine ap-bottle__shine--thin" d="M26 118 v44"/>
+                          </svg>
+                          <p class="ap-hydro__text">
+                            <span class="ap-hydro__eyebrow">Hydration</span>
+                            <span class="ap-hydro__kicker">Today</span>
+                            <b class="ap-hydro__amount"><span data-demo-swap="glass" data-a="1" data-b="1.25">1</span><small> L</small></b>
+                            <span class="ap-hydro__unit">of 2 L</span>
+                            <span class="ap-hydro__sub" data-demo-swap="glass" data-a="1 L to go" data-b="750 ml to go">1 L to go</span>
+                          </p>
+                          <span class="ap-hydro__add"><svg class="icon"><use href="#i-plus"/></svg></span>
+                        </div>
+
+                        <div class="ap-card">
+                          <div class="ap-card__head">
+                            <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--m-sleep)"><svg class="icon"><use href="#i-sleep"/></svg></span>Today’s check-in</p>
+                            <span class="ap-pill-btn">Change</span>
+                          </div>
+                          <div class="ap-checkin__stats">
+                            <p><b>7.3 h</b><span>sleep (watch)</span></p>
+                            <p><b>4<small>/5</small></b><span>good</span></p>
+                          </div>
+                          <div class="ap-week">
+                            <span><i class="ap-week__bar"><i style="--h: .75"></i></i><i class="ap-pip" style="--e: 4"></i>W</span>
+                            <span><i class="ap-week__bar"><i style="--h: .62"></i></i><i class="ap-pip" style="--e: 3"></i>T</span>
+                            <span><i class="ap-week__bar"><i style="--h: .81"></i></i><i class="ap-pip" style="--e: 5"></i>F</span>
+                            <span><i class="ap-week__bar"><i style="--h: .84"></i></i><i class="ap-pip" style="--e: 5"></i>S</span>
+                            <span><i class="ap-week__bar"><i style="--h: .7"></i></i><i class="ap-pip" style="--e: 4"></i>S</span>
+                            <span><i class="ap-week__bar"><i style="--h: .65"></i></i><i class="ap-pip" style="--e: 4"></i>M</span>
+                            <span class="is-today"><i class="ap-week__bar"><i style="--h: .73"></i></i><i class="ap-pip" style="--e: 4"></i>T</span>
+                          </div>
+                          <p class="ap-legend"><span><i></i>Sleep</span><span><i class="is-energy"></i>Energy</span></p>
+                          <p class="ap-insight">Your energy averages 4.4/5 after 7 hours or more of sleep, and 3.5/5 after less.</p>
+                        </div>
+
+                        <div class="ap-trends">
+                          <div class="ap-btc" style="--metric: var(--m-steps)">
+                            <span class="ap-btc__icon"><svg class="icon"><use href="#i-steps"/></svg></span>
+                            <span class="ap-btc__heading"><span class="ap-btc__title">Steps</span><span class="ap-btc__reading">6,842 steps today</span></span>
+                            <span class="ap-btc__pill">Synced</span>
+                            <svg class="icon ap-btc__chevron"><use href="#i-chevron"/></svg>
+                            <span class="ap-btc__bars"><i style="--h: .61"></i><i style="--h: .77"></i><i style="--h: .47"></i><i style="--h: .84"></i><i style="--h: .68"></i><i style="--h: .6"></i><i class="is-today" style="--h: .46"></i></span>
+                          </div>
+                          <div class="ap-btc" style="--metric: var(--m-heart)">
+                            <span class="ap-btc__icon"><svg class="icon"><use href="#i-heart"/></svg></span>
+                            <span class="ap-btc__heading"><span class="ap-btc__title">Heart rate</span><span class="ap-btc__reading">72 bpm · at 12:31</span></span>
+                            <span class="ap-btc__pill">Synced</span>
+                            <svg class="icon ap-btc__chevron"><use href="#i-chevron"/></svg>
+                            <svg class="ap-btc__line" viewBox="0 0 320 52" preserveAspectRatio="none">
+                              <defs><linearGradient id="ap-heart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E5532D" stop-opacity="0.3"/><stop offset="1" stop-color="#E5532D" stop-opacity="0"/></linearGradient></defs>
+                              <path fill="url(#ap-heart-fill)" d="M0 36.7C17.8 36.7 35.5 25.2 53.3 25.2C71.1 25.2 88.9 44.3 106.7 44.3C124.4 44.3 142.2 13.7 160 13.7C177.8 13.7 195.5 29 213.3 29C231.1 29 248.9 32.8 266.7 32.8C284.4 32.8 302.2 21.3 320 21.3V52H0Z"/>
+                              <path class="ap-btc__stroke" d="M0 36.7C17.8 36.7 35.5 25.2 53.3 25.2C71.1 25.2 88.9 44.3 106.7 44.3C124.4 44.3 142.2 13.7 160 13.7C177.8 13.7 195.5 29 213.3 29C231.1 29 248.9 32.8 266.7 32.8C284.4 32.8 302.2 21.3 320 21.3"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="ap__view" data-view="rewards">
+                      <div class="ap__scroll">
+                        <p class="ap-title">Rewards</p>
+                        <div class="ap-col">
+                          <div class="ap-hero">
+                            <svg class="ap-lanes" viewBox="0 0 340 280" preserveAspectRatio="xMaxYMax meet">
+                              <path d="M 0 179 L 190 179 A 44 44 0 0 0 190 91 L 0 91"/><path d="M 0 201 L 190 201 A 66 66 0 0 0 190 69 L 0 69"/><path d="M 0 223 L 190 223 A 88 88 0 0 0 190 47 L 0 47"/><path d="M 0 245 L 190 245 A 110 110 0 0 0 190 25 L 0 25"/><path d="M 0 267 L 190 267 A 132 132 0 0 0 190 3 L 0 3"/>
+                            </svg>
+                            <div>
+                              <p class="ap-eyebrow">Level 3</p>
+                              <p class="ap-greeting">Maya</p>
+                              <span class="ap-level"><i></i></span>
+                              <p class="ap-hero__status" data-demo-swap="claim" data-a="200 XP to level 4" data-b="175 XP to level 4">200 XP to level 4</p>
+                            </div>
+                            <p class="ap-laps"><span class="ap-lap"><b>12</b>day streak</span><span class="ap-lap"><b>9</b>workouts</span></p>
+                          </div>
+
+                          <div class="ap-card">
+                            <p class="ap-label">Your points</p>
+                            <p class="ap-points"><span data-demo-count="claim" data-a="1112" data-b="1119">1,112</span><small>pts</small></p>
+                            <span class="ap-progress"><i></i></span>
+                            <p class="ap-sub">Enough to give £2.50 to a charity — see Give to charity below.</p>
+                          </div>
+
+                          <div class="ap-card">
+                            <div class="ap-card__head ap-card__head--quests">
+                              <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--accent)"><svg class="icon"><use href="#i-target"/></svg></span>Today’s quests</p>
+                              <span class="ap-count" data-demo-swap="claim" data-a="1 of 3 done" data-b="2 of 3 done">1 of 3 done</span>
+                            </div>
+                            <div class="ap-quests">
+                              <p class="ap-quest is-claimed" style="--q: 1"><i class="ap-quest__check"></i><span class="ap-quest__body"><span class="ap-quest__text">Do a workout</span><span class="ap-quest__bar"><i></i></span><span class="ap-quest__meta">Claimed</span></span><b class="ap-quest__pts">+8</b></p>
+                              <p class="ap-quest" style="--q: .57"><i class="ap-quest__check"></i><span class="ap-quest__body"><span class="ap-quest__text">Walk 12,000 steps</span><span class="ap-quest__bar"><i></i></span><span class="ap-quest__meta">6,842 / 12,000 steps</span></span><b class="ap-quest__pts">+8</b></p>
+                              <p class="ap-quest is-ready" style="--q: 1" data-demo-quest><i class="ap-quest__check"></i><span class="ap-quest__body"><span class="ap-quest__text">Sleep 7 hours or more</span><span class="ap-quest__bar"><i></i></span><span class="ap-quest__meta" data-demo-swap="claim" data-a="Done — tap to claim" data-b="Claimed">Done — tap to claim</span></span><b class="ap-quest__pts">+7</b></p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="ap__view" data-view="nourish">
+                      <div class="ap__scroll">
+                        <p class="ap-title">Nourish</p>
+                        <div class="ap-card">
+                          <p class="ap-label">Today · your targets</p>
+                          <p class="ap-kcal"><b>1,062</b><small>kcal left</small></p>
+                          <p class="ap-eaten">1,023 of 2,085 kcal eaten · 4 foods</p>
+                          <ul class="ap-meters">
+                            <li class="ap-meter" style="--fill: .494"><span class="ap-meter__top"><span class="ap-meter__label">Protein</span><span class="ap-meter__value"><b>43</b> of 87 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">44 g to go</span></li>
+                            <li class="ap-meter" style="--fill: .56"><span class="ap-meter__top"><span class="ap-meter__label">Carbs</span><span class="ap-meter__value"><b>164</b> of 293 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">129 g left</span></li>
+                            <li class="ap-meter" style="--fill: .381"><span class="ap-meter__top"><span class="ap-meter__label">Fat</span><span class="ap-meter__value"><b>24</b> of 63 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">39 g left</span></li>
+                            <li class="ap-meter is-met" style="--fill: 1"><span class="ap-meter__top"><span class="ap-meter__label">Fibre</span><span class="ap-meter__value"><b>32</b> of 30 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">Reached</span></li>
+                          </ul>
+                          <p class="ap-link">Show more</p>
+                        </div>
+                        <div class="ap-card ap-foodlog">
+                          <div class="ap-card__head">
+                            <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--warn)"><svg class="icon"><use href="#i-bowl"/></svg></span>Today’s food</p>
+                            <span class="ap-pill-btn ap-pill-btn--glass">History</span>
+                          </div>
+                          <ul class="ap-foodlog__list">
+                            <li><span class="ap-foodlog__name"><b>Dal</b><small>12:31 · 1 cup · 240 g</small></span><span class="ap-foodlog__kcal">348<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                            <li><span class="ap-foodlog__name"><b>Roti / chapati</b><small>12:31 · 2 rotis · 136 g</small></span><span class="ap-foodlog__kcal">404<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                            <li><span class="ap-foodlog__name"><b>Banana</b><small>08:20 · 1 banana · 118 g</small></span><span class="ap-foodlog__kcal">105<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="ap__bar"><span class="ap__time">12:48</span><span class="ap__island"></span><span class="ap__sys"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 11.6 5.6 9a3.4 3.4 0 0 1 4.8 0Z"/><path d="M3.5 6.9a6.5 6.5 0 0 1 9 0l-1.4 1.5a4.5 4.5 0 0 0-6.2 0Z"/><path d="M1.3 4.6a9.6 9.6 0 0 1 13.4 0l-1.4 1.5a7.6 7.6 0 0 0-10.6 0Z"/></svg><svg viewBox="0 0 27 12"><rect class="ap__battery-case" x="0.5" y="0.5" width="22" height="11" rx="3.2"/><rect x="2.2" y="2.2" width="15" height="7.6" rx="1.8"/><path d="M24.2 4v4a1.9 1.9 0 0 0 0-4Z"/></svg></span></div>
+                    <span class="ap-fab"><svg class="icon"><use href="#i-camera"/></svg></span>
+                    <p class="ap-toast"><span class="ap-toast__icon"><svg class="icon"><use href="#i-check"/></svg></span><span>Quest verified from your device data: “Sleep 7 hours or more” · +7 points</span><i class="ap-toast__timer"></i></p>
+                    <div class="ap-tabs">
+                      <span class="ap-tabs__lens"><i></i></span>
+                      <span class="ap-tab" data-tab="today"><svg class="icon"><use href="#i-today"/></svg>Today</span>
+                      <span class="ap-tab" data-tab="nourish"><svg class="icon"><use href="#i-bowl"/></svg>Nourish</span>
+                      <span class="ap-tab" data-tab="rewards"><svg class="icon"><use href="#i-medal"/></svg>Rewards</span>
+                      <span class="ap-tab" data-tab="account"><svg class="icon"><use href="#i-user"/></svg>Account</span>
+                    </div>
+                    <span class="ap-home"></span>
+                    <span class="ap-touch" data-demo-touch></span>
+                  </div>
+                </div>
+              </figure>
+
+              <!-- Two of the home-screen widgets beside the phone (the app's own designs: src/styles/widgets.css). The
+                   rings follow the demo: the water ring fills when the glass is added. -->
+              <div class="float float--rings" aria-hidden="true" data-parallax="-0.06">
+                <div class="wp">
+                  <p class="wp__head"><span class="wp__chip"><svg class="icon"><use href="#i-target"/></svg></span><span class="wp__label">DAILY RINGS</span></p>
+                  <svg class="wp__rings" viewBox="0 0 100 100">
+                    <defs>
+                      <linearGradient id="wp-steps" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9C4FF"/><stop offset="1" stop-color="#3F7BFF"/></linearGradient>
+                      <linearGradient id="wp-water" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7BE8F7"/><stop offset="1" stop-color="#0E97C0"/></linearGradient>
+                      <linearGradient id="wp-food" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFB08A"/><stop offset="1" stop-color="#F0602F"/></linearGradient>
+                    </defs>
+                    <circle class="wp__track" cx="50" cy="50" r="45" stroke-width="10"/>
+                    <circle class="wp__track" cx="50" cy="50" r="31" stroke-width="10"/>
+                    <circle class="wp__track" cx="50" cy="50" r="17.2" stroke-width="9.7"/>
+                    <circle class="wp__ring wp__ring--steps" cx="50" cy="50" r="45" stroke-width="10" stroke="url(#wp-steps)"/>
+                    <circle class="wp__ring wp__ring--water" cx="50" cy="50" r="31" stroke-width="10" stroke="url(#wp-water)"/>
+                    <circle class="wp__ring wp__ring--food" cx="50" cy="50" r="17.2" stroke-width="9.7" stroke="url(#wp-food)"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="float float--streak" aria-hidden="true" data-parallax="0.05">
+                <div class="wp wp--streak">
+                  <p class="wp__head"><span class="wp__chip"><svg class="icon"><use href="#i-flame"/></svg></span><span class="wp__label">STREAK</span></p>
+                  <p class="wp__streak"><b class="wp__num">12</b><span class="wp__sub">day streak</span></p>
+                  <p class="wp__dots"><span><i></i>W</span><span><i></i>T</span><span><i></i>F</span><span><i></i>S</span><span><i></i>S</span><span><i></i>M</span><span><i></i>T</span></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== Everything in the app ============================== -->
+      <section class="ticker" aria-label="What’s in Kinetix Fit">
+        <div class="ticker__track">
+          <ul class="ticker__list" role="list">
+            <li style="--tint: var(--m-steps)"><svg class="icon" aria-hidden="true"><use href="#i-steps"/></svg>Steps</li>
+            <li style="--tint: var(--m-heart)"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg>Heart rate</li>
+            <li style="--tint: var(--m-sleep)"><svg class="icon" aria-hidden="true"><use href="#i-sleep"/></svg>Sleep</li>
+            <li style="--tint: var(--m-water)"><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg>Water</li>
+            <li style="--tint: var(--clay)"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg>Food photos</li>
+            <li style="--tint: var(--ink-2)"><svg class="icon" aria-hidden="true"><use href="#i-barcode"/></svg>Barcodes</li>
+            <li style="--tint: var(--warn)"><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg>11 nutrients</li>
+            <li style="--tint: var(--good)"><svg class="icon" aria-hidden="true"><use href="#i-bowl"/></svg>Meal ideas</li>
+            <li style="--tint: var(--m-cycle)"><svg class="icon" aria-hidden="true"><use href="#i-cycle"/></svg>Period tracking</li>
+            <li style="--tint: var(--good)"><svg class="icon" aria-hidden="true"><use href="#i-leaf"/></svg>Gut check</li>
+            <li style="--tint: var(--m-heart)"><svg class="icon" aria-hidden="true"><use href="#i-dumbbell"/></svg>Workouts</li>
+            <li style="--tint: var(--m-water)"><svg class="icon" aria-hidden="true"><use href="#i-widget"/></svg>Widgets</li>
+            <li style="--tint: var(--clay)"><svg class="icon" aria-hidden="true"><use href="#i-flame"/></svg>Streaks</li>
+            <li style="--tint: var(--crema-deep)"><svg class="icon" aria-hidden="true"><use href="#i-coffee"/></svg>Rewards</li>
+          </ul>
+          <ul class="ticker__list" role="list" aria-hidden="true">
+            <li style="--tint: var(--m-steps)"><svg class="icon"><use href="#i-steps"/></svg>Steps</li>
+            <li style="--tint: var(--m-heart)"><svg class="icon"><use href="#i-heart"/></svg>Heart rate</li>
+            <li style="--tint: var(--m-sleep)"><svg class="icon"><use href="#i-sleep"/></svg>Sleep</li>
+            <li style="--tint: var(--m-water)"><svg class="icon"><use href="#i-drop"/></svg>Water</li>
+            <li style="--tint: var(--clay)"><svg class="icon"><use href="#i-camera"/></svg>Food photos</li>
+            <li style="--tint: var(--ink-2)"><svg class="icon"><use href="#i-barcode"/></svg>Barcodes</li>
+            <li style="--tint: var(--warn)"><svg class="icon"><use href="#i-target"/></svg>11 nutrients</li>
+            <li style="--tint: var(--good)"><svg class="icon"><use href="#i-bowl"/></svg>Meal ideas</li>
+            <li style="--tint: var(--m-cycle)"><svg class="icon"><use href="#i-cycle"/></svg>Period tracking</li>
+            <li style="--tint: var(--good)"><svg class="icon"><use href="#i-leaf"/></svg>Gut check</li>
+            <li style="--tint: var(--m-heart)"><svg class="icon"><use href="#i-dumbbell"/></svg>Workouts</li>
+            <li style="--tint: var(--m-water)"><svg class="icon"><use href="#i-widget"/></svg>Widgets</li>
+            <li style="--tint: var(--clay)"><svg class="icon"><use href="#i-flame"/></svg>Streaks</li>
+            <li style="--tint: var(--crema-deep)"><svg class="icon"><use href="#i-coffee"/></svg>Rewards</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============================== Why ============================== -->
+      <section class="section why" id="why" aria-labelledby="why-title">
+        <div class="container">
+          <p class="eyebrow reveal">Why Kinetix Fit</p>
+          <h2 class="manifesto reveal" id="why-title">
+            <span class="manifesto__soft">You don’t need a perfect week.</span>
+            <span class="manifesto__strong" data-sprint><span class="line">You need a</span> <span class="line"><em>next step.</em></span></span>
+          </h2>
+          <div class="why__grid">
+            <p class="why__intro reveal">
+              Fitness shouldn’t be all or nothing. Kinetix Fit is built for real weeks: the busy ones, the rainy ones,
+              the ones where you only manage a walk. Steady progress is the point, and we reward it.
+            </p>
+            <ul class="principles" role="list">
+              <li class="principle reveal">
+                <span class="chip" style="--tint: var(--clay)"><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg></span>
+                <h3>Progress over perfection</h3>
+                <p>Everyday goals sized for a normal day, not an athlete’s. Miss one? Tomorrow is a fresh start.</p>
+              </li>
+              <li class="principle reveal">
+                <span class="chip" style="--tint: var(--m-steps)"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg></span>
+                <h3>Real data, not guesswork</h3>
+                <p>Points come from what your phone or watch actually recorded, through Apple Health or Health Connect. So they mean something.</p>
+              </li>
+              <li class="principle reveal">
+                <span class="chip" style="--tint: var(--crema-deep)"><svg class="icon" aria-hidden="true"><use href="#i-coffee"/></svg></span>
+                <h3>Rewards you can taste</h3>
+                <p>Swap your points for a donation to a UK charity, or a coffee on us. Proper rewards for steady effort.</p>
+              </li>
+              <li class="principle reveal">
+                <span class="chip" style="--tint: var(--good)"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></span>
+                <h3>Made in the UK, private by design</h3>
+                <p>Targets follow NHS guidance, the food list knows porridge from palak paneer, and your gut checks, cycle and body stats never leave your phone.</p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== Features: five chapters ==============================
+           Each chapter is the copy plus a stage where the app's own card plays like a screen recording
+           (src/site/features.ts writes the step onto the stage; site.css → "Features" draws each step). The cards are
+           copies of the app's (src/styles/*.css), and every number is the app's for Maya (the hero's example member):
+           her targets and nutrients from her four foods (src/lib/nutrition.ts, the USDA food table), her dinner ideas
+           from rankMeals, her cycle from cycleToday, the workout choices from src/lib/workouts.ts — features.test.ts
+           checks them against that code. -->
+      <section class="section feats" id="features" aria-labelledby="features-title">
+        <div class="container">
+          <div class="section-head">
+            <p class="eyebrow reveal">Features</p>
+            <h2 class="display reveal" id="features-title">Built around <em>you.</em></h2>
+            <p class="lead reveal">
+              Every number below is what the app works out for Maya, our example member: 29, 165 cm, 62 kg, and exercising
+              three to five days a week.
+            </p>
+          </div>
+
+          <div class="feats__list">
+            <!-- 01 · Nutrition: the plan from her body, then Nourish's needed vs eaten, all 11 nutrients -->
+            <article class="feat feat--body" aria-labelledby="feat-body-title">
+              <div class="feat__copy">
+                <p class="feat__kicker reveal"><span class="feat__num" aria-hidden="true">01</span>Nutrition</p>
+                <h3 class="feat__title reveal" id="feat-body-title">Targets built on <em>your body.</em></h3>
+                <p class="feat__lead reveal">
+                  Tell Kinetix Fit your height, weight, age and how active you are. It works out your calories, protein and
+                  fibre for the day, and your BMI suggests a goal to start from. Then every food you log counts towards
+                  11 nutrients.
+                </p>
+                <ul class="feat__tags reveal" aria-label="The 11 nutrients">
+                  <li>Calories</li><li>Protein</li><li>Carbs</li><li>Fat</li><li>Fibre</li><li>Saturated fat</li><li>Sugars</li><li>Salt</li><li>Potassium</li><li>Iron</li><li>Calcium</li>
+                </ul>
+                <ul class="feat__points reveal" role="list">
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>In the UK your targets follow NHS guidance, and each of the other eight countries uses its own.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Iron and calcium follow your age and sex: Maya needs 14.8 mg of iron a day because she’s under 51.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Salt, sugars and saturated fat are limits to stay under, not goals to hit.</span></li>
+                </ul>
+              </div>
+              <div class="feat__visual">
+                <figure class="feat__stage feat__stage--body" role="img" aria-label="The app works out Maya’s plan from her body: a BMI of 22.8, in the NHS healthy range, suggests building endurance, with 2,085 kcal, 87 g of protein and 30 g of fibre a day. On Nourish, her four foods so far fill 11 nutrients against those targets, from 44 g of protein still to go to iron at 14.1 of 14.8 mg." data-feature="body" data-step="fill">
+                  <div class="feat__scene apx" aria-hidden="true">
+                    <div class="feat__float apx-plan">
+                      <p class="apx-plan__eyebrow">Build endurance</p>
+                      <p class="apx-plan__title">Your plan is ready, Maya</p>
+                      <div class="apx-plan__targets">
+                        <p><b data-count-to="2085" data-count-zero="start">2,085</b><span>kcal a day</span></p>
+                        <p><b><span data-count-to="87" data-count-zero="start">87</span>g</b><span>protein</span></p>
+                        <p><b><span data-count-to="30" data-count-zero="start">30</span>g</b><span>fibre</span></p>
+                      </div>
+                      <p class="apx-note">Your BMI is 22.8, in the NHS healthy range of 18.5 to 24.9.</p>
+                    </div>
+                    <div class="feat__window" data-viewport>
+                      <div class="feat__scroll" data-scroller>
+                        <div class="ap-card apx-targets">
+                          <p class="ap-label">Today · your targets</p>
+                          <p class="ap-kcal"><b>1,062</b><small>kcal left</small></p>
+                          <p class="ap-eaten">1,023 of 2,085 kcal eaten · 4 foods</p>
+                          <ul class="ap-meters" data-meters="main">
+                            <li class="ap-meter" style="--fill: .496"><span class="ap-meter__top"><span class="ap-meter__label">Protein</span><span class="ap-meter__value"><b>43</b> of 87 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">44 g to go</span></li>
+                            <li class="ap-meter" style="--fill: .56"><span class="ap-meter__top"><span class="ap-meter__label">Carbs</span><span class="ap-meter__value"><b>164</b> of 293 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">129 g left</span></li>
+                            <li class="ap-meter" style="--fill: .388"><span class="ap-meter__top"><span class="ap-meter__label">Fat</span><span class="ap-meter__value"><b>24</b> of 63 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">39 g left</span></li>
+                            <li class="ap-meter is-met" style="--fill: 1"><span class="ap-meter__top"><span class="ap-meter__label">Fibre</span><span class="ap-meter__value"><b>32</b> of 30 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">Reached</span></li>
+                          </ul>
+                          <div class="apx-more">
+                            <ul class="ap-meters" data-meters="more">
+                              <li class="ap-meter" style="--fill: .477"><span class="ap-meter__top"><span class="ap-meter__label">Saturated fat</span><span class="ap-meter__value"><b>10</b> of 20 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">10 g left · limit</span></li>
+                              <li class="ap-meter" style="--fill: .254"><span class="ap-meter__top"><span class="ap-meter__label">Sugars</span><span class="ap-meter__value"><b>23</b> of 90 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">67 g left · limit</span></li>
+                              <li class="ap-meter" style="--fill: .545"><span class="ap-meter__top"><span class="ap-meter__label">Salt (as sodium)</span><span class="ap-meter__value"><b>1,308</b> of 2,400 mg</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">1,092 mg left · limit</span></li>
+                              <li class="ap-meter" style="--fill: .512"><span class="ap-meter__top"><span class="ap-meter__label">Potassium</span><span class="ap-meter__value"><b>1,793</b> of 3,500 mg</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">1,707 mg to go</span></li>
+                              <li class="ap-meter" style="--fill: .954"><span class="ap-meter__top"><span class="ap-meter__label">Iron</span><span class="ap-meter__value"><b>14.1</b> of 14.8 mg</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">0.7 mg to go</span></li>
+                              <li class="ap-meter" style="--fill: .284"><span class="ap-meter__top"><span class="ap-meter__label">Calcium</span><span class="ap-meter__value"><b>199</b> of 700 mg</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">501 mg to go</span></li>
+                            </ul>
+                          </div>
+                          <p class="ap-link apx-swap" data-touch-target="more" data-scroll-when="more"><span class="is-now" data-when="start plan fill">Show more</span><span data-when="more">Show less</span></p>
+                        </div>
+                      </div>
+                    </div>
+                    <span class="apx-touch" data-feat-touch></span>
+                  </div>
+                </figure>
+              </div>
+            </article>
+
+            <!-- 02 · Meal ideas: what's left of her day → her ranked dinner ideas (rankMeals), then Plus's AI ideas -->
+            <article class="feat feat--meals" aria-labelledby="feat-meals-title">
+              <div class="feat__copy">
+                <p class="feat__kicker reveal"><span class="feat__num" aria-hidden="true">02</span>Meal ideas</p>
+                <h3 class="feat__title reveal" id="feat-meals-title">Ideas for what’s <em>left of your day.</em></h3>
+                <p class="feat__lead reveal">
+                  By dinner, Maya still needs 44 g of protein. Kinetix Fit ranks over 100 everyday meals by what’s left of
+                  her targets, her goal and the time of day, and leaves out anything her diet or allergies rule out. Each
+                  idea is real foods in stated amounts, with USDA nutrition.
+                </p>
+                <ul class="feat__points reveal" role="list">
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Free: three ideas at a time, each with the reason it fits.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Dishes people eat where you live, from dal with rice to salmon with sweet potato.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Plus asks our AI for nine more, built from your goal, BMI and everything you’ve eaten and done today.</span></li>
+                </ul>
+              </div>
+              <div class="feat__visual">
+                <figure class="feat__stage feat__stage--meals" role="img" aria-label="On Nourish, Maya’s protein stands at 43 of 87 g, 44 g to go. Ideas for her dinner, for 1,062 kcal and 44 g of protein still to go: tuna pasta with sweetcorn, with 32 g of protein; dal with brown rice and cucumber; and a baked sweet potato with cottage cheese. Three more follow, and Plus offers AI ideas built from her goal, BMI and her whole day." data-feature="meals" data-step="in">
+                  <div class="feat__scene apx" aria-hidden="true">
+                    <div class="feat__float apx-mini">
+                      <p class="ap-label">Today · your targets</p>
+                      <p class="ap-kcal"><b>1,062</b><small>kcal left</small></p>
+                      <ul class="ap-meters">
+                        <li class="ap-meter" style="--fill: .496"><span class="ap-meter__top"><span class="ap-meter__label">Protein</span><span class="ap-meter__value"><b>43</b> of 87 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">44 g to go</span></li>
+                        <li class="ap-meter is-met" style="--fill: 1"><span class="ap-meter__top"><span class="ap-meter__label">Fibre</span><span class="ap-meter__value"><b>32</b> of 30 g</span></span><span class="ap-meter__track"><i></i></span><span class="ap-meter__foot">Reached</span></li>
+                      </ul>
+                    </div>
+                    <div class="feat__window" data-viewport>
+                      <div class="feat__scroll" data-scroller>
+                        <div class="ap-card apx-ideas">
+                          <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--good)"><svg class="icon"><use href="#i-bowl"/></svg></span>Ideas for your dinner</p>
+                          <p class="apx-sub">For what’s left today: 1,062 kcal, 44 g protein and 0 g fibre to go.</p>
+                          <p class="apx-switch"><span class="apx-switch__lens"></span><span class="apx-switch__opt" data-touch-target="ranked">Ranked for you</span><span class="apx-switch__opt" data-touch-target="ai">AI ideas <span class="apx-plus">Plus</span></span></p>
+                          <div class="apx-stack">
+                            <div class="apx-ideas__page is-now" data-when="in foot back" data-page="1">
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Tuna pasta with sweetcorn</b><span class="apx-idea__kcal">473<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">180 g cooked pasta, a tin of tuna, sweetcorn and tomato</p>
+                                <p class="apx-idea__why">32 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>32g protein</span><span>68g carbs</span><span>5g fibre</span><span>15 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Dal with brown rice and cucumber</b><span class="apx-idea__kcal">556<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">A bowl of dal (250 g), 150 g cooked brown rice, sliced cucumber</p>
+                                <p class="apx-idea__why">26 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>26g protein</span><span>88g carbs</span><span>21g fibre</span><span>30 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Baked sweet potato with cottage cheese</b><span class="apx-idea__kcal">318<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">A baked sweet potato (200 g) topped with cottage cheese, side salad</p>
+                                <p class="apx-idea__why">19 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>19g protein</span><span>50g carbs</span><span>8g fibre</span><span>45 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                            </div>
+                            <div class="apx-ideas__page" data-when="page2" data-page="2">
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Chicken, brown rice and broccoli</b><span class="apx-idea__kcal">474<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">130 g roast chicken breast, 150 g cooked brown rice, a portion of broccoli</p>
+                                <p class="apx-idea__why">47 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>47g protein</span><span>44g carbs</span><span>5g fibre</span><span>25 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Lentil and carrot soup with bread</b><span class="apx-idea__kcal">316<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">A big bowl of lentil, carrot and tomato soup, one slice of wholemeal bread</p>
+                                <p class="apx-idea__why">20 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>20g protein</span><span>57g carbs</span><span>17g fibre</span><span>35 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                              <div class="apx-idea">
+                                <p class="apx-idea__top"><b class="apx-idea__name">Salmon with sweet potato and broccoli</b><span class="apx-idea__kcal">430<small> kcal</small></span></p>
+                                <p class="apx-idea__desc">A salmon fillet (130 g), a baked sweet potato, broccoli</p>
+                                <p class="apx-idea__why">34 g protein, towards the 44 g you still need today.</p>
+                                <p class="apx-idea__meta"><span>34g protein</span><span>36g carbs</span><span>7g fibre</span><span>30 min</span></p>
+                                <p class="apx-idea__actions"><span class="apx-ate">I ate this</span><span class="apx-hide">Not for me</span></p>
+                              </div>
+                            </div>
+                            <div class="apx-upsell" data-when="ai">
+                              <b>Personal AI meal ideas</b>
+                              <span>Plus asks our AI for nine ideas built from your goal, BMI and everything you’ve eaten and done today — three at a time.</span>
+                            </div>
+                          </div>
+                          <p class="apx-foot" data-scroll-when="foot">
+                            <span class="apx-swap"><span class="is-now" data-when="start in foot back">1–3 of 23 · nutrition from USDA data</span><span data-when="page2">4–6 of 23 · nutrition from USDA data</span></span>
+                            <span class="apx-link" data-touch-target="next">Show 3 more</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <span class="apx-touch" data-feat-touch></span>
+                  </div>
+                </figure>
+              </div>
+            </article>
+
+            <!-- 03 · Food logging: a barcode (the label's allergens: sesame, one of Maya's), a photo of several foods, typed -->
+            <article class="feat feat--scan" aria-labelledby="feat-scan-title">
+              <div class="feat__copy">
+                <p class="feat__kicker reveal"><span class="feat__num" aria-hidden="true">03</span>Food logging</p>
+                <h3 class="feat__title reveal" id="feat-scan-title">Scan it, snap it or <em>just type it.</em></h3>
+                <p class="feat__lead reveal">
+                  Scan a barcode and the pack’s own label gives the nutrition and allergens. Take a photo of your plate and
+                  each food gets its own entry and amount. Or type “2 roti and dal” and it’s logged in a second, worked out
+                  on your phone.
+                </p>
+                <ul class="feat__points reveal" role="list">
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Every food is checked against your allergies and diet before it’s added.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Nutrition from USDA and Open Food Facts, and the app always says which.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Typing a food is free and unlimited, with 2 photo or barcode scans a day (10 with Plus).</span></li>
+                </ul>
+              </div>
+              <div class="feat__visual">
+                <figure class="feat__stage feat__stage--scan" role="img" aria-label="Three ways to log food in the app. A barcode scan of classic houmous finds sesame, one of Maya’s allergens, so it isn’t added. A photo of salmon with sweet potato and broccoli logs three foods, each with its own amount: 430 kcal. Typing 2 roti and dal logs both, 752 kcal, with no scan used." data-feature="scan" data-step="bc-result">
+                  <div class="feat__scene apx" aria-hidden="true">
+                    <ol class="feat__float feat__modes">
+                      <li class="is-on" data-on="bc-scan bc-read bc-done bc-result"><span class="feat__mode-icon"><svg class="icon"><use href="#i-barcode"/></svg></span><span><b>Scan a barcode</b><small>The pack’s label, allergens and all</small></span></li>
+                      <li data-on="ph-scan ph-read ph-done ph-result"><span class="feat__mode-icon"><svg class="icon"><use href="#i-camera"/></svg></span><span><b>Snap your plate</b><small>Each food on its own</small></span></li>
+                      <li data-on="type ty-result"><span class="feat__mode-icon"><svg class="icon"><use href="#i-bowl"/></svg></span><span><b>Just type it</b><small>Worked out on your phone</small></span></li>
+                    </ol>
+                    <div class="feat__window" data-viewport>
+                      <div class="feat__scroll" data-scroller>
+                        <div class="ap-card apx-food">
+                          <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--accent)"><svg class="icon"><use href="#i-camera"/></svg></span>Check a food</p>
+                          <p class="apx-sub">Nutrition and allergens for anything you eat — checked against yours.</p>
+                          <p class="apx-search">
+                            <svg class="icon apx-search__icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
+                            <span class="apx-search__field"><span class="apx-search__placeholder">Search a food</span><span class="apx-search__typed">2 roti and dal</span></span>
+                            <span class="apx-search__go" data-touch-target="check">Check</span>
+                          </p>
+                          <p class="apx-suggest"><span>Again</span><span class="apx-chip">Roti / chapati</span><span class="apx-chip">Dal</span><span class="apx-chip">Banana</span><span class="apx-chip">Porridge (oats with water)</span></p>
+                          <div class="apx-actions">
+                            <p class="apx-action" data-touch-target="barcode"><span class="ap-chip" style="--tint: var(--info)"><svg class="icon"><use href="#i-barcode"/></svg></span><span><b>Scan a barcode</b><small>Packaged food</small></span></p>
+                            <p class="apx-action" data-touch-target="photo"><span class="ap-chip" style="--tint: var(--good)"><svg class="icon"><use href="#i-camera"/></svg></span><span><b>Photo of a meal</b><small>Home-cooked or eating out</small></span></p>
+                          </div>
+                          <div class="apx-stack apx-results">
+                            <div class="apx-result is-warning is-now" data-when="bc-result" data-scroll-when="bc-result" data-scroll-align="top">
+                              <span class="apx-result__status">Contains Sesame</span>
+                              <p class="apx-result__title"><b>Classic houmous</b><span>1 serving · 30 g</span></p>
+                              <p class="apx-result__kcal"><b>73</b> kcal</p>
+                              <p class="apx-result__macros"><span><b>4g</b>carbs</span><span><b>2g</b>protein</span><span><b>2g</b>fibre</span><span><b>5g</b>fat</span></p>
+                              <dl class="apx-result__minerals"><div><dt>Sodium</dt><dd>131mg</dd></div><div><dt>Potassium</dt><dd>87mg</dd></div><div><dt>Iron</dt><dd>0.7mg</dd></div><div><dt>Calcium</dt><dd>12mg</dd></div></dl>
+                              <div class="apx-result__note"><b>What this means for you</b><p>Contains Sesame, which you've marked as an allergen. Try something else — the meal ideas on this page leave your allergens out.</p></div>
+                              <p class="apx-result__logged">Not added to today — it has one of your allergens.</p>
+                            </div>
+                            <div class="apx-result" data-when="ph-result" data-scroll-when="ph-result" data-scroll-align="top">
+                              <span class="apx-result__status">3 foods logged</span>
+                              <p class="apx-result__title"><b>Salmon with sweet potato and broccoli</b><span>Each food on its own — tap one to change it</span></p>
+                              <p class="apx-result__kcal"><b>430</b> kcal</p>
+                              <p class="apx-result__macros"><span><b>36g</b>carbs</span><span><b>34g</b>protein</span><span><b>7g</b>fibre</span><span><b>17g</b>fat</span></p>
+                              <ul class="ap-foodlog__list">
+                                <li><span class="ap-foodlog__name"><b>Salmon</b><small>1 fillet · 130 g · estimate</small></span><span class="ap-foodlog__kcal">268<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                                <li><span class="ap-foodlog__name"><b>Sweet potato</b><small>1 portion · 150 g · estimate</small></span><span class="ap-foodlog__kcal">135<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                                <li><span class="ap-foodlog__name"><b>Broccoli</b><small>1 portion · 80 g · estimate</small></span><span class="ap-foodlog__kcal">27<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                              </ul>
+                              <div class="apx-result__note"><b>What this means for you</b><p>Good fuel for cardio. Drink plenty of water before and after your next session.</p></div>
+                              <p class="apx-result__logged">Added to today’s food above, each food on its own.</p>
+                            </div>
+                            <div class="apx-result" data-when="ty-result" data-scroll-when="ty-result" data-scroll-align="top">
+                              <span class="apx-result__status">2 foods logged</span>
+                              <p class="apx-result__title"><b>2 roti and dal</b><span>Each food on its own — tap one to change it</span></p>
+                              <p class="apx-result__kcal"><b>752</b> kcal</p>
+                              <p class="apx-result__macros"><span><b>109g</b>carbs</span><span><b>36g</b>protein</span><span><b>25g</b>fibre</span><span><b>20g</b>fat</span></p>
+                              <ul class="ap-foodlog__list">
+                                <li><span class="ap-foodlog__name"><b>Roti / chapati</b><small>2 rotis · 136 g</small></span><span class="ap-foodlog__kcal">404<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                                <li><span class="ap-foodlog__name"><b>Dal</b><small>1 cup · 240 g</small></span><span class="ap-foodlog__kcal">348<small> kcal</small></span><svg class="icon"><use href="#i-chevron"/></svg></li>
+                              </ul>
+                              <div class="apx-result__note"><b>What this means for you</b><p>Good fuel for cardio. Drink plenty of water before and after your next session.</p></div>
+                              <p class="apx-result__logged">Added to today’s food above, each food on its own.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- the app's scan animation (src/components/ScanProgress.tsx) -->
+                    <div class="apx-scanfx">
+                      <div class="apx-scanfx__card">
+                        <span class="apx-scanfx__stage">
+                          <i class="apx-scanfx__ring"></i><i class="apx-scanfx__ring"></i><i class="apx-scanfx__ring"></i>
+                          <i class="apx-scanfx__arc"></i>
+                          <span class="apx-scanfx__core">
+                            <svg class="apx-scanfx__kind apx-scanfx__kind--barcode" viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M10 6v12M14 6v12M17 6v12M20 6v12"/></svg>
+                            <svg class="apx-scanfx__kind apx-scanfx__kind--photo" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+                            <svg class="apx-scanfx__check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+                            <i class="apx-scanfx__beam"></i>
+                          </span>
+                          <i class="apx-scanfx__spark" style="--i: 0"></i><i class="apx-scanfx__spark" style="--i: 1"></i><i class="apx-scanfx__spark" style="--i: 2"></i><i class="apx-scanfx__spark" style="--i: 3"></i><i class="apx-scanfx__spark" style="--i: 4"></i>
+                        </span>
+                        <span class="apx-scanfx__text apx-swap">
+                          <span data-when="bc-scan"><b>Reading the barcode…</b></span>
+                          <span data-when="bc-read"><b>Reading the label…</b></span>
+                          <span data-when="bc-done"><b>Got it</b><span>Classic houmous</span></span>
+                          <span data-when="ph-scan"><b>Looking at your plate…</b></span>
+                          <span data-when="ph-read"><b>Spotting what’s on it…</b></span>
+                          <span data-when="ph-done"><b>Got it</b><span>Salmon with sweet potato and broccoli</span></span>
+                        </span>
+                      </div>
+                    </div>
+                    <span class="apx-touch" data-feat-touch></span>
+                  </div>
+                </figure>
+              </div>
+            </article>
+
+            <!-- 04 · Cycle: Maya's card through her cycle (cycleToday on six logged periods, the last on 5 October) -->
+            <article class="feat feat--cycle" aria-labelledby="feat-cycle-title">
+              <div class="feat__copy">
+                <p class="feat__kicker reveal"><span class="feat__num" aria-hidden="true">04</span>Cycle</p>
+                <h3 class="feat__title reveal" id="feat-cycle-title">Your cycle, <em>in plain words.</em></h3>
+                <p class="feat__lead reveal">
+                  Log the day each period starts. Kinetix Fit learns your own rhythm instead of assuming 28 days, then
+                  shows your phase, your fertile window and when your next period is likely: a window of dates, and how
+                  sure it is.
+                </p>
+                <ul class="feat__points reveal" role="list">
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Predictions from your last six cycles, and a note to see your GP if they vary a lot, as the NHS advises.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Short sleep, hard training or eating too little this cycle? It says so, because they can delay a period.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span>It stays on your phone, never sent to us or to our AI. An estimate to understand your cycle, not a way to prevent pregnancy.</span></li>
+                </ul>
+              </div>
+              <div class="feat__visual">
+                <figure class="feat__stage feat__stage--cycle" role="img" aria-label="Maya’s cycle card follows her through the month, worked out from her own logged periods, which are regular at about 28 days. On day 9 she is in her follicular phase, with her next period in about 20 days, between 31 October and 4 November. Her fertile window and ovulation are estimates, and everything stays on her phone." data-feature="cycle" data-step="d9">
+                  <div class="feat__scene apx" aria-hidden="true">
+                    <div class="feat__float apx-periods">
+                      <p class="apx-periods__title">Your periods</p>
+                      <ul class="apx-periods__list">
+                        <li><span><b>Mon, 5 Oct 2026</b><small>Latest</small></span></li>
+                        <li><span><b>Mon, 7 Sept 2026</b><small>28-day cycle</small></span></li>
+                        <li><span><b>Mon, 10 Aug 2026</b><small>28-day cycle</small></span></li>
+                        <li><span><b>Mon, 13 Jul 2026</b><small>28-day cycle</small></span></li>
+                      </ul>
+                    </div>
+                    <div class="feat__window" data-viewport>
+                      <div class="feat__scroll" data-scroller>
+                        <div class="ap-card apx-cycle">
+                          <div class="ap-card__head">
+                            <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--m-cycle)"><svg class="icon"><use href="#i-cycle"/></svg></span>Your cycle</p>
+                            <span class="ap-count apx-swap"><span data-when="d2">Day 2</span><span class="is-now" data-when="d9">Day 9</span><span data-when="d12">Day 12</span><span data-when="d15">Day 15</span><span data-when="d21">Day 21</span><span data-when="d27">Day 27</span></span>
+                          </div>
+                          <div class="apx-swap apx-cycle__about">
+                            <div data-when="d2"><p class="apx-cycle__phase">Period</p><p class="apx-sub">Energy can dip in the first days. Gentle movement and iron-rich foods (lentils, spinach, red meat) help.</p></div>
+                            <div class="is-now" data-when="d9"><p class="apx-cycle__phase">Follicular phase</p><p class="apx-sub">Oestrogen rises after your period, and many people feel more energetic — a good time for harder workouts.</p></div>
+                            <div data-when="d12"><p class="apx-cycle__phase">Fertile window (estimate)</p><p class="apx-sub">Around the days you’re most likely to conceive. An estimate from your dates — not a way to prevent pregnancy.</p></div>
+                            <div data-when="d15"><p class="apx-cycle__phase">Ovulation (estimate)</p><p class="apx-sub">Around now an egg is likely released. Some people notice mild one-sided pain or more energy.</p></div>
+                            <div data-when="d21"><p class="apx-cycle__phase">Luteal phase</p><p class="apx-sub">Progesterone rises; bloating, cravings or low mood before a period are common. Keep meals regular and sleep steady.</p></div>
+                            <div data-when="d27"><p class="apx-cycle__phase">Period due soon</p><p class="apx-sub">Your period could start any day now.</p></div>
+                          </div>
+                          <span class="apx-cycle__track"><i class="apx-cycle__period"></i><i class="apx-cycle__fertile"></i><i class="apx-cycle__ovulation"></i><i class="apx-cycle__today"></i></span>
+                          <p class="apx-cycle__legend"><span><i class="is-period"></i>Period</span><span><i class="is-fertile"></i>Fertile window (estimate)</span><span><i class="is-today"></i>Today</span></p>
+                          <p class="apx-cycle__next">
+                            <span class="apx-cycle__next-label">Next period</span>
+                            <b class="apx-swap"><span data-when="d2">In about 27 days</span><span class="is-now" data-when="d9">In about 20 days</span><span data-when="d12">In about 17 days</span><span data-when="d15">In about 14 days</span><span data-when="d21">In about 8 days</span><span data-when="d27">In about 2 days</span></b>
+                            <span class="apx-cycle__window">31 Oct – 4 Nov</span>
+                          </p>
+                          <p class="apx-hint">Based on your last 6 cycles, which are regular (about 28 days).</p>
+                          <p class="apx-btns"><span class="apx-btn">My period started today</span><span class="apx-btn">Log or edit periods</span></p>
+                          <p class="apx-cycle__fine">Estimates from your own dates — not a way to prevent pregnancy. Everything stays on your phone.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </figure>
+              </div>
+            </article>
+
+            <!-- 05 · Workouts: steps from the phone; a workout added in a few taps (it never earns points: only recorded ones do) -->
+            <article class="feat feat--watch" aria-labelledby="feat-watch-title">
+              <div class="feat__copy">
+                <p class="feat__kicker reveal"><span class="feat__num" aria-hidden="true">05</span>Workouts</p>
+                <h3 class="feat__title reveal" id="feat-watch-title">No watch? <em>No problem.</em></h3>
+                <p class="feat__lead reveal">
+                  Your phone counts your steps on its own, and a two-tap check-in covers your sleep and energy. Went to yoga
+                  or played five-a-side? Add it in a few taps, from 24 activities or one you name yourself. Wear a watch and
+                  heart rate, sleep and VO₂ max join in.
+                </p>
+                <ul class="feat__points reveal" role="list">
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Steps from your phone through Apple Health or Health Connect.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Any length, today or any day in the past year, with a note if you like.</span></li>
+                  <li><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Workouts you add are your own record. Quests and points only count what your phone or watch records.</span></li>
+                </ul>
+              </div>
+              <div class="feat__visual">
+                <figure class="feat__stage feat__stage--watch" role="img" aria-label="With just her phone, Maya’s steps come in on their own: 6,842 today. She adds a workout in a few taps: yoga for 45 minutes. The app notes that workouts added by hand are for her own record, and only ones her phone or watch records count for quests and points." data-feature="watch" data-step="added">
+                  <div class="feat__scene apx" aria-hidden="true">
+                    <div class="feat__float apx-steps">
+                      <div class="ap-btc" style="--metric: var(--m-steps)">
+                        <span class="ap-btc__icon"><svg class="icon"><use href="#i-steps"/></svg></span>
+                        <span class="ap-btc__heading"><span class="ap-btc__title">Steps</span><span class="ap-btc__reading">6,842 steps today</span></span>
+                        <span class="ap-btc__pill">Synced</span>
+                        <svg class="icon ap-btc__chevron"><use href="#i-chevron"/></svg>
+                        <span class="ap-btc__bars"><i style="--h: .61"></i><i style="--h: .77"></i><i style="--h: .47"></i><i style="--h: .84"></i><i style="--h: .68"></i><i style="--h: .6"></i><i class="is-today" style="--h: .46"></i></span>
+                      </div>
+                    </div>
+                    <div class="feat__window" data-viewport>
+                      <div class="feat__scroll" data-scroller>
+                        <div class="ap-card apx-workouts">
+                          <div class="ap-card__head">
+                            <p class="ap-card__title"><span class="ap-chip" style="--tint: var(--m-heart)"><svg class="icon"><use href="#i-dumbbell"/></svg></span>Workouts</p>
+                            <span class="ap-count apx-swap"><span data-when="rest sheet yoga min45 down">1 this week</span><span class="is-now" data-when="added">2 this week</span></span>
+                          </div>
+                          <p class="apx-sub">From Apple Health. Recorded workouts count towards your quests.</p>
+                          <div class="apx-workouts__today">
+                            <p class="apx-empty" data-when="rest sheet yoga min45 down">No workouts yet today. Start one on your watch or in your fitness app and it appears here.</p>
+                            <p class="apx-workout is-manual is-now" data-when="added"><span class="apx-workout__icon"><svg class="icon"><use href="#i-recovery"/></svg></span><span><b>Yoga</b><small>45 min</small></span><span class="apx-workout__tag">Added by you</span><svg class="icon apx-workout__chevron"><use href="#i-chevron"/></svg></p>
+                          </div>
+                          <p class="apx-earlier">Earlier this week</p>
+                          <p class="apx-workout is-manual"><span class="apx-workout__icon"><svg class="icon"><use href="#i-steps"/></svg></span><span><b>Walk</b><small>Sun · 45 min</small></span><span class="apx-workout__tag">Added by you</span><svg class="icon apx-workout__chevron"><use href="#i-chevron"/></svg></p>
+                          <p class="apx-btns"><span class="apx-btn" data-touch-target="add">Add a workout</span><span class="apx-btn">See all</span></p>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Add a workout (src/components/WorkoutSheet.tsx) -->
+                    <div class="apx-sheet" data-viewport>
+                      <div class="apx-sheet__scroll" data-scroller>
+                        <span class="apx-sheet__grab"></span>
+                        <p class="apx-sheet__head"><b>Add a workout</b><span class="apx-sheet__done">Done</span></p>
+                        <p class="apx-field-label">What did you do?</p>
+                        <p class="apx-choices" data-choices="type">
+                          <span class="apx-choice" data-on="rest sheet">Walk</span><span class="apx-choice">Run</span><span class="apx-choice">Cycle</span><span class="apx-choice">Swim</span><span class="apx-choice">Strength</span><span class="apx-choice is-on" data-on="yoga min45 down added" data-touch-target="yoga">Yoga</span><span class="apx-choice">HIIT</span><span class="apx-choice">Sport</span><span class="apx-choice">Other…</span>
+                        </p>
+                        <p class="apx-show-more">Show more · 16 activities</p>
+                        <p class="apx-field-label">How long?</p>
+                        <p class="apx-choices" data-choices="minutes">
+                          <span class="apx-choice">10 min</span><span class="apx-choice">15 min</span><span class="apx-choice">20 min</span><span class="apx-choice" data-on="rest sheet yoga">30 min</span><span class="apx-choice is-on" data-on="min45 down added" data-touch-target="min45">45 min</span><span class="apx-choice">1 h</span><span class="apx-choice">1 h 30 min</span><span class="apx-choice">Custom</span>
+                        </p>
+                        <p class="apx-field-label">When?</p>
+                        <p class="apx-seg"><span class="is-on">Today</span><span>Yesterday</span><span>Earlier</span></p>
+                        <p class="apx-field-label">Note <small>Optional</small></p>
+                        <p class="apx-input">e.g. 5 km, easy pace, leg day</p>
+                        <p class="apx-hint">Workouts you add are for your own record. Only ones your watch or phone records count for quests and points.</p>
+                        <p class="apx-primary apx-swap" data-touch-target="save" data-scroll-when="down"><span data-when="rest sheet">Add walk · 30 min</span><span data-when="yoga">Add yoga · 30 min</span><span class="is-now" data-when="min45 down added">Add yoga · 45 min</span></p>
+                      </div>
+                    </div>
+                    <span class="apx-touch" data-feat-touch></span>
+                  </div>
+                </figure>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== Widgets ==============================
+           The home-screen widgets as the phones draw them (ios/App/KinetixFitWidgets/WidgetViews.swift; the Android
+           layouts match): a home screen playing Maya's afternoon, then all 14 on one wall, marked Free or Plus as the
+           app sells them (src/lib/widgets.ts). src/site/features.ts (TIMELINES.widgets) writes the home screen's step
+           onto its stage and site.css → "Widgets" draws each one; the Light / Dark switch shows the widgets' dark look
+           (src/site/widgets.ts, or CSS alone without JS). widgets.test.ts checks every name, tier, number and word
+           against the app and the widgets' own code. -->
+      <section class="section wshow" id="widgets" aria-labelledby="widgets-title" data-wtheme="light">
+        <div class="container">
+          <div class="wshow__intro">
+            <div class="wshow__copy">
+              <p class="eyebrow reveal">Widgets</p>
+              <h2 class="display reveal" id="widgets-title">Glance. Tap. <em>Done.</em></h2>
+              <p class="lead reveal">
+                Fourteen home-screen widgets for iPhone and Android. Your rings close as the day fills up, the glass fills
+                as you drink, and logging a drink takes one tap, without opening the app.
+              </p>
+              <ul class="feat__points reveal" role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-drop"/></svg><span>Tap + on any water widget and it fills, right there on your home screen.</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-target"/></svg><span>Steps, water and food as three rings that close as your day fills up.</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Plus widgets check you in with one tap, log your usual drink or workout, or show the numbers you choose.</span></li>
+              </ul>
+              <fieldset class="wswitch reveal">
+                <legend class="wswitch__legend">See them in</legend>
+                <span class="wswitch__track">
+                  <label><input type="radio" name="wtheme" value="light" checked data-wtheme-input /><span><svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg>Light</span></label>
+                  <label><input type="radio" name="wtheme" value="dark" id="wtheme-dark" data-wtheme-input /><span><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg>Dark</span></label>
+                </span>
+                <p class="wswitch__note">They follow your phone’s light or dark mode.</p>
+              </fieldset>
+            </div>
+            <div class="wshow__visual">
+              <figure class="wshow__stage" role="img" aria-label="Kinetix Fit widgets on a phone’s home screen, for Maya at 15:30. Her daily rings close: 6,842 of 12,000 steps, 1.25 of 2 litres of water and 1,023 of 2,085 kcal. She taps plus on the Water glass widget and the glass fills to 1.5 litres, then taps 500 ml on her Quick log widget: 2 litres, her goal for the day. Her streak is 12 days, done today." data-feature="widgets" data-step="goal">
+                <div class="phone phone--home" aria-hidden="true">
+                  <div class="phone__screen">
+                    <div class="hs apx">
+                      <div class="hs__bar"><span class="hs__time">15:30</span><span class="ap__island"></span><span class="hs__sys"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M8 11.6 5.6 9a3.4 3.4 0 0 1 4.8 0Z"/><path d="M3.5 6.9a6.5 6.5 0 0 1 9 0l-1.4 1.5a4.5 4.5 0 0 0-6.2 0Z"/><path d="M1.3 4.6a9.6 9.6 0 0 1 13.4 0l-1.4 1.5a7.6 7.6 0 0 0-10.6 0Z"/></svg><svg viewBox="0 0 27 12"><rect class="hs__battery" x="0.5" y="0.5" width="22" height="11" rx="3.2"/><rect x="2.2" y="2.2" width="11" height="7.6" rx="1.8"/><path d="M24.2 4v4a1.9 1.9 0 0 0 0-4Z"/></svg></span></div>
+                      <div class="hs__grid">
+                        <div class="kw kw--m kw-today"><span class="kw-today__top"><span class="kw-today__tag">TODAY</span><span class="kw-today__date">Tue 13 Oct</span><span class="kw-pill"><span class="apx-swap"><span data-when="start rings"><svg class="kw-i"><use href="#kw-drop"/></svg>1.25 L</span><span data-when="glass"><svg class="kw-i"><use href="#kw-drop"/></svg>1.5 L</span><span class="is-now" data-when="goal"><svg class="kw-i"><use href="#kw-drop"/></svg>2 L</span></span></span></span><span class="kw-today__cols"><span class="kw-today__col is-steps"><span class="kw-num">6,842</span><span class="kw-t11">of 12,000 steps</span><span class="kw-bar"><i style="--v: 0.5702"></i></span></span><span class="kw-today__col is-food"><span class="kw-num">1,062</span><span class="kw-t11">kcal left</span><span class="kw-bar"><i style="--v: 0.4906"></i></span></span><span class="kw-today__col is-quest"><span class="kw-num">2/3</span><span class="kw-t11">quests</span><span class="kw-bar"><i style="--v: 0.6667"></i></span></span></span><span class="kw-t10">Updated 12:48</span></div>
+                        <div class="kw kw--glass"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span><span class="kw-end"><span class="apx-swap"><span data-when="start rings">63%</span><span data-when="glass">75%</span><span class="is-now" data-when="goal">100%</span></span></span></span><span class="kw-glass__row"><svg class="kw-tumbler" viewBox="0 0 54 96"><defs><clipPath id="kw-glass-home-c"><path d="M5.14 10.51L10.08 76.49A16.92 3.38 0 0 0 43.92 76.49L48.86 10.51A21.86 4.37 0 0 0 5.14 10.51Z"/></clipPath><linearGradient id="kw-glass-home-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AD6EE" stop-opacity=".95"/><stop offset=".45" stop-color="#2FC6E4" stop-opacity=".96"/><stop offset="1" stop-color="#0E8FB8"/></linearGradient><linearGradient id="kw-glass-home-s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#062F3D" stop-opacity=".25"/><stop offset=".3" stop-color="#062F3D" stop-opacity="0"/><stop offset=".62" stop-color="#062F3D" stop-opacity="0"/><stop offset="1" stop-color="#062F3D" stop-opacity=".33"/></linearGradient><linearGradient id="kw-glass-home-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C4F6FC"/><stop offset="1" stop-color="#5AD6EE"/></linearGradient><linearGradient id="kw-glass-home-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="kw-tumbler__g1"/><stop offset=".8" class="kw-tumbler__g2"/><stop offset="1" stop-color="#2FC6E4" stop-opacity=".5"/></linearGradient><linearGradient id="kw-glass-home-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".78"/><stop offset="1" stop-color="#fff" stop-opacity=".06"/></linearGradient></defs><ellipse class="kw-tumbler__shadow" cx="27" cy="88.25" rx="20.77" ry="3.79"/><ellipse class="kw-tumbler__caustic" cx="36.93" cy="89.52" rx="14.45" ry="3.61"/><path class="kw-tumbler__body" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51Z"/><g clip-path="url(#kw-glass-home-c)"><g class="kw-tumbler__water"><rect x="0" y="17.11" width="54" height="78.89" fill="url(#kw-glass-home-w)"/><rect x="0" y="17.11" width="54" height="78.89" fill="url(#kw-glass-home-s)"/><rect class="kw-tumbler__shaft" x="16.32" y="21.38" width="4.27" height="55.11"/><circle class="kw-tumbler__bubble" cx="19.43" cy="39.02" r="1.19"/><circle class="kw-tumbler__bubble" cx="31.55" cy="51.69" r="0.87"/><circle class="kw-tumbler__bubble" cx="25.03" cy="64.37" r="1.5"/><circle class="kw-tumbler__bubble" cx="36.22" cy="34.61" r="0.71"/><circle class="kw-tumbler__bubble" cx="16.85" cy="56.65" r="0.79"/><g class="kw-tumbler__top"><ellipse cx="27" cy="17.11" rx="21.36" ry="4.27" fill="url(#kw-glass-home-t)"/><path class="kw-tumbler__lip" d="M48.04 17.85A21.36 4.27 0 0 1 5.96 17.85"/></g></g></g><path class="kw-tumbler__solid" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51ZM5.14 10.51L10.08 76.49A16.92 3.38 0 0 0 43.92 76.49L48.86 10.51A21.86 4.37 0 0 0 5.14 10.51Z" fill="url(#kw-glass-home-g)" fill-rule="evenodd"/><path class="kw-tumbler__outline" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51Z"/><path class="kw-tumbler__streak" d="M11.01 19.07L15.09 73.6" stroke="url(#kw-glass-home-h)" stroke-width="3.56"/><path class="kw-tumbler__thin" d="M44.89 22.87L40.81 73.6" stroke-width="1.33"/><path class="kw-tumbler__edge" d="M3.24 10.51L8.94 86.63M50.76 10.51L45.06 86.63M45.06 86.63A18.06 3.61 0 0 1 8.94 86.63"/><ellipse class="kw-tumbler__base" cx="27" cy="76.49" rx="16.92" ry="3.38"/><path class="kw-tumbler__rim-back" d="M3.24 10.51A23.76 4.75 0 0 1 50.76 10.51"/><path class="kw-tumbler__rim" d="M50.76 10.51A23.76 4.75 0 0 1 3.24 10.51"/><ellipse class="kw-tumbler__inner-rim" cx="27" cy="10.51" rx="21.86" ry="4.37"/></svg><span class="kw-glass__text"><span class="kw-amt apx-swap"><span data-when="start rings"><b>1.25</b><small>L</small></span><span data-when="glass"><b>1.5</b><small>L</small></span><span class="is-now" data-when="goal"><b>2</b><small>L</small></span></span><span class="kw-t12">of 2 L</span><span class="kw-t11"><span class="apx-swap"><span data-when="start rings glass">Next 17:00</span><span class="is-now" data-when="goal">Goal reached</span></span></span><span class="kw-plus" style="--d: 38" data-touch-target="glass"><svg class="kw-i"><use href="#kw-plus"/></svg></span></span></span></div>
+                        <div class="kw kw-rings"><svg class="kw-rings__art" viewBox="0 0 100 100"><circle class="kw-rings__track is-steps" cx="50" cy="50" r="44.74"/><circle class="kw-rings__track is-water" cx="50" cy="50" r="31.62"/><circle class="kw-rings__track is-food" cx="50" cy="50" r="18.5"/><g transform="rotate(-90 50 50)"><circle class="kw-rings__arc is-steps" cx="50" cy="50" r="44.74" style="--c: 281.11; --v: 0.5702"/><circle class="kw-rings__arc is-water" cx="50" cy="50" r="31.62" style="--c: 198.67; --v: var(--w)"/><circle class="kw-rings__arc is-food" cx="50" cy="50" r="18.5" style="--c: 116.24; --v: 0.4906"/></g></svg><span class="kw-rings__rows"><span class="is-steps"><svg class="kw-i"><use href="#kw-walk"/></svg><b>6,842</b><small>/ 12k</small></span><span class="is-water"><svg class="kw-i"><use href="#kw-drop"/></svg><span class="apx-swap"><span data-when="start rings"><b>1.25 L</b><small>/ 2 L</small></span><span data-when="glass"><b>1.5 L</b><small>/ 2 L</small></span><span class="is-now" data-when="goal"><b>2 L</b><small>/ 2 L</small></span></span></span><span class="is-food"><svg class="kw-i"><use href="#kw-flame"/></svg><b>1,023</b><small>/ 2,085 kcal</small></span></span></div>
+                        <div class="kw kw--m kw-quick"><span class="kw-h"><span class="kw-chip is-theme"><svg class="kw-i"><use href="#kw-plus"/></svg></span><span class="kw-label">QUICK LOG</span><span class="kw-end kw-mini"><span class="apx-swap"><span data-when="start rings"><svg class="kw-i"><use href="#kw-drop"/></svg>1.25 L</span><span data-when="glass"><svg class="kw-i"><use href="#kw-drop"/></svg>1.5 L</span><span class="is-now" data-when="goal"><svg class="kw-i"><use href="#kw-drop"/></svg>2 L</span></span></span></span><span class="kw-quick__row"><span class="kw-qbtn"><svg class="kw-i"><use href="#kw-drop"/></svg><span>250 ml</span></span><span class="kw-qbtn" data-touch-target="bottle"><svg class="kw-i"><use href="#kw-drop"/></svg><span>500 ml</span></span><span class="kw-qbtn"><svg class="kw-i"><use href="#kw-walk"/></svg><span>Walk 30</span></span></span><span class="kw-t11 kw-quick__line"><span class="apx-swap"><span data-when="start rings glass">Tap a button to log it</span><span class="is-now" data-when="goal">Logged 500 ml of water · 15:30</span></span></span></div>
+                        <div class="kw kw--m kw-streak"><span class="kw-h"><span class="kw-chip is-flame"><svg class="kw-i"><use href="#kw-flame"/></svg></span><span class="kw-label">STREAK</span><span class="kw-end kw-good">Done today</span></span><span class="kw-streak__body"><span class="kw-streak__count"><span class="kw-num">12</span><span class="kw-t13">day streak</span><span class="kw-t11">Best 12 days</span></span><span class="kw-dots"><span><i></i>W</span><span><i></i>T</span><span><i></i>F</span><span><i></i>S</span><span><i></i>S</span><span><i></i>M</span><span class="is-today"><i></i>T</span></span></span></div>
+                      </div>
+                      <p class="hs__search"><svg class="kw-i"><use href="#kw-search"/></svg>Search</p>
+                      <span class="hs__home"></span>
+                      <span class="apx-touch" data-feat-touch></span>
+                    </div>
+                  </div>
+                </div>
+              </figure>
+            </div>
+          </div>
+
+          <div class="wwall">
+            <div class="wwall__head">
+              <h3 class="wwall__title reveal" id="wwall-title">All 14 widgets</h3>
+              <p class="wwall__lead reveal">Eleven are free and three come with Plus. Most come in small and medium.</p>
+            </div>
+            <ul class="wwall__grid" role="list" tabindex="0" aria-labelledby="wwall-title" data-wwall>
+              <li class="wwall__item is-m reveal" data-widget="Check-in">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-checkin"><span class="kw-h"><span class="kw-chip is-violet"><svg class="kw-i"><use href="#kw-target"/></svg></span><span class="kw-label">CHECK-IN</span><span class="kw-end kw-flame"><svg class="kw-i"><use href="#kw-flame"/></svg>12</span></span><span class="kw-checkin__done"><span class="kw-checkin__tick"><svg class="kw-i"><use href="#kw-check"/></svg></span><span><span class="kw-checkin__title">Checked in</span><span class="kw-t11">Energy 4/5 · 12-day streak</span></span></span></div></div>
+                <p class="wwall__name">Check-in <span class="wtier wtier--plus">Plus</span></p>
+                <p class="visually-hidden">Tap how your energy is and you’re checked in — your streak and points, without opening the app.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Quick log">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-quick"><span class="kw-h"><span class="kw-chip is-theme"><svg class="kw-i"><use href="#kw-plus"/></svg></span><span class="kw-label">QUICK LOG</span></span><span class="kw-quick__grid"><span class="kw-qbtn"><svg class="kw-i"><use href="#kw-drop"/></svg><span>250 ml</span></span><span class="kw-qbtn"><svg class="kw-i"><use href="#kw-drop"/></svg><span>500 ml</span></span><span class="kw-qbtn"><svg class="kw-i"><use href="#kw-walk"/></svg><span>Walk 30</span></span></span></div></div>
+                <p class="wwall__name">Quick log <span class="wtier wtier--plus">Plus</span></p>
+                <p class="visually-hidden">Up to four buttons you choose — a glass, a bottle, your usual workout — logged in one tap.</p>
+              </li>
+              <li class="wwall__item is-m reveal" data-widget="My stats">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-stats"><span class="kw-h"><span class="kw-chip is-theme"><svg class="kw-i"><use href="#kw-trophy"/></svg></span><span class="kw-label">MY STATS</span></span><span class="kw-stats__row"><span class="kw-stat"><span class="kw-stat__n"><span class="kw-num">6,842</span></span><span class="kw-t10">steps</span><span class="kw-bar"><i style="--v: 0.5702"></i></span></span><span class="kw-stat"><span class="kw-stat__n"><span class="kw-num">1.25</span><small>L</small></span><span class="kw-t10">water</span><span class="kw-bar"><i style="--v: 0.625"></i></span></span><span class="kw-stat"><span class="kw-stat__n"><span class="kw-num">1,062</span></span><span class="kw-t10">kcal left</span><span class="kw-bar"><i style="--v: 0.4906"></i></span></span><span class="kw-stat"><span class="kw-stat__n"><span class="kw-num">12</span></span><span class="kw-t10">day streak</span><span class="kw-bar is-none"></span></span></span></div></div>
+                <p class="wwall__name">My stats <span class="wtier wtier--plus">Plus</span></p>
+                <p class="visually-hidden">The numbers you care about — pick two to four and a colour.</p>
+              </li>
+              <li class="wwall__item is-m reveal" data-widget="Streak">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-streak"><span class="kw-h"><span class="kw-chip is-flame"><svg class="kw-i"><use href="#kw-flame"/></svg></span><span class="kw-label">STREAK</span><span class="kw-end kw-good">Done today</span></span><span class="kw-streak__body"><span class="kw-streak__count"><span class="kw-num">12</span><span class="kw-t13">day streak</span><span class="kw-t11">Best 12 days</span></span><span class="kw-dots"><span><i></i>W</span><span><i></i>T</span><span><i></i>F</span><span><i></i>S</span><span><i></i>S</span><span><i></i>M</span><span class="is-today"><i></i>T</span></span></span></div></div>
+                <p class="wwall__name">Streak <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Your check-in streak and the last seven days.</p>
+              </li>
+              <li class="wwall__item is-m reveal" data-widget="Kinetix Fit today">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-today"><span class="kw-today__top"><span class="kw-today__tag">TODAY</span><span class="kw-today__date">Tue 13 Oct</span><span class="kw-pill"><svg class="kw-i"><use href="#kw-drop"/></svg>1.25 L</span></span><span class="kw-today__cols"><span class="kw-today__col is-steps"><span class="kw-num">6,842</span><span class="kw-t11">of 12,000 steps</span><span class="kw-bar"><i style="--v: 0.5702"></i></span></span><span class="kw-today__col is-food"><span class="kw-num">1,062</span><span class="kw-t11">kcal left</span><span class="kw-bar"><i style="--v: 0.4906"></i></span></span><span class="kw-today__col is-quest"><span class="kw-num">2/3</span><span class="kw-t11">quests</span><span class="kw-bar"><i style="--v: 0.6667"></i></span></span></span><span class="kw-t10">Updated 12:48</span></div></div>
+                <p class="wwall__name">Kinetix Fit today <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Steps, calories left, quests and today’s water.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Daily rings">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-rings"><svg class="kw-rings__art" viewBox="0 0 100 100"><circle class="kw-rings__track is-steps" cx="50" cy="50" r="44.74"/><circle class="kw-rings__track is-water" cx="50" cy="50" r="31.62"/><circle class="kw-rings__track is-food" cx="50" cy="50" r="18.5"/><g transform="rotate(-90 50 50)"><circle class="kw-rings__arc is-steps" cx="50" cy="50" r="44.74" style="--c: 281.11; --v: 0.5702"/><circle class="kw-rings__arc is-water" cx="50" cy="50" r="31.62" style="--c: 198.67; --v: var(--w)"/><circle class="kw-rings__arc is-food" cx="50" cy="50" r="18.5" style="--c: 116.24; --v: 0.4906"/></g></svg><span class="kw-rings__rows"><span class="is-steps"><svg class="kw-i"><use href="#kw-walk"/></svg><b>6,842</b><small>/ 12k</small></span><span class="is-water"><svg class="kw-i"><use href="#kw-drop"/></svg><b>1.25 L</b><small>/ 2 L</small></span><span class="is-food"><svg class="kw-i"><use href="#kw-flame"/></svg><b>1,023</b><small>/ 2,085 kcal</small></span></span></div></div>
+                <p class="wwall__name">Daily rings <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Steps, water and food as three rings towards today’s goals.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Steps">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-steps"><span class="kw-h"><span class="kw-chip is-steps"><svg class="kw-i"><use href="#kw-walk"/></svg></span><span class="kw-label">STEPS</span><span class="kw-end kw-blue">57%</span></span><span class="kw-ring is-steps"><svg viewBox="0 0 100 100"><circle class="kw-ring__track" cx="50" cy="50" r="43.37"/><circle class="kw-ring__arc" cx="50" cy="50" r="43.37" transform="rotate(-90 50 50)" style="--c: 272.5; --v: 0.5702"/><circle class="kw-ring__cap" cx="31.48" cy="89.22" r="2.9"/></svg><span class="kw-ring__in"><span class="kw-num">6,842</span><span class="kw-t10">of 12,000</span></span></span><span class="kw-t9">Updated 12:48</span></div></div>
+                <p class="wwall__name">Steps <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Today’s steps in a ring towards your goal.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Water bottle">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-bottle"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span></span><span class="kw-bottle__row"><span class="kw-bottle__text"><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t12">of 2 L</span></span><svg class="kw-bottle__art" viewBox="0 0 26 52"><defs><clipPath id="kw-bottle-c"><path d="M8.84 5.2L8.84 10.4Q1.56 11.96 1.56 18.72L1.56 44.72Q1.56 52 5.72 52L20.28 52Q24.44 52 24.44 44.72L24.44 18.72Q24.44 11.96 17.16 10.4L17.16 5.2Z"/></clipPath><linearGradient id="kw-bottle-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1BA3C6" stop-opacity=".85"/><stop offset="1" stop-color="#0A6F8E"/></linearGradient></defs><g clip-path="url(#kw-bottle-c)"><path class="kw-bottle__glass" d="M8.84 5.2L8.84 10.4Q1.56 11.96 1.56 18.72L1.56 44.72Q1.56 52 5.72 52L20.28 52Q24.44 52 24.44 44.72L24.44 18.72Q24.44 11.96 17.16 10.4L17.16 5.2Z"/><path class="kw-bottle__back" d="M0 52L0 21.95L2.17 21.84L4.33 21.28L6.5 20.43L8.67 19.58L10.83 18.99L13 18.87L15.17 19.24L17.33 19.99L19.5 20.87L21.67 21.61L23.83 21.96L26 21.81L26 52Z"/><path d="M0 52L0 21.45L2.17 22.3L4.33 22.88L6.5 22.99L8.67 22.61L10.83 21.85L13 20.97L15.17 20.24L17.33 19.9L19.5 20.06L21.67 20.67L23.83 21.53L26 22.37L26 52Z" fill="url(#kw-bottle-w)"/></g><path class="kw-bottle__edge" d="M8.84 5.2L8.84 10.4Q1.56 11.96 1.56 18.72L1.56 44.72Q1.56 52 5.72 52L20.28 52Q24.44 52 24.44 44.72L24.44 18.72Q24.44 11.96 17.16 10.4L17.16 5.2Z"/><rect class="kw-bottle__shine" x="4.68" y="22.88" width="2.08" height="17.68" rx="1.04"/><rect x="7.28" y="0" width="11.44" height="5.2" rx="1.5" fill="url(#kw-bottle-w)"/></svg></span><span class="kw-cta"><svg class="kw-i"><use href="#kw-plus"/></svg>Add 250 ml</span></div></div>
+                <p class="wwall__name">Water bottle <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">A bottle that fills up with today’s water, with a button to add a glass.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Water level">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-level"><svg class="kw-level__art" viewBox="0 0 158 158" preserveAspectRatio="none"><defs><linearGradient id="kw-level-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="kw-level__g1"/><stop offset="1" class="kw-level__g2"/></linearGradient><clipPath id="kw-level-clip" clipPathUnits="objectBoundingBox"><path d="M0 1L0 0.38L0.0417 0.3899L0.0833 0.3991L0.125 0.4066L0.1667 0.412L0.2083 0.4147L0.25 0.4146L0.2917 0.4116L0.3333 0.406L0.375 0.3983L0.4167 0.3891L0.4583 0.3791L0.5 0.3692L0.5417 0.3602L0.5833 0.3528L0.625 0.3477L0.6667 0.3452L0.7083 0.3456L0.75 0.3488L0.7917 0.3546L0.8333 0.3625L0.875 0.3718L0.9167 0.3818L0.9583 0.3917L1 0.4006L1 1Z"/></clipPath></defs><path class="kw-level__back" d="M0 158L0 61.32L6.58 60.33L13.17 58.78L19.75 56.87L26.33 54.86L32.92 53.01L39.5 51.57L46.08 50.73L52.67 50.6L59.25 51.2L65.83 52.45L72.42 54.19L79 56.17L85.58 58.15L92.17 59.85L98.75 61.05L105.33 61.6L111.92 61.41L118.5 60.51L125.08 59.03L131.67 57.16L138.25 55.14L144.83 53.25L151.42 51.74L158 50.81L158 158Z"/><path d="M0 158L0 60.04L6.58 61.61L13.17 63.05L19.75 64.25L26.33 65.09L32.92 65.52L39.5 65.5L46.08 65.03L52.67 64.15L59.25 62.93L65.83 61.47L72.42 59.9L79 58.33L85.58 56.91L92.17 55.74L98.75 54.93L105.33 54.54L111.92 54.6L118.5 55.11L125.08 56.03L131.67 57.27L138.25 58.75L144.83 60.33L151.42 61.89L158 63.29L158 158Z" fill="url(#kw-level-w)"/><circle class="kw-level__bubble" cx="28.44" cy="123.71" r="3"/><circle class="kw-level__bubble" cx="66.36" cy="89.43" r="2"/><circle class="kw-level__bubble" cx="99.54" cy="133.51" r="2.5"/><circle class="kw-level__bubble" cx="126.4" cy="104.12" r="1.8"/></svg><span class="kw-level__text"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span></span><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t13">of 2 L</span></span><span class="kw-level__text is-under"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span></span><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t13">of 2 L</span></span><span class="kw-plus is-white" style="--d: 48"><svg class="kw-i"><use href="#kw-plus"/></svg></span></div></div>
+                <p class="wwall__name">Water level <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">The whole widget fills with water as you drink.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Water ring">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-wring"><span class="kw-ring is-water"><svg viewBox="0 0 100 100"><circle class="kw-ring__track" cx="50" cy="50" r="42.95"/><circle class="kw-ring__arc" cx="50" cy="50" r="42.95" transform="rotate(-90 50 50)" style="--c: 269.86; --v: 0.625"/><circle class="kw-ring__cap" cx="19.63" cy="80.37" r="3.1"/></svg><span class="kw-ring__in"><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t10">of 2 L</span></span></span><span class="kw-wring__foot"><span><span class="kw-t13 kw-ink">750 ml to go</span><span class="kw-t11">Next 17:00</span></span><span class="kw-plus" style="--d: 40"><svg class="kw-i"><use href="#kw-plus"/></svg></span></span></div></div>
+                <p class="wwall__name">Water ring <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">A glowing ring towards today’s water goal.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Water quick add">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw-qadd"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span></span><span class="kw-sp"></span><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-bar is-water"><i style="--v: 0.625"></i></span><span class="kw-qadd__foot"><span class="kw-t12">of 2 L</span><span class="kw-plus" style="--d: 40"><svg class="kw-i"><use href="#kw-plus"/></svg></span></span></div></div>
+                <p class="wwall__name">Water quick add <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Add a glass or a bottle in one tap, with today’s progress.</p>
+              </li>
+              <li class="wwall__item is-m reveal" data-widget="Water this week">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-week"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER · THIS WEEK</span><span class="kw-plus kw-end" style="--d: 34"><svg class="kw-i"><use href="#kw-plus"/></svg></span></span><span class="kw-week__body"><span class="kw-week__now"><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t11 kw-bold">today · of 2 L</span><span class="kw-pill">Goal met 4/7</span></span><span class="kw-week__bars" style="--goal: 0.89"><span class="kw-week__day"><span class="kw-week__track" style="--v: 0.78"><i></i></span>W</span><span class="kw-week__day is-goal"><span class="kw-week__track" style="--v: 0.89"><i></i></span>T</span><span class="kw-week__day is-goal"><span class="kw-week__track" style="--v: 1"><i></i></span>F</span><span class="kw-week__day"><span class="kw-week__track" style="--v: 0.67"><i></i></span>S</span><span class="kw-week__day is-goal"><span class="kw-week__track" style="--v: 0.89"><i></i></span>S</span><span class="kw-week__day is-goal"><span class="kw-week__track" style="--v: 1"><i></i></span>M</span><span class="kw-week__day is-today"><span class="kw-week__track" style="--v: 0.56"><i></i><b>1.2</b></span>T</span></span></span></div></div>
+                <p class="wwall__name">Water this week <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Today’s water beside the last seven days and your goal.</p>
+              </li>
+              <li class="wwall__item is-m reveal" data-widget="Quick scan">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--m kw-scan"><span class="kw-scan__btn is-snap"><svg class="kw-i"><use href="#kw-camera"/></svg><span>Snap food</span></span><span class="kw-scan__btn"><svg class="kw-i"><use href="#kw-code"/></svg><span>Scan barcode</span></span></div></div>
+                <p class="wwall__name">Quick scan <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">Snap a meal or scan a barcode straight from your home screen.</p>
+              </li>
+              <li class="wwall__item reveal" data-widget="Water glass">
+                <div class="wwall__art" aria-hidden="true"><div class="kw kw--glass"><span class="kw-h"><span class="kw-chip"><svg class="kw-i"><use href="#kw-drop"/></svg></span><span class="kw-label">WATER</span><span class="kw-end">63%</span></span><span class="kw-glass__row"><svg class="kw-tumbler" viewBox="0 0 54 96"><defs><clipPath id="kw-glass-wall-c"><path d="M5.14 10.51L10.08 76.49A16.92 3.38 0 0 0 43.92 76.49L48.86 10.51A21.86 4.37 0 0 0 5.14 10.51Z"/></clipPath><linearGradient id="kw-glass-wall-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AD6EE" stop-opacity=".95"/><stop offset=".45" stop-color="#2FC6E4" stop-opacity=".96"/><stop offset="1" stop-color="#0E8FB8"/></linearGradient><linearGradient id="kw-glass-wall-s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#062F3D" stop-opacity=".25"/><stop offset=".3" stop-color="#062F3D" stop-opacity="0"/><stop offset=".62" stop-color="#062F3D" stop-opacity="0"/><stop offset="1" stop-color="#062F3D" stop-opacity=".33"/></linearGradient><linearGradient id="kw-glass-wall-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C4F6FC"/><stop offset="1" stop-color="#5AD6EE"/></linearGradient><linearGradient id="kw-glass-wall-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="kw-tumbler__g1"/><stop offset=".8" class="kw-tumbler__g2"/><stop offset="1" stop-color="#2FC6E4" stop-opacity=".5"/></linearGradient><linearGradient id="kw-glass-wall-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".78"/><stop offset="1" stop-color="#fff" stop-opacity=".06"/></linearGradient></defs><ellipse class="kw-tumbler__shadow" cx="27" cy="88.25" rx="20.77" ry="3.79"/><ellipse class="kw-tumbler__caustic" cx="36.93" cy="89.52" rx="14.45" ry="3.61"/><path class="kw-tumbler__body" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51Z"/><g clip-path="url(#kw-glass-wall-c)"><g class="kw-tumbler__water"><rect x="0" y="17.11" width="54" height="78.89" fill="url(#kw-glass-wall-w)"/><rect x="0" y="17.11" width="54" height="78.89" fill="url(#kw-glass-wall-s)"/><rect class="kw-tumbler__shaft" x="16.32" y="21.38" width="4.27" height="55.11"/><circle class="kw-tumbler__bubble" cx="19.43" cy="39.02" r="1.19"/><circle class="kw-tumbler__bubble" cx="31.55" cy="51.69" r="0.87"/><circle class="kw-tumbler__bubble" cx="25.03" cy="64.37" r="1.5"/><circle class="kw-tumbler__bubble" cx="36.22" cy="34.61" r="0.71"/><circle class="kw-tumbler__bubble" cx="16.85" cy="56.65" r="0.79"/><g class="kw-tumbler__top"><ellipse cx="27" cy="17.11" rx="21.36" ry="4.27" fill="url(#kw-glass-wall-t)"/><path class="kw-tumbler__lip" d="M48.04 17.85A21.36 4.27 0 0 1 5.96 17.85"/></g></g></g><path class="kw-tumbler__solid" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51ZM5.14 10.51L10.08 76.49A16.92 3.38 0 0 0 43.92 76.49L48.86 10.51A21.86 4.37 0 0 0 5.14 10.51Z" fill="url(#kw-glass-wall-g)" fill-rule="evenodd"/><path class="kw-tumbler__outline" d="M3.24 10.51L8.94 86.63A18.06 3.61 0 0 0 45.06 86.63L50.76 10.51A23.76 4.75 0 0 0 3.24 10.51Z"/><path class="kw-tumbler__streak" d="M11.01 19.07L15.09 73.6" stroke="url(#kw-glass-wall-h)" stroke-width="3.56"/><path class="kw-tumbler__thin" d="M44.89 22.87L40.81 73.6" stroke-width="1.33"/><path class="kw-tumbler__edge" d="M3.24 10.51L8.94 86.63M50.76 10.51L45.06 86.63M45.06 86.63A18.06 3.61 0 0 1 8.94 86.63"/><ellipse class="kw-tumbler__base" cx="27" cy="76.49" rx="16.92" ry="3.38"/><path class="kw-tumbler__rim-back" d="M3.24 10.51A23.76 4.75 0 0 1 50.76 10.51"/><path class="kw-tumbler__rim" d="M50.76 10.51A23.76 4.75 0 0 1 3.24 10.51"/><ellipse class="kw-tumbler__inner-rim" cx="27" cy="10.51" rx="21.86" ry="4.37"/></svg><span class="kw-glass__text"><span class="kw-amt"><b>1.25</b><small>L</small></span><span class="kw-t12">of 2 L</span><span class="kw-t11">Next 17:00</span><span class="kw-plus" style="--d: 38"><svg class="kw-i"><use href="#kw-plus"/></svg></span></span></span></div></div>
+                <p class="wwall__name">Water glass <span class="wtier wtier--free">Free</span></p>
+                <p class="visually-hidden">A glass that fills up with today’s water on a frosted-glass card, with a button to add a glass.</p>
+              </li>
+            </ul>
+            <p class="fineprint wwall__note reveal">Plus widgets show a locked card until you join Plus. On iPhone, widget buttons need iOS 17 or later; on Android they can give a haptic tap.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== A day with Kinetix Fit ============================== -->
+      <section class="section features" id="day" aria-labelledby="day-title">
+        <div class="container">
+          <div class="section-head">
+            <p class="eyebrow reveal">Your day</p>
+            <h2 class="display reveal" id="day-title">One app for the whole day.</h2>
+            <p class="lead reveal">From the first coffee to the last glass of water, Kinetix Fit keeps the small things in view, and counts them.</p>
+          </div>
+
+          <ol class="day" role="list" data-day>
+            <li class="day__item reveal">
+              <div class="day__time"><time datetime="07:10">07:10</time></div>
+              <div class="day__copy">
+                <h3>Morning check-in</h3>
+                <p>Two taps: how long you slept and how you feel. Over time, you’ll see how your sleep lines up with your energy.</p>
+              </div>
+              <div class="day__ui" aria-hidden="true">
+                <div class="ui-card ui-card--float">
+                  <div class="ui-card__head"><span class="ui-chip" style="--tint: var(--m-sleep)"><svg class="icon"><use href="#i-sleep"/></svg></span><span class="ui-card__title">Morning check-in</span></div>
+                  <p class="ui-q">How long did you sleep?</p>
+                  <div class="ui-choices"><span>5h</span><span>6h</span><span class="is-on">7h</span><span>8h</span><span>9h+</span></div>
+                  <p class="ui-q">How’s your energy?</p>
+                  <div class="ui-pips"><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i></div>
+                </div>
+              </div>
+            </li>
+
+            <li class="day__item reveal">
+              <div class="day__time"><time datetime="08:40">08:40</time></div>
+              <div class="day__copy">
+                <h3>Steps, sleep and heart rate, synced</h3>
+                <p>Your phone or watch does the tracking. Kinetix Fit brings it together: steps, distance, sleep and heart rate, plus blood oxygen and VO₂ max if your watch records them.</p>
+              </div>
+              <div class="day__ui" aria-hidden="true">
+                <div class="ui-card ui-card--float">
+                  <div class="ui-card__head"><span class="ui-chip" style="--tint: var(--m-heart)"><svg class="icon"><use href="#i-heart"/></svg></span><span class="ui-card__title">Heart rate</span><span class="ui-pill">Synced</span></div>
+                  <p class="ui-big"><b>72</b> <span>bpm · at 08:36</span></p>
+                  <svg class="ui-spark" viewBox="0 0 240 56" preserveAspectRatio="none"><path d="M0 40 C 20 38, 30 30, 45 32 S 70 44, 85 36 S 110 14, 125 20 S 150 40, 165 34 S 190 22, 205 26 S 228 34, 240 30"/></svg>
+                  <div class="ui-stats"><span><b>58–121</b> today</span><span><b>6.4 km</b> walked</span></div>
+                </div>
+              </div>
+            </li>
+
+            <li class="day__item reveal">
+              <div class="day__time"><time datetime="15:30">15:30</time></div>
+              <div class="day__copy">
+                <h3>A nudge to move</h3>
+                <p>Been sitting a while? A movement break gets you up for two minutes, every 45 minutes to two hours in the hours you choose. On Android it only comes once you’ve actually been still. Water reminders come too, with Add a glass right in the notification.</p>
+              </div>
+              <div class="day__ui" aria-hidden="true">
+                <div class="ui-note">
+                  <span class="ui-note__icon"><svg class="icon"><use href="#i-steps"/></svg></span>
+                  <p class="ui-note__head"><span>Kinetix Fit</span><span>now</span></p>
+                  <p class="ui-note__title">Time to stretch your legs</p>
+                  <p class="ui-note__body">Been sitting a while? Two minutes on your feet.</p>
+                </div>
+              </div>
+            </li>
+
+            <li class="day__item reveal">
+              <div class="day__time"><time datetime="20:00">20:00</time></div>
+              <div class="day__copy">
+                <h3>Gut check</h3>
+                <p>How was your gut today? After a week you’ll see patterns and foods worth trying, based on NHS guidance, never a diagnosis.</p>
+              </div>
+              <div class="day__ui" aria-hidden="true">
+                <div class="ui-card ui-card--float">
+                  <div class="ui-card__head"><span class="ui-chip" style="--tint: var(--good)"><svg class="icon"><use href="#i-leaf"/></svg></span><span class="ui-card__title">Gut check</span><span class="ui-pill ui-pill--soft">Day 6 of 7</span></div>
+                  <p class="ui-q">How was your gut today?</p>
+                  <div class="ui-choices ui-choices--wide"><span>Rough</span><span>Meh</span><span class="is-on is-good">Good</span><span>Great</span></div>
+                  <div class="ui-tags"><span>Bloating</span><span class="is-on">None</span><span>Heartburn</span></div>
+                </div>
+              </div>
+            </li>
+          </ol>
+
+          <div class="also">
+            <div class="also__body">
+            <h3 class="also__title reveal">Also in Kinetix Fit</h3>
+            <ul class="also__grid" role="list">
+              <li class="also__item reveal">
+                <span class="chip" style="--tint: var(--warn)"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg></span>
+                <h4>Allergies and diet</h4>
+                <p>Vegetarian, no eggs, the 14 UK allergens or your own. Every food check flags what matters to you.</p>
+              </li>
+              <li class="also__item reveal">
+                <span class="chip" style="--tint: var(--m-steps)"><svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg></span>
+                <h4>Made for where you live</h4>
+                <p>Local foods, units and guidance in nine countries, from the UK and Ireland to India, Singapore and the UAE.</p>
+              </li>
+              <li class="also__item reveal">
+                <span class="chip" style="--tint: var(--m-sleep)"><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg></span>
+                <h4>Levels and achievements</h4>
+                <p>Streak badges, levels and everyday quests that keep things moving, without the pressure.</p>
+              </li>
+            </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== Interlude ============================== -->
+      <section class="interlude" aria-label="Our philosophy">
+        <div class="container">
+          <p class="interlude__quote reveal">
+            <span class="manifesto__soft">Slow progress</span>
+            <span class="manifesto__strong" data-sprint><span class="line">is still</span> <span class="line"><em>progress.</em></span></span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================== Rewards ============================== -->
+      <section class="rewards" id="rewards" aria-labelledby="rewards-title" data-rewards data-header-dark>
+        <div class="rewards__glow" aria-hidden="true"></div>
+        <div class="container">
+          <div class="section-head section-head--dark">
+            <p class="eyebrow eyebrow--light reveal">Rewards</p>
+            <h2 class="display display--light reveal" id="rewards-title">Your progress, <em>paid back.</em></h2>
+            <p class="lead lead--light reveal">
+              Every day you show up earns points: for walking, sleeping well, checking in and eating a bit better. Keep
+              it steady and they turn into something real, like a coffee on us.
+            </p>
+          </div>
+
+          <div class="journey">
+            <div class="journey__visual" style="--level: 1">
+              <div class="cup" data-cup>
+                <svg class="cup__art" viewBox="0 0 260 250" aria-hidden="true">
+                  <defs>
+                    <clipPath id="cup-inside"><path d="M52 64 H208 L196 170 C 192 204 168 222 130 222 C 92 222 68 204 64 170 Z"/></clipPath>
+                    <linearGradient id="crema" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#EBCBA6"/>
+                      <stop offset="0.14" stop-color="#C98F5E"/>
+                      <stop offset="1" stop-color="#7A4A2C"/>
+                    </linearGradient>
+                  </defs>
+                  <g class="cup__steam">
+                    <path d="M104 44 C 96 32, 112 24, 104 10"/>
+                    <path d="M130 46 C 122 32, 138 22, 130 6"/>
+                    <path d="M156 44 C 148 32, 164 24, 156 10"/>
+                  </g>
+                  <g clip-path="url(#cup-inside)">
+                    <g class="cup__liquid">
+                      <rect x="40" y="72" width="180" height="160" fill="url(#crema)"/>
+                      <path class="cup__wave" d="M-50 72 q 22.5 -8 45 0 t 45 0 t 45 0 t 45 0 t 45 0 t 45 0 t 45 0 t 45 0 V 80 H -50 Z"/>
+                    </g>
+                  </g>
+                  <path class="cup__outline" d="M52 64 H208 L196 170 C 192 204 168 222 130 222 C 92 222 68 204 64 170 Z"/>
+                  <path class="cup__handle" d="M204 96 C 236 94, 244 142, 200 150"/>
+                  <path class="cup__saucer" d="M36 232 H224"/>
+                </svg>
+                <div class="cup__marks" aria-hidden="true">
+                  <span class="cup__mark cup__mark--charity" data-points="1000" style="--at: 0.6667"><svg class="icon"><use href="#i-heart-hand"/></svg>1,000</span>
+                  <span class="cup__mark cup__mark--coffee" data-points="1500" style="--at: 1"><svg class="icon"><use href="#i-coffee"/></svg>1,500</span>
+                </div>
+              </div>
+              <div class="journey__meter">
+                <p class="journey__count"><span data-points-count>1,500</span> <span class="journey__unit">points</span></p>
+                <p class="journey__status" data-journey-status>Coffee’s on us.</p>
+                <div class="journey__lane" aria-hidden="true"><i data-journey-lane></i></div>
+              </div>
+            </div>
+
+            <ol class="journey__steps" role="list" aria-label="An example of how points add up">
+              <li class="beat" data-total="5">
+                <span class="beat__when">Day 1</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-sleep"/></svg>Morning check-in</span>
+                <span class="beat__pts">+5</span>
+              </li>
+              <li class="beat" data-total="13">
+                <span class="beat__when">Day 1</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-steps"/></svg>Walked 8,000 steps</span>
+                <span class="beat__pts">+8</span>
+              </li>
+              <li class="beat" data-total="18">
+                <span class="beat__when">Day 2</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-bowl"/></svg>Checked 3 foods</span>
+                <span class="beat__pts">+5</span>
+              </li>
+              <li class="beat" data-total="25">
+                <span class="beat__when">Day 3</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-sleep"/></svg>Slept 7 hours</span>
+                <span class="beat__pts">+7</span>
+              </li>
+              <li class="beat beat--week" data-total="214">
+                <span class="beat__when">Week 1</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-flame"/></svg>First 7-day streak</span>
+                <span class="beat__pts">214</span>
+              </li>
+              <li class="beat beat--week" data-total="642">
+                <span class="beat__when">Week 3</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-trophy"/></svg>Reached level 4</span>
+                <span class="beat__pts">642</span>
+              </li>
+              <li class="beat beat--milestone" data-total="1000">
+                <span class="beat__when">Week 5</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-heart-hand"/></svg>Enough to give £2.50 to charity</span>
+                <span class="beat__pts">1,000</span>
+              </li>
+              <li class="beat beat--milestone beat--coffee" data-total="1500">
+                <span class="beat__when">Week 7</span>
+                <span class="beat__what"><svg class="icon" aria-hidden="true"><use href="#i-coffee"/></svg>A £5 coffee, on us</span>
+                <span class="beat__pts">1,500</span>
+              </li>
+            </ol>
+          </div>
+
+          <p class="rewards__example">
+            An example pace, doing your daily goals every day (about 1,000 points a month). A lighter week just takes a
+            little longer.
+          </p>
+
+          <div class="reward-cards">
+            <article class="reward-card reward-card--coffee reveal">
+              <span class="reward-card__icon"><svg class="icon" aria-hidden="true"><use href="#i-coffee"/></svg></span>
+              <h3>A coffee on us</h3>
+              <p class="reward-card__value"><span data-reward="voucherValue">£5</span> coffee voucher</p>
+              <p class="reward-card__cost"><span data-reward="voucherPoints">1,500</span> points</p>
+              <p>Swap your points for a coffee voucher. With Kinetix Fit Plus, one a month.</p>
+            </article>
+            <article class="reward-card reward-card--charity reveal">
+              <span class="reward-card__icon"><svg class="icon" aria-hidden="true"><use href="#i-heart-hand"/></svg></span>
+              <h3>Give it to charity</h3>
+              <p class="reward-card__value"><span data-reward="donationValue">£2.50</span> donation</p>
+              <p class="reward-card__cost"><span data-reward="donationPoints">1,000</span> points</p>
+              <p>Turn your progress into a donation to a UK charity. Free for everyone.</p>
+            </article>
+            <article class="reward-card reward-card--earn reveal">
+              <h3>How points add up</h3>
+              <dl class="earn-list">
+                <div><dt>Daily check-in</dt><dd>+<span data-reward="checkIn">5</span></dd></div>
+                <div><dt>Everyday quests, up to 3 a day</dt><dd>+<span data-reward="questMin">5</span> to <span data-reward="questMax">8</span></dd></div>
+                <div><dt>First food scan of the day</dt><dd>+<span data-reward="firstScan">2</span></dd></div>
+                <div><dt>Every 7-day streak</dt><dd>+<span data-reward="streakWeek">10</span></dd></div>
+                <div><dt>Each new level</dt><dd>+<span data-reward="levelUp">10</span></dd></div>
+              </dl>
+            </article>
+          </div>
+
+          <p class="fineprint fineprint--light">
+            Points come from activity your phone or watch confirms, daily check-ins and food checks. Coffee vouchers need
+            Kinetix Fit Plus and charity donations are free; you can have up to one of each a month. Rewards are
+            available in the UK for now. Points have no cash value.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============================== How it works ============================== -->
+      <section class="section how" id="how" aria-labelledby="how-title">
+        <div class="container">
+          <div class="section-head">
+            <p class="eyebrow reveal">How it works</p>
+            <h2 class="display reveal" id="how-title">Four steps. <em class="display__line">Start where you are.</em></h2>
+          </div>
+          <ol class="steps" role="list" data-steps>
+            <li class="step reveal">
+              <span class="step__num" aria-hidden="true">1</span>
+              <h3>Get the app</h3>
+              <p>Download Kinetix Fit on iPhone or Android and tell us a little about you. We’ll suggest daily targets based on NHS guidance.</p>
+            </li>
+            <li class="step reveal">
+              <span class="step__num" aria-hidden="true">2</span>
+              <h3>Connect your health data</h3>
+              <p>Link Apple Health or Health Connect so your steps, sleep and heart rate flow in. No watch? Your phone counts steps on its own.</p>
+            </li>
+            <li class="step reveal">
+              <span class="step__num" aria-hidden="true">3</span>
+              <h3>Show up</h3>
+              <p>Check in, move and eat a little better. Everyday quests come from what your phone or watch can actually measure.</p>
+            </li>
+            <li class="step reveal">
+              <span class="step__num" aria-hidden="true">4</span>
+              <h3>Enjoy the rewards</h3>
+              <p>Watch your points build, level up, and swap them for a charity donation or a coffee on us.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ============================== Plans ============================== -->
+      <section class="section plans" id="plans" aria-labelledby="plans-title">
+        <div class="container">
+          <div class="section-head">
+            <p class="eyebrow reveal">Plans</p>
+            <h2 class="display reveal" id="plans-title">Free to start. <em class="display__line">Plus when you want more.</em></h2>
+            <p class="lead reveal">Everything you need to build the habit is free. Plus adds more scans, AI meal ideas and a coffee on us.</p>
+          </div>
+          <div class="plans__grid">
+            <article class="plan reveal" aria-labelledby="plan-free">
+              <h3 class="plan__name" id="plan-free">Free</h3>
+              <p class="plan__tag">Everything you need to build the habit</p>
+              <ul class="plan__list" role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Unlimited typed food checks</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><span data-plan="freeScans">2</span> photo or barcode scans a day</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Morning check-ins, streaks and everyday quests</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Points, levels and charity donations</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Meal ideas ranked for your day</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Home-screen widgets for water, steps and your streak</li>
+              </ul>
+              <div class="plan__icons">
+                <div class="plan__icon-row" aria-hidden="true" data-icons="free"><img src="/src/assets/app-icons/classic.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="Classic" /><img src="/src/assets/app-icons/midnight.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="Midnight" /></div>
+                <p class="plan__icon-label">Two app icons</p>
+              </div>
+            </article>
+            <article class="plan plan--plus reveal" aria-labelledby="plan-plus">
+              <h3 class="plan__name" id="plan-plus">Plus</h3>
+              <p class="plan__tag">More scans, and a coffee on us</p>
+              <p class="plan__includes">Everything in Free, and:</p>
+              <ul class="plan__list" role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span><span data-plan="plusScans">10</span> photo or barcode scans a day</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Coffee vouchers for your points, one a month</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>AI meal ideas from your goal and your day</li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>Plus widgets: check in and log in one tap</li>
+              </ul>
+              <div class="plan__icons">
+                <div class="plan__icon-row" aria-hidden="true" data-icons="plus"><img src="/src/assets/app-icons/aurora.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="Aurora" /><img src="/src/assets/app-icons/gold.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="Gold" /><img src="/src/assets/app-icons/ember.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="Ember" /><img src="/src/assets/app-icons/kx-track.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="KX Track" /><img src="/src/assets/app-icons/kx-mono.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="KX Monogram" /><img src="/src/assets/app-icons/kx-pulse.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="KX Pulse" /><img src="/src/assets/app-icons/kx-chrome.webp" alt="" width="56" height="56" loading="lazy" decoding="async" title="KX Chrome" /></div>
+                <p class="plan__icon-label">Seven more app icons</p>
+              </div>
+            </article>
+          </div>
+          <p class="fineprint plans__note reveal">Plus is an optional monthly subscription through the App Store or Google Play. You’ll see the price in the app before you decide, and you can cancel any time in your store settings.</p>
+        </div>
+      </section>
+
+      <!-- ============================== Trust ============================== -->
+      <section class="section trust" aria-labelledby="trust-title">
+        <div class="container">
+          <div class="section-head">
+            <p class="eyebrow reveal">Trust</p>
+            <h2 class="display reveal" id="trust-title">Honest numbers. <em class="display__line">Private by design.</em></h2>
+            <p class="lead reveal">We’d rather show you where a number came from than dress it up. Here’s what Kinetix Fit is built on, and what we promise.</p>
+          </div>
+          <div class="trust__lists">
+            <div class="trust__col reveal">
+              <h3>Built on</h3>
+              <ul role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>NHS guidance</b> for daily targets, fibre and gut health tips</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>USDA FoodData Central</b> and <b>Open Food Facts</b> for nutrition</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span><b>Apple Health</b> and <b>Health Connect</b> for your activity</span></li>
+              </ul>
+            </div>
+            <div class="trust__col reveal">
+              <h3>We promise</h3>
+              <ul role="list">
+                <li><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span>Your gut checks, cycle and body stats <b>never leave your phone</b></span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span>We <b>never sell your data</b>, to anyone, for any purpose</span></li>
+                <li><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span>A <b>UK company</b>, registered with the ICO (ZC236047)</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== FAQ ============================== -->
+      <section class="section faq" id="faq" aria-labelledby="faq-title">
+        <div class="container faq__grid">
+          <div class="faq__intro">
+            <p class="eyebrow reveal">FAQ</p>
+            <h2 class="display reveal" id="faq-title">Questions, answered.</h2>
+            <p class="lead reveal">Something else on your mind? Email <a class="text-link" href="mailto:info@kinetixfit.co.uk">info@kinetixfit.co.uk</a> and a real person will reply.</p>
+          </div>
+          <div class="faq__list" data-faq>
+            <details class="qa reveal">
+              <summary><span>When can I get Kinetix Fit?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Kinetix Fit is being tested now and is coming soon to the App Store and Google Play. <a class="text-link" href="#early-access">Join early access</a> and we’ll email you the day it’s ready. Already have an account? You can <a class="text-link" href="/app/" data-app-link>log in on the web</a> today.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>Is Kinetix Fit free?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Yes. Food logging, check-ins, quests, points and charity donations are all free. Kinetix Fit Plus is an optional subscription that adds more photo and barcode scans (10 a day instead of 2), coffee vouchers, AI meal ideas, extra widgets and more app icons. You’ll see the price in the app before you decide.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>How do rewards work?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>You earn points for things your phone or watch can confirm, like steps and sleep, plus daily check-ins and food checks. At 1,000 points you can give £2.50 to a UK charity. At 1,500 points, Plus members can get a £5 coffee voucher, one a month. Rewards are UK-only for now.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>How long does it take to earn a coffee?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Doing your daily goals every day earns about 1,000 points a month, so a coffee takes six or seven weeks. A lighter routine takes longer, and every point still counts.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>Do I need a smartwatch?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>No. Your phone counts steps on its own. A watch or fitness band adds heart rate, sleep and more. Anything that shares with Apple Health or Health Connect works, such as an Apple Watch or a Galaxy Watch.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>How accurate is the food logging?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Nutrition comes from USDA FoodData Central and, for barcodes, Open Food Facts, and the app always shows where a number came from. Photo scans estimate portions, so you can change an amount in a tap. If you have a serious allergy, always check the packaging too.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>What happens to my health data?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Kinetix Fit only reads health data you allow, and you can disconnect at any time. Gut checks, periods and body stats like blood pressure stay on your phone. We never sell your data. The details are in our <a class="text-link" href="/privacy-policy">privacy policy</a>.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>Does it work outside the UK?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Yes. The app supports nine countries, including Ireland, the US, Canada, Australia, New Zealand, India, Singapore and the UAE, with local foods, units and guidance. Rewards are UK-only for now.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>Is Kinetix Fit medical advice?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>No. Kinetix Fit is a wellness app, not a medical device. Targets and suggestions are general guidance, so talk to your GP before big changes, especially if you have a health condition or are pregnant.</p></div>
+            </details>
+            <details class="qa reveal">
+              <summary><span>Who is behind Kinetix Fit?</span><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></summary>
+              <div class="qa__a"><p>Kinetix Fit is made by JN Global Ventures LTD, a company registered in England and Wales and based in Sheffield. You need to be 16 or over to use it.</p></div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================== Early access ============================== -->
+      <section class="section section--tight cta-section" id="early-access" aria-labelledby="cta-title">
+        <div class="container">
+          <div class="cta-panel">
+            <svg class="cta-panel__lanes reveal" viewBox="0 0 800 520" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+              <path d="M -10 430 L 520 430 A 170 170 0 0 0 520 90 L -10 90"/>
+              <path d="M -10 470 L 520 470 A 210 210 0 0 0 520 50 L -10 50"/>
+              <path d="M -10 510 L 520 510 A 250 250 0 0 0 520 10 L -10 10"/>
+              <path d="M -10 550 L 520 550 A 290 290 0 0 0 520 -30 L -10 -30"/>
+              <path class="cta-panel__runner" pathLength="1" d="M -10 470 L 520 470 A 210 210 0 0 0 520 50 L -10 50"/>
+            </svg>
+            <div class="cta-panel__copy">
+              <p class="eyebrow eyebrow--light">Early access</p>
+              <h2 class="display display--light" id="cta-title">Your next coffee starts with <em>one step.</em></h2>
+              <p class="lead lead--light">Kinetix Fit is coming soon to iPhone and Android. Leave your email and we’ll let you know the day it’s ready.</p>
+              <ul class="stores" aria-label="Where you'll get Kinetix Fit">
+                <li class="store"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><span><small>Coming soon to the</small>App Store</span></li>
+                <li class="store"><svg class="icon" aria-hidden="true"><use href="#i-phone"/></svg><span><small>Coming soon to</small>Google Play</span></li>
+              </ul>
+            </div>
+
+            <form class="signup" action="/api/early-access" method="post" novalidate data-signup>
+              <div class="signup__fields">
+                <div class="field">
+                  <label class="field__label" for="signup-email">Email address</label>
+                  <input class="field__input" id="signup-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="name@example.com" required aria-describedby="signup-email-error" />
+                  <p class="field__error" id="signup-email-error" data-error hidden></p>
+                </div>
+                <fieldset class="field field--choice">
+                  <legend class="field__label">Your phone <span class="field__optional">(optional)</span></legend>
+                  <div class="segmented">
+                    <label><input type="radio" name="platform" value="iphone" /><span>iPhone</span></label>
+                    <label><input type="radio" name="platform" value="android" /><span>Android</span></label>
+                  </div>
+                </fieldset>
+                <div class="signup__trap" aria-hidden="true">
+                  <label for="signup-company">Company</label>
+                  <input id="signup-company" name="company" type="text" tabindex="-1" autocomplete="off" />
+                </div>
+                <button class="btn btn--primary btn--block signup__submit" type="submit" data-submit>
+                  <span class="signup__submit-label">Get early access</span>
+                </button>
+                <p class="signup__note">We’ll only email you about the launch. Unsubscribe any time. See our <a class="text-link text-link--light" href="/privacy-policy">privacy policy</a>.</p>
+              </div>
+              <div class="signup__done" data-done hidden tabindex="-1">
+                <span class="signup__done-icon"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg></span>
+                <p class="signup__done-title">You’re on the list.</p>
+                <p class="signup__done-text" data-done-text>We’ll email you the day Kinetix Fit is ready.</p>
+              </div>
+              <p class="signup__status" role="status" aria-live="polite" data-status></p>
+            </form>
+          </div>
+          <p class="cta-login">Already have an account? <a class="text-link" href="/app/" data-app-link>Log in on the web<svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============================== Footer ============================== -->
+    <footer class="site-footer" data-header-dark>
+      <div class="container">
+        <div class="site-footer__top">
+          <div class="site-footer__brand">
+            <a class="brand brand--light" href="/" aria-label="Kinetix Fit home">
+              <svg class="brand__mark" viewBox="0 0 100 50" aria-hidden="true"><use href="#i-infinity"/></svg>
+              <span class="brand__word">Kinetix Fit</span>
+            </a>
+            <p class="site-footer__tagline">Small wins. Real rewards.</p>
+            <p class="site-footer__about">A fitness and nutrition app that rewards consistency, made in the UK.</p>
+            <div class="share" data-share>
+              <p class="share__label" id="share-label">Share Kinetix Fit</p>
+              <ul class="share__list" role="list" aria-labelledby="share-label">
+                <li><a class="share__link" data-share-link="whatsapp" href="https://wa.me/?text=Kinetix%20Fit%3A%20the%20UK%20fitness%20app%20that%20rewards%20consistency%20https%3A%2F%2Fwww.kinetixfit.co.uk%2F" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-whatsapp"/></svg><span class="visually-hidden">Share on WhatsApp (opens in a new tab)</span></a></li>
+                <li><a class="share__link" data-share-link="x" href="https://x.com/intent/post?text=Kinetix%20Fit%3A%20the%20UK%20fitness%20app%20that%20rewards%20consistency&amp;url=https%3A%2F%2Fwww.kinetixfit.co.uk%2F" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg><span class="visually-hidden">Share on X (opens in a new tab)</span></a></li>
+                <li><a class="share__link" data-share-link="linkedin" href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.kinetixfit.co.uk%2F" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-linkedin"/></svg><span class="visually-hidden">Share on LinkedIn (opens in a new tab)</span></a></li>
+                <li><a class="share__link" data-share-link="facebook" href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.kinetixfit.co.uk%2F" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#i-facebook"/></svg><span class="visually-hidden">Share on Facebook (opens in a new tab)</span></a></li>
+                <li><a class="share__link" data-share-link="email" href="mailto:?subject=Kinetix%20Fit&amp;body=The%20UK%20fitness%20app%20that%20rewards%20consistency%3A%20https%3A%2F%2Fwww.kinetixfit.co.uk%2F"><svg class="icon" aria-hidden="true"><use href="#i-mail"/></svg><span class="visually-hidden">Share by email</span></a></li>
+              </ul>
+            </div>
+          </div>
+
+          <nav class="site-footer__nav" aria-label="Footer">
+            <div class="site-footer__col">
+              <h2 class="site-footer__heading">Product</h2>
+              <ul role="list">
+                <li><a href="#why">Why Kinetix Fit</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#rewards">Rewards</a></li>
+                <li><a href="#how">How it works</a></li>
+                <li><a href="#plans">Plans</a></li>
+                <li><a href="#faq">FAQ</a></li>
+              </ul>
+            </div>
+            <div class="site-footer__col">
+              <h2 class="site-footer__heading">Get started</h2>
+              <ul role="list">
+                <li><a href="#early-access">Early access</a></li>
+                <li><a href="/app/" data-app-link data-logged-in-text="Open the web app">Log in on the web</a></li>
+              </ul>
+            </div>
+            <div class="site-footer__col">
+              <h2 class="site-footer__heading">Company</h2>
+              <ul role="list">
+                <li><a href="mailto:info@kinetixfit.co.uk">Contact us</a></li>
+                <li><a href="https://www.justgiving.com/page/kinetixfit-jn-global-ventures-ltd-1" target="_blank" rel="noopener noreferrer">Our fundraiser<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+              </ul>
+            </div>
+            <div class="site-footer__col">
+              <h2 class="site-footer__heading">Legal</h2>
+              <ul role="list">
+                <li><a href="/privacy-policy">Privacy policy</a></li>
+                <li><a href="/terms-of-service">Terms of service</a></li>
+              </ul>
+            </div>
+            <div class="site-footer__col site-footer__col--follow" data-follow>
+              <h2 class="site-footer__heading">Follow us</h2>
+              <ul role="list" data-follow-list><li class="site-footer__soon">Coming soon</li></ul>
+            </div>
+          </nav>
+        </div>
+
+        <div class="site-footer__legal">
+          <p>© <span data-year>2026</span> JN Global Ventures LTD. Registered in England and Wales, company number 17268312. Registered office: Sheffield, United Kingdom. ICO registration ZC236047.</p>
+          <p>Kinetix Fit is a wellness app, not a medical device. This website uses no tracking cookies. Apple Health and App Store are trademarks of Apple Inc. Health Connect and Google Play are trademarks of Google LLC.</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

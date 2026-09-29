@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick scan (2x1), liquid glass: a glossy clay Snap food and a glass Scan barcode (ScanWidget.java). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="horizontal" android:padding="8dp">
+    <LinearLayout android:id="@+id/scan_photo" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+        android:layout_marginEnd="4dp" android:background="@drawable/widget_btn_clay" android:orientation="vertical" android:gravity="center" android:padding="6dp">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_widget_camera" android:tint="#FFFFFFFF" android:importantForAccessibility="no" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Snap food"
+            android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="#FFFFFFFF" android:maxLines="1" android:gravity="center"
+            android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="12sp" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/scan_barcode" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent"
+        android:layout_marginStart="4dp" android:background="@drawable/widget_btn_soft_card" android:orientation="vertical" android:gravity="center" android:padding="6dp">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_widget_barcode" android:tint="#FFFF6A3D" android:importantForAccessibility="no" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Scan barcode"
+            android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" android:gravity="center"
+            android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,0 +1,33 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "mango lassi",
+ "generic": [],
+ "branded": [
+  {
+   "fdcId": 900000003,
+   "description": "MANGO LASSI",
+   "dataType": "Branded",
+   "brandOwner": "TEST BRAND (SYNTHETIC)",
+   "servingSizeUnit": "MLT",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 90
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.8
+    },
+    {
+     "nutrientId": 1005,
+     "value": 15
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.2
+    }
+   ],
+   "_note": "synthetic, not a real USDA record"
+  }
+ ]
+}

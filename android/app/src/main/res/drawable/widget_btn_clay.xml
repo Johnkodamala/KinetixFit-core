@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Glossy button: one gradient, lighter at the top (no separate highlight shape — it stuck out past the outline and
+     looked like a shadow) and a hairline edge. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <gradient android:angle="270" android:startColor="#FFFF9A6E" android:endColor="#FFE8542A" />
+    <stroke android:width="1dp" android:color="#40FFFFFF" />
+</shape>

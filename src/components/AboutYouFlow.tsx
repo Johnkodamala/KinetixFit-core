@@ -13,8 +13,10 @@ import TrackLanes from './TrackLanes';
 import { BodyFields, GoalFields, NameRegionFields } from './ProfileFields';
 import { ChevronIcon, PinIcon, SoundIcon } from './Icons';
 import { MOTIVATION_LINES, regionById } from '../lib/regions';
+import { countryOf, fmtNumber } from '../lib/countries';
 import * as feedback from '../lib/feedback';
 import { suggestGoal } from '../lib/bmi';
+import { useBackHandler } from '../lib/backButton';
 
 interface Targets { calories: number; protein: number; fiber: number; }
 
@@ -25,6 +27,8 @@ interface Props {
   bmr: number;
   /** daily targets for the current answers, from App.tsx */
   targets: Targets;
+  /** 5 = open on the Plan page (coming back from the next onboarding step), not the first page */
+  initialStage?: 0 | 5;
   onBack: () => void;
   onDone: () => void;
 }
@@ -34,7 +38,7 @@ type Stage = 0 | 1 | 2 | 3 | 4 | 5;
 const LANE_FILL: Record<Stage, [number, number]> = { 0: [0, 0.5], 1: [0, 1], 2: [1, 0.5], 3: [1, 1], 4: [2, 1], 5: [3, 1] };
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const fmt = (n: number) => Math.round(n).toLocaleString('en-GB');
+const fmt = (n: number) => fmtNumber(Math.round(n));
 
 /** Counts up to a number, like a stopwatch settling (instant under reduced motion) */
 function CountUp({ value, duration = 1100, format = fmt }: { value: number; duration?: number; format?: (n: number) => string }) {
@@ -55,13 +59,13 @@ function CountUp({ value, duration = 1100, format = fmt }: { value: number; dura
 }
 
 // What the app does for each goal over the first weeks — only things KinetixFit actually offers.
-function planFor(goal: UserProfile['target'], t: Targets): { week: string; title: string; body: string }[] {
+function planFor(goal: UserProfile['target'], t: Targets, weightLossPace: string): { week: string; title: string; body: string }[] {
   switch (goal) {
     case 'Weight Loss':
       return [
         { week: 'Week 1', title: 'Know your numbers', body: `Every meal you check counts towards a ${fmt(t.calories)} kcal day — no guesswork.` },
         { week: 'Week 4', title: 'Habits that stick', body: 'Daily quests and step points make moving the easy choice.' },
-        { week: 'Week 12', title: 'Steady, lasting progress', body: 'The NHS suggests aiming for 0.5 to 1 kg a week. We’ll keep you on that steady path.' },
+        { week: 'Week 12', title: 'Steady, lasting progress', body: `${weightLossPace} We’ll keep you on that steady path.` },
       ];
     case 'Weight Gain':
       return [
@@ -92,13 +96,17 @@ const GOAL_NAMES: Record<UserProfile['target'], string> = {
   'Autonomic Recovery': 'Recover better',
 };
 
-export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, onDone }: Props) {
-  const [stage, setStage] = useState<Stage>(0);
-  const [planReady, setPlanReady] = useState(false);
+export default function AboutYouFlow({ profile, onChange, bmr, targets, initialStage = 0, onBack, onDone }: Props) {
+  const [stage, setStage] = useState<Stage>(initialStage);
+  // Back from the next step shows the plan straight away, without the "building your plan" beat again
+  const [planReady, setPlanReady] = useState(initialStage === 5);
   const [soundOn, setSoundOnState] = useState(feedback.isSoundOn());
 
   const firstName = profile.name.trim().split(/\s+/)[0] || 'there';
-  const region = regionById(profile.region);
+  const country = countryOf(profile);
+  // UK: the region picked (with its own fact); elsewhere the country
+  const region = country.code === 'GB' ? regionById(profile.region) : null;
+  const place = region ?? { name: country.name, fact: country.fact };
   const motivation = useMemo(() => {
     const seed = [...`${profile.region}${firstName}`].reduce((n, c) => n + c.charCodeAt(0), 0);
     return MOTIVATION_LINES[seed % MOTIVATION_LINES.length];
@@ -106,7 +114,8 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
 
   // BMI-based goal: preselected on the Goal screen until the person picks a goal themselves
   const suggestion = suggestGoal(profile);
-  const [goalPicked, setGoalPicked] = useState(false);
+  // Coming back from the next step, the goal was already chosen — don't swap it for the suggestion
+  const [goalPicked, setGoalPicked] = useState(initialStage === 5);
 
   const goTo = (next: Stage) => {
     if (next === 5) setPlanReady(false);
@@ -115,6 +124,8 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
     document.querySelector('.ob-container')?.scrollTo({ top: 0 }); // each screen starts at the top
   };
   const back = () => (stage === 0 ? onBack() : goTo((stage - 1) as Stage));
+  // Android back button: the previous page here, like the Back button on screen
+  useBackHandler(true, back);
 
   // "Building your plan": a short beat, then the reveal with a chime
   useEffect(() => {
@@ -125,6 +136,7 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
 
   const [laneIndex, laneFill] = LANE_FILL[stage];
   const strideKm = (profile.height * 0.415 * 10000) / 100000; // walking stride ≈ 41.5% of height
+  const tenKSteps = country.distance === 'mi' ? strideKm / 1.609344 : strideKm;
   const heartbeats = profile.age * 365.25 * 24 * 60 * 70; // ~70 beats a minute on average
   const heartbeatText = heartbeats >= 1e9 ? `${(heartbeats / 1e9).toFixed(1)} billion` : `${Math.round(heartbeats / 1e8) * 100} million`;
 
@@ -141,18 +153,18 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
           <NameRegionFields profile={profile} onChange={onChange} />
         </>
       );
-      cta = { label: 'Continue', onClick: () => goTo(1), disabled: !profile.name.trim() || !region };
+      cta = { label: 'Continue', onClick: () => goTo(1), disabled: !profile.name.trim() || !profile.country };
       break;
 
     case 1:
       body = (
         <div className="ob-hero-panel ay-hero">
           <TrackLanes />
-          <p className="ay-place"><PinIcon size={16} /> {region?.name}</p>
+          <p className="ay-place"><PinIcon size={16} /> {place.name}</p>
           <h1 className="ay-hello">Hi, <em>{firstName}</em>.</h1>
           <div className="ay-fact">
             <span className="ay-fact-label">Did you know?</span>
-            <p>{region?.fact}</p>
+            <p>{place.fact}</p>
           </div>
           <p className="ay-quote">{motivation}</p>
         </div>
@@ -184,7 +196,7 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
           <div className="ay-tiles">
             <div className="ay-tile">
               <span>10,000 of your steps</span>
-              <strong>≈ <CountUp value={strideKm * 10} format={n => (n / 10).toFixed(1)} /> km</strong>
+              <strong>≈ <CountUp value={tenKSteps * 10} format={n => (n / 10).toFixed(1)} /> {country.distance === 'mi' ? 'miles' : 'km'}</strong>
             </div>
             <div className="ay-tile">
               <span>Heartbeats so far</span>
@@ -231,9 +243,9 @@ export default function AboutYouFlow({ profile, onChange, bmr, targets, onBack, 
             <div><strong><CountUp value={targets.protein} />g</strong><span>protein</span></div>
             <div><strong><CountUp value={targets.fiber} />g</strong><span>fibre</span></div>
           </div>
-          <p className="ay-section">How KinetixFit changes your next 12 weeks</p>
+          <p className="ay-section">How Kinetix Fit changes your next 12 weeks</p>
           <ol className="ay-timeline">
-            {planFor(profile.target, targets).map((item, i) => (
+            {planFor(profile.target, targets, country.weightLossPace).map((item, i) => (
               <li key={item.week} style={{ '--i': i } as CSSProperties}>
                 <span className="ay-week">{item.week}</span>
                 <strong>{item.title}</strong>

@@ -1,0 +1,59 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "chai",
+ "generic": [
+  {
+   "fdcId": 173776,
+   "description": "SILK Chai, soymilk",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 53
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.47
+    },
+    {
+     "nutrientId": 1005,
+     "value": 7.82
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.44
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.206
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.76
+    },
+    {
+     "nutrientId": 1093,
+     "value": 41
+    },
+    {
+     "nutrientId": 1092,
+     "value": 123
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.44
+    },
+    {
+     "nutrientId": 1087,
+     "value": 123
+    }
+   ],
+   "foodMeasures": []
+  }
+ ],
+ "branded": []
+}
