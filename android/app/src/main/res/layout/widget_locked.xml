@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Plus widget for someone without KinetixFit Plus: its name, and a tap opens Plus in the app (kinetixfit://plus).
+     Used by CheckInWidget, QuickLogWidget and StatsWidget (PlusWidgets.locked). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="14dp" android:gravity="center">
+    <ImageView android:layout_width="38dp" android:layout_height="38dp" android:background="@drawable/widget_plus_badge"
+        android:padding="10dp" android:src="@drawable/ic_widget_lock" android:importantForAccessibility="no" />
+    <TextView android:id="@+id/name" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:text="Check-in" android:textSize="15sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+    <TextView android:id="@+id/sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="A Kinetix Fit Plus widget" android:textSize="11sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3"
+        android:maxLines="1" android:gravity="center" />
+    <TextView android:id="@+id/cta" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+        android:background="@drawable/widget_plus_badge" android:paddingHorizontal="12dp" android:paddingVertical="4dp"
+        android:text="Tap to unlock" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="#FFFFFFFF" android:maxLines="1" />
+</LinearLayout>

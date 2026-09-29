@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Streak (2x2): the check-in streak as a big flame-orange number with today's status under it, and the last 7 days
+     as dots. StreakWidget.java;
+     widget_streak_wide.xml (4x2) and widget_streak_short.xml (one row high). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="14dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:id="@+id/chip" android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip_flame"
+            android:padding="5dp" android:src="@drawable/ic_widget_flame" android:tint="@color/kx_streak" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="STREAK" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical" android:gravity="center_vertical" android:layout_marginTop="2dp">
+        <ImageView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:tint="@color/kx_streak" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="day streak" android:textSize="12sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+        <!-- under the number, not in the header: on a 2x2 "Check in today" left the label no room ("STREA") -->
+        <TextView android:id="@+id/status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+            android:text="Done today" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_good" android:maxLines="1" />
+    </LinearLayout>
+    <ImageView android:id="@+id/dots" android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:adjustViewBounds="true" android:scaleType="fitCenter" android:importantForAccessibility="no" />
+</LinearLayout>

@@ -96,7 +96,7 @@ input[type='date'].kx-row-field::-webkit-date-and-time-value { text-align: right
   .billing-stats-row { grid-template-columns: minmax(0, 1fr); }
   .ob-actions > .primary-btn, .ob-actions > .secondary-btn { padding-left: 12px; padding-right: 12px; }
   .ob-btn-row .ob-btn-secondary { flex-basis: 30%; }
-  /* with the phone's font size turned up, "KinetixFit" is wider than the panel: a smaller size, and a
+  /* with the phone's font size turned up, "Welcome to Kinetix Fit" is wider than the panel: a smaller size, and a
      break as the last resort rather than text cut off at the edge */
   .ob-hero-title { font-size: clamp(26px, 10cqi, 40px); overflow-wrap: anywhere; }
 }
@@ -204,30 +204,10 @@ input[type='date'].kx-row-field::-webkit-date-and-time-value { text-align: right
   .ob-card > .ob-btn-primary,
   .ob-card > .ob-btn-row,
   .ob-card > .ob-actions { margin-top: 8px; }
-  .ob-hero-panel { min-height: 0; }
+  .ob-hero-panel, .ob-hero-panel.ob-hero-compact { min-height: 0; }
+  .ob-hero-compact { gap: 16px; padding-top: 18px; padding-bottom: 18px; }
   .ay-hero { min-height: 0; padding-top: 22px; }
   .ay-build { padding-bottom: 0; }
-  .ob-dots { margin-top: 14px; }
-
-  /* welcome: the track panel on the left, the words and button on the right */
-  .ob-card.ob-card-hero {
-    max-width: 780px;
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    column-gap: 28px;
-    align-content: center;
-    padding: 10px;
-  }
-  .ob-card-hero > .ob-hero-panel {
-    grid-column: 1;
-    grid-row: 1 / span 3;
-    margin: 0;
-    min-height: min(300px, calc(100dvh - 60px));
-  }
-  .ob-card-hero > :not(.ob-hero-panel) { grid-column: 2; margin-left: 0; margin-right: 10px; }
-  .ob-card-hero > .ob-body { align-self: end; margin-bottom: 18px; }
-  .ob-card-hero > .ob-btn-primary { width: calc(100% - 10px); align-self: center; }
-  .ob-card-hero > .ob-dots { align-self: start; }
 
   /* sheets and pop-ups: use the full height, stay readable width */
   .portal-overlay-modal { align-items: center; padding: 8px; }

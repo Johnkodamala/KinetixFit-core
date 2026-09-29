@@ -1,0 +1,293 @@
+/* =============================================================================
+   Today: hydration card + Hydration page (HydrationHero.tsx), morning check-in, workouts, movement-break prompt.
+   Loaded before glass.css and responsive.css (src/main.tsx).
+   ============================================================================= */
+
+/* --- Hydration card ------------------------------------------------------------------------------- */
+.kx-hydro {
+  position: relative; overflow: hidden; cursor: pointer;
+  border-radius: var(--r-lg);
+  padding: 18px 16px 18px 18px;
+  color: var(--ink);
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--m-water) 26%, transparent), transparent 60%),
+    radial-gradient(90% 80% at 100% 100%, color-mix(in srgb, var(--m-water) 16%, transparent), transparent 65%),
+    linear-gradient(180deg, var(--glass-sheen), transparent 40%), var(--glass-fill);
+  border: 1px solid color-mix(in srgb, var(--m-water) 30%, var(--glass-border));
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight), 0 0 0 0.5px var(--glass-edge),
+    0 18px 40px -24px color-mix(in srgb, var(--m-water) 70%, transparent);
+  animation: kx-rise var(--dur-slow) var(--ease-out) both;
+  transition: transform var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+.kx-hydro:active { transform: scale(0.985); }
+.kx-hydro:focus-visible { outline: 2px solid var(--m-water); outline-offset: 3px; }
+.kx-hydro-top { display: flex; align-items: center; gap: 14px; }
+.kx-hydro-bottle { flex: none; width: 104px; height: 150px; filter: drop-shadow(0 10px 18px color-mix(in srgb, var(--m-water) 35%, transparent)); }
+.kx-hydro-cap { fill: color-mix(in srgb, var(--m-water) 60%, var(--ink)); }
+.kx-hydro-cap-band { fill: color-mix(in srgb, var(--m-water) 35%, var(--ink)); opacity: 0.6; }
+.kx-hydro-glass-fill { fill: color-mix(in srgb, var(--m-water) 7%, transparent); }
+.kx-hydro-outline { fill: none; stroke: color-mix(in srgb, var(--m-water) 55%, var(--glass-border)); stroke-width: 2.5; }
+.kx-hydro-shine { fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 5; stroke-linecap: round; }
+.kx-hydro-shine.thin { stroke-width: 3; opacity: 0.6; }
+.kx-hydro-liquid { transition: transform 1.2s var(--ease-out); }
+.kx-hydro-wave { animation: kx-hydro-wave 3.2s linear infinite; }
+.kx-hydro-wave-back { fill: var(--m-water); opacity: 0.35; animation-duration: 4.6s; animation-direction: reverse; }
+@keyframes kx-hydro-wave { from { transform: translateX(0); } to { transform: translateX(60px); } }
+.kx-hydro-bubble { fill: rgba(255, 255, 255, 0.7); animation: kx-hydro-bubble 3.4s ease-in infinite; }
+.kx-hydro-bubble.b2 { animation-delay: 1.1s; }
+.kx-hydro-bubble.b3 { animation-delay: 2.2s; }
+@keyframes kx-hydro-bubble { 0% { transform: translateY(90px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(0); opacity: 0; } }
+
+.kx-hydro-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.kx-hydro-eyebrow { font-size: 11px; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; color: var(--m-water); }
+.kx-hydro-kicker { font-size: 14px; color: var(--ink-2); margin-top: 6px; }
+.kx-hydro-time {
+  font-family: var(--font-display); font-stretch: 112%; font-weight: 800;
+  font-size: clamp(40px, 13vw, 56px); line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; margin: 2px 0 0;
+}
+.kx-hydro-time small { font-size: 0.45em; font-weight: 750; color: var(--ink-3); letter-spacing: 0; margin-left: 2px; }
+.kx-hydro-unit { font-size: 13px; font-weight: 650; color: var(--ink-2); margin-bottom: 6px; }
+.kx-hydro-sub { font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+.kx-hydro.is-done .kx-hydro-sub { color: var(--m-water); font-weight: 650; }
+
+.kx-hydro-add {
+  all: unset; box-sizing: border-box; cursor: pointer; flex: none; align-self: flex-end;
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  color: var(--surface); background: var(--m-water);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 20px -10px color-mix(in srgb, var(--m-water) 90%, transparent);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.kx-hydro-add:active { transform: scale(0.88); }
+.kx-hydro-add:focus-visible { outline: 2px solid var(--m-water); outline-offset: 3px; }
+
+/* --- Hydration page (a bottom sheet): today, this week, today's glasses (folded), settings -------- */
+.kx-hs { display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
+.kx-hs-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kx-hs-count {
+  display: block; font-family: var(--font-display); font-stretch: 112%; font-weight: 800;
+  font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums;
+}
+.kx-hs-count small { font-family: var(--font-body, inherit); font-stretch: 100%; font-size: 15px; font-weight: 650; color: var(--ink-2); }
+.kx-hs-amount { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-3); }
+
+.kx-hs-progress { height: 12px; margin-top: -6px; border-radius: var(--r-pill); background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade); overflow: hidden; }
+.kx-hs-progress > span {
+  display: block; height: 100%; width: calc(var(--fill) * 100%); border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--m-water) 60%, white), var(--m-water));
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+/* − (undo the last glass) and a big + Add a glass */
+.kx-hs-actions { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; margin-top: -4px; }
+.kx-hs-undo.secondary-btn { width: 56px; min-height: 52px; padding: 0; font-size: 24px; font-weight: 700; line-height: 1; }
+.kx-hs-undo.secondary-btn:disabled { opacity: 0.4; }
+.kx-hs-add.primary-btn {
+  width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px;
+  background: linear-gradient(180deg, var(--btn-sheen), transparent 60%), var(--m-water);
+  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--m-water) 80%, transparent), inset 0 1px 0 var(--btn-sheen);
+}
+.kx-hs-add small { font-size: 13px; font-weight: 600; opacity: 0.85; }
+
+.kx-hs-section { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); }
+.kx-hs-heading { margin: 0; font-size: 13px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.kx-hs-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-3); }
+
+/* Today's glasses: a folded row that opens into the list */
+.kx-hs-toggle {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; min-height: 40px; cursor: pointer; font-size: 15px; font-weight: 650; color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.kx-hs-toggle:focus-visible { outline: 2px solid var(--m-water); outline-offset: 4px; border-radius: 8px; }
+.kx-hs-toggle-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.kx-hs-list { list-style: none; margin: -4px 0 0; padding: 0; animation: kx-rise var(--dur) var(--ease-out) both; }
+.kx-hs-list li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; }
+.kx-hs-list li + li { border-top: 1px solid var(--line); }
+.kx-hs-time { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.kx-hs-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.kx-hs-label small { font-weight: 500; color: var(--ink-3); margin-left: 4px; }
+.kx-hs-remove {
+  all: unset; cursor: pointer; padding: 6px 10px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 650; color: var(--ink-3); background: var(--surface-2);
+}
+.kx-hs-remove:focus-visible { outline: 2px solid var(--m-water); }
+
+.kx-hs-week {
+  position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px;
+  height: 132px; padding: 20px 0 22px; box-sizing: border-box;
+}
+/* --r: the goal as a share of the tallest bar; the bars sit between the 20px top and 22px bottom padding */
+.kx-hs-goal-line {
+  position: absolute; left: 0; right: 0; height: 0; pointer-events: none;
+  bottom: calc(22px + (100% - 42px) * var(--r, 1));
+  border-top: 1.5px dashed color-mix(in srgb, var(--m-water) 45%, transparent);
+}
+.kx-hs-day { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.kx-hs-bar {
+  position: relative; width: 100%; max-width: 28px; border-radius: 8px 8px 4px 4px;
+  background: color-mix(in srgb, var(--m-water) 30%, var(--surface-2));
+  transition: height var(--dur-slow) var(--ease-out);
+}
+.kx-hs-day.is-met .kx-hs-bar { background: color-mix(in srgb, var(--m-water) 60%, var(--surface-2)); }
+/* today stands out by colour alone (no ring) */
+.kx-hs-day.is-today .kx-hs-bar { background: var(--m-water); }
+.kx-hs-bar b { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 11px; font-weight: 750; color: var(--ink-2); }
+.kx-hs-day-label { position: absolute; bottom: -20px; font-size: 12px; font-weight: 650; color: var(--ink-3); }
+.kx-hs-day.is-today .kx-hs-day-label { color: var(--ink); }
+.kx-hs .kx-row { margin-top: 2px; }
+
+/* --- Morning check-in ---------------------------------------------------------------------------- */
+.kx-checkin .kx-card-sub { margin-top: 4px; }
+.kx-checkin-q { margin: 14px 0 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.kx-checkin-choices { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.kx-checkin-choices.is-energy { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.kx-checkin-choice {
+  all: unset; box-sizing: border-box; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 48px; padding: 6px 2px; border-radius: 14px;
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2);
+  background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade);
+  transition: transform 160ms var(--ease-out), background-color 200ms, color 200ms;
+}
+.kx-checkin-choice small { font-size: 10px; font-weight: 600; color: var(--ink-3); line-height: 1.15; }
+.kx-checkin-choice:active { transform: scale(0.95); }
+.kx-checkin-choice:focus-visible { outline: 2px solid var(--m-sleep); outline-offset: 2px; }
+.kx-checkin-choice.is-on { color: var(--ink); background: color-mix(in srgb, var(--m-sleep) 22%, var(--glass-fill-strong, var(--surface))); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--m-sleep) 60%, transparent); }
+.kx-energy-pip { display: block; width: 18px; height: 18px; border-radius: 50%; background: color-mix(in srgb, var(--warn) calc(var(--e) * 20%), var(--surface-2)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 45%, transparent); }
+.kx-checkin-watch { margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
+.kx-checkin-watch strong { color: var(--ink); }
+
+.kx-checkin-done { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.kx-checkin-stats { display: flex; gap: 18px; }
+.kx-checkin-stat { display: flex; flex-direction: column; }
+.kx-checkin-stat strong { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 22px; line-height: 1.1; }
+.kx-checkin-stat span { font-size: 12px; color: var(--ink-3); }
+.kx-checkin-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+.kx-checkin-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.kx-checkin-day-bar { position: relative; width: 100%; max-width: 26px; height: 48px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+.kx-checkin-day-bar > span { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 8px; background: color-mix(in srgb, var(--m-sleep) 75%, transparent); }
+.kx-checkin-day .kx-energy-pip { width: 10px; height: 10px; }
+.kx-checkin-day-label { font-size: 11px; font-weight: 650; color: var(--ink-3); }
+.kx-checkin-day.is-today .kx-checkin-day-label { color: var(--ink); }
+.kx-checkin-legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+.kx-checkin-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.kx-checkin-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--m-sleep) 75%, transparent); }
+.kx-checkin-legend i.is-energy { border-radius: 50%; background: color-mix(in srgb, var(--warn) 70%, var(--surface-2)); }
+.kx-checkin-insight { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-md); font-size: 13px; line-height: 1.45; color: var(--ink-2); background: color-mix(in srgb, var(--m-sleep) 10%, var(--surface-2)); }
+
+/* --- Gut check-in + the weekly gut report (src/lib/gut.ts) ------------------------------------- */
+/* same controls as the check-in above, in the gut's green: a fuller pip is a better day */
+.kx-gut .kx-energy-pip { background: color-mix(in srgb, var(--good) calc(var(--e) * 20%), var(--surface-2)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--good) 45%, transparent); }
+.kx-gut .kx-checkin-choice:focus-visible { outline-color: var(--good); }
+.kx-gut .kx-checkin-choice.is-on { background: color-mix(in srgb, var(--good) 20%, var(--glass-fill-strong, var(--surface))); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--good) 60%, transparent); }
+.kx-gut .kx-checkin-stats { margin-top: 10px; }
+.kx-gut .kx-checkin-stat:last-child { min-width: 0; }
+.kx-gut .kx-checkin-stat strong.kx-gut-bother { padding-top: 4px; font-family: inherit; font-stretch: 100%; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.kx-gut .kx-checkin-insight { background: color-mix(in srgb, var(--good) 10%, var(--surface-2)); }
+.kx-gut .kx-chip { padding: 8px 12px; font-size: 13px; }
+.kx-gut-optional { margin-left: 6px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.kx-gut-actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.kx-gut-actions .primary-btn { flex: 1; }
+.kx-gut-open { width: 100%; margin-top: 12px; }
+
+.kx-gut-report { display: flex; flex-direction: column; gap: 18px; padding-bottom: 8px; }
+.kx-gut-head h4 { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 20px; line-height: 1.2; color: var(--ink); }
+.kx-gut-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-3); }
+.kx-gut-report section h5 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.kx-chip.is-static { cursor: default; padding: 7px 12px; font-size: 13px; }
+.kx-chip.is-static:active { transform: none; }
+.kx-gut-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.kx-gut-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade); }
+.kx-gut-stats strong { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 18px; color: var(--ink); }
+.kx-gut-stats span { font-size: 12px; line-height: 1.35; color: var(--ink-3); }
+.kx-gut-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kx-gut-list li { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: color-mix(in srgb, var(--good) 8%, var(--surface-2)); }
+.kx-gut-list.is-easy li { background: color-mix(in srgb, var(--warn) 9%, var(--surface-2)); }
+.kx-gut-list strong { font-size: 15px; color: var(--ink); }
+.kx-gut-list span { font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.kx-gut-tips { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.kx-gut-doctor { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-3); }
+.kx-gut-doctor.is-strong { padding: 10px 12px; border-radius: var(--r-md); color: var(--ink); background: color-mix(in srgb, var(--danger) 10%, var(--surface-2)); }
+.kx-gut-note { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+
+/* --- Workouts ------------------------------------------------------------------------------------ */
+.kx-workout-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kx-workout-row {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade);
+}
+.kx-workout-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--m-heart); background: color-mix(in srgb, var(--m-heart) 13%, transparent); }
+.kx-workout-row.is-manual .kx-workout-icon { color: var(--ink-3); background: color-mix(in srgb, var(--ink-3) 10%, transparent); }
+.kx-workout-name { display: block; font-size: 15px; font-weight: 700; color: var(--ink); }
+.kx-workout-meta { display: block; font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kx-workout-tag { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: var(--r-pill); color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); white-space: nowrap; }
+.kx-workout-row.is-manual .kx-workout-tag { color: var(--ink-3); background: color-mix(in srgb, var(--ink-3) 10%, transparent); }
+.kx-workouts-earlier { margin: 12px 0 4px; font-size: 12px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.kx-workouts-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.kx-workouts-actions > button { flex: 1 1 140px; }
+.kx-add-workout { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+.kx-add-workout .kx-hs-note { margin-top: -4px; }
+
+/* --- Movement-break prompt ------------------------------------------------------------------------ */
+.kx-move-prompt { border-color: color-mix(in srgb, var(--m-steps) 35%, var(--glass-border)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kx-hydro-wave, .kx-hydro-bubble { animation: none; }
+  .kx-hydro-bubble { opacity: 0; }
+}
+
+/* --- Your cycle (src/components/CycleCard.tsx) ------------------------------------------------------------------ */
+.kx-cycle { display: flex; flex-direction: column; gap: 10px; }
+.kx-cycle .kx-card-sub { margin: -4px 0 0; }
+.kx-cycle-phase { margin: 0; font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 20px; color: var(--m-cycle); }
+.kx-cycle-phase.is-late { color: var(--warn); }
+.kx-cycle-track { position: relative; height: 12px; margin: 6px 0 2px; border-radius: 99px; background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade); }
+.kx-cycle-seg { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+.kx-cycle-seg.is-period { background: color-mix(in srgb, var(--m-cycle) 70%, transparent); }
+.kx-cycle-seg.is-fertile { background: color-mix(in srgb, var(--m-sleep) 45%, transparent); }
+.kx-cycle-ovulation { position: absolute; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--m-sleep); }
+.kx-cycle-today { position: absolute; top: -5px; bottom: -5px; width: 0; }
+.kx-cycle-today i { position: absolute; left: -2px; top: 0; bottom: 0; width: 4px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
+.kx-cycle-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-3); }
+.kx-cycle-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.kx-cycle-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.kx-cycle-legend i.is-period { background: color-mix(in srgb, var(--m-cycle) 70%, transparent); }
+.kx-cycle-legend i.is-fertile { background: color-mix(in srgb, var(--m-sleep) 45%, transparent); }
+.kx-cycle-legend i.is-today { width: 4px; height: 12px; border-radius: 2px; background: var(--ink); }
+.kx-cycle-next {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 2px 12px;
+  padding: 12px 14px; border-radius: var(--r-md); background: color-mix(in srgb, var(--m-cycle) 8%, var(--surface-2));
+}
+.kx-cycle-next-label { grid-column: 1 / -1; font-size: 12px; font-weight: 750; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.kx-cycle-next strong { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 18px; color: var(--ink); }
+.kx-cycle-next > span:last-child { font-size: 14px; font-weight: 650; color: var(--ink-2); white-space: nowrap; }
+.kx-cycle-context { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.kx-cycle-gp { margin: 0; padding: 10px 12px; border-radius: var(--r-md); font-size: 13px; line-height: 1.45; color: var(--ink); background: color-mix(in srgb, var(--warn) 10%, var(--surface-2)); }
+.kx-cycle-fine { margin: 0; font-size: 12px; color: var(--ink-3); }
+.kx-cycle-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.kx-cycle-history li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.kx-cycle-history li > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kx-cycle-history strong { font-size: 15px; color: var(--ink); }
+.kx-cycle-history small { font-size: 12px; color: var(--ink-3); }
+
+/* --- Body and vitals (src/components/VitalsCard.tsx, src/lib/vitals.ts): the newest reading of each, two a row --- */
+.kx-vitals .kx-card-sub { margin-top: 4px; }
+.kx-vitals-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.kx-vital {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: 11px 12px; border-radius: var(--r-md);
+  background: var(--surface-2); box-shadow: inset 0 1px 0 var(--glass-shade);
+}
+.kx-vital-label { font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.kx-vital-value { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: 22px; line-height: 1.15; color: var(--ink); font-variant-numeric: tabular-nums; }
+.kx-vital-value small { margin-left: 4px; font-family: var(--font-body); font-stretch: 100%; font-size: 12px; font-weight: 650; color: var(--ink-3); }
+.kx-vital-when { font-size: 12px; color: var(--ink-3); }
+.kx-vital-note { margin-top: 4px; font-size: 12px; line-height: 1.35; color: var(--ink-2); }
+.kx-vitals-foot { margin: 12px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+.kx-vitals-ask { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.kx-vitals .kx-empty { margin-top: 10px; }
+/* "Missed last night? Add yesterday's" (mornings only) and "Back to today" */
+.kx-gut .ob-link.kx-gut-yesterday { display: inline; padding: 0; margin: 0; font-size: 14px; font-weight: 700; }
+.kx-gut > .ob-link.kx-gut-yesterday { display: inline-flex; align-items: center; margin-top: 6px; text-align: left; }

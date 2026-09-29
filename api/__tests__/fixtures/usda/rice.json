@@ -1,0 +1,848 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "rice",
+ "generic": [
+  {
+   "fdcId": 2705411,
+   "description": "Rice milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 47
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1005,
+     "value": 9.17
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.97
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.28
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 27
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1087,
+     "value": 118
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    }
+   ]
+  },
+  {
+   "fdcId": 2708162,
+   "description": "Rice cake",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 392
+    },
+    {
+     "nutrientId": 1003,
+     "value": 7.1
+    },
+    {
+     "nutrientId": 1005,
+     "value": 81.1
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.3
+    },
+    {
+     "nutrientId": 1079,
+     "value": 4.2
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.875
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.88
+    },
+    {
+     "nutrientId": 1093,
+     "value": 71
+    },
+    {
+     "nutrientId": 1092,
+     "value": 428
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.49
+    },
+    {
+     "nutrientId": 1087,
+     "value": 11
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 18
+    },
+    {
+     "disseminationText": "1 small or medium single serving bag",
+     "gramWeight": 45
+    },
+    {
+     "disseminationText": "1 cup, NFS",
+     "gramWeight": 30
+    },
+    {
+     "disseminationText": "1 cake",
+     "gramWeight": 3
+    },
+    {
+     "disseminationText": "1 large single serving bag",
+     "gramWeight": 85
+    }
+   ]
+  },
+  {
+   "fdcId": 2708166,
+   "description": "Rice paper",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 323
+    },
+    {
+     "nutrientId": 1003,
+     "value": 5.91
+    },
+    {
+     "nutrientId": 1005,
+     "value": 72.26
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.5
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.328
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.27
+    },
+    {
+     "nutrientId": 1093,
+     "value": 314
+    },
+    {
+     "nutrientId": 1092,
+     "value": 64
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.27
+    },
+    {
+     "nutrientId": 1087,
+     "value": 7
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 18
+    },
+    {
+     "disseminationText": "1 large paper (12-3/8\" dia)",
+     "gramWeight": 20
+    },
+    {
+     "disseminationText": "1 small paper (6-3/8\" dia)",
+     "gramWeight": 5
+    },
+    {
+     "disseminationText": "1 medium paper (8-5/8\" dia)",
+     "gramWeight": 15
+    }
+   ]
+  },
+  {
+   "fdcId": 2709077,
+   "description": "Rice pilaf",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 137
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.29
+    },
+    {
+     "nutrientId": 1005,
+     "value": 24.08
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.03
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.444
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.48
+    },
+    {
+     "nutrientId": 1093,
+     "value": 414
+    },
+    {
+     "nutrientId": 1092,
+     "value": 56
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.74
+    },
+    {
+     "nutrientId": 1087,
+     "value": 29
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 206
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 155
+    }
+   ]
+  },
+  {
+   "fdcId": 173161,
+   "description": "Rice crackers",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 416
+    },
+    {
+     "nutrientId": 1003,
+     "value": 10
+    },
+    {
+     "nutrientId": 1005,
+     "value": 82.64
+    },
+    {
+     "nutrientId": 1004,
+     "value": 5
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0
+    },
+    {
+     "nutrientId": 1093,
+     "value": 233
+    },
+    {
+     "nutrientId": 1092,
+     "value": 243
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 0
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2709089,
+   "description": "Rice dressing",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 110
+    },
+    {
+     "nutrientId": 1003,
+     "value": 1.98
+    },
+    {
+     "nutrientId": 1005,
+     "value": 17.61
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.29
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.663
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.71
+    },
+    {
+     "nutrientId": 1093,
+     "value": 600
+    },
+    {
+     "nutrientId": 1092,
+     "value": 59
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.92
+    },
+    {
+     "nutrientId": 1087,
+     "value": 19
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 167
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 125
+    }
+   ]
+  },
+  {
+   "fdcId": 2709071,
+   "description": "Rice croquette",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 154
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.35
+    },
+    {
+     "nutrientId": 1005,
+     "value": 20.08
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.58
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.9
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.72
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.62
+    },
+    {
+     "nutrientId": 1093,
+     "value": 416
+    },
+    {
+     "nutrientId": 1092,
+     "value": 130
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 1087,
+     "value": 31
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 62
+    },
+    {
+     "disseminationText": "1 croquette (1-1/2\" dia, 2\" high)",
+     "gramWeight": 62
+    }
+   ]
+  },
+  {
+   "fdcId": 169713,
+   "description": "Rice bran, crude",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 316
+    },
+    {
+     "nutrientId": 1003,
+     "value": 13.35
+    },
+    {
+     "nutrientId": 1005,
+     "value": 49.69
+    },
+    {
+     "nutrientId": 1004,
+     "value": 20.85
+    },
+    {
+     "nutrientId": 1079,
+     "value": 21
+    },
+    {
+     "nutrientId": 1258,
+     "value": 4.171
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.9
+    },
+    {
+     "nutrientId": 1093,
+     "value": 5
+    },
+    {
+     "nutrientId": 1092,
+     "value": 1485
+    },
+    {
+     "nutrientId": 1089,
+     "value": 18.54
+    },
+    {
+     "nutrientId": 1087,
+     "value": 57
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708952,
+   "description": "Rice, fried, NFS",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 174
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.84
+    },
+    {
+     "nutrientId": 1005,
+     "value": 32.5
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.19
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.493
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.62
+    },
+    {
+     "nutrientId": 1093,
+     "value": 361
+    },
+    {
+     "nutrientId": 1092,
+     "value": 69
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.46
+    },
+    {
+     "nutrientId": 1087,
+     "value": 11
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 198
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 198
+    }
+   ]
+  },
+  {
+   "fdcId": 168898,
+   "description": "Rice flour, brown",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 363
+    },
+    {
+     "nutrientId": 1003,
+     "value": 7.23
+    },
+    {
+     "nutrientId": 1005,
+     "value": 76.48
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.78
+    },
+    {
+     "nutrientId": 1079,
+     "value": 4.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.557
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.66
+    },
+    {
+     "nutrientId": 1093,
+     "value": 8
+    },
+    {
+     "nutrientId": 1092,
+     "value": 289
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.98
+    },
+    {
+     "nutrientId": 1087,
+     "value": 11
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 169742,
+   "description": "Rice noodles, dry",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 364
+    },
+    {
+     "nutrientId": 1003,
+     "value": 5.95
+    },
+    {
+     "nutrientId": 1005,
+     "value": 80.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.56
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.153
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.12
+    },
+    {
+     "nutrientId": 1093,
+     "value": 182
+    },
+    {
+     "nutrientId": 1092,
+     "value": 30
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.7
+    },
+    {
+     "nutrientId": 1087,
+     "value": 18
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708402,
+   "description": "Rice, cooked, NFS",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 129
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.67
+    },
+    {
+     "nutrientId": 1005,
+     "value": 27.99
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.077
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 245
+    },
+    {
+     "nutrientId": 1092,
+     "value": 35
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.19
+    },
+    {
+     "nutrientId": 1087,
+     "value": 10
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup, cooked",
+     "gramWeight": 158
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 118
+    }
+   ]
+  },
+  {
+   "fdcId": 168878,
+   "description": "Rice, white, long-grain, regular, enriched, cooked",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 130
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.69
+    },
+    {
+     "nutrientId": 1005,
+     "value": 28.17
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.077
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 35
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.2
+    },
+    {
+     "nutrientId": 1087,
+     "value": 10
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708408,
+   "description": "Rice, white, cooked, no added fat",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 129
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.67
+    },
+    {
+     "nutrientId": 1005,
+     "value": 27.99
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.077
+    },
+    {
+     "nutrientId": 2000,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 245
+    },
+    {
+     "nutrientId": 1092,
+     "value": 35
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.19
+    },
+    {
+     "nutrientId": 1087,
+     "value": 10
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup, cooked",
+     "gramWeight": 158
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 118
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

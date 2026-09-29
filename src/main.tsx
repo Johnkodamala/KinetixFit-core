@@ -9,7 +9,9 @@ import './styles/app.css'
 import './styles/pickers.css'
 import './styles/about-you.css'
 import './styles/intro.css'
+import './styles/today.css'
 import './styles/glass.css' // the liquid-glass layer restyles surfaces defined above
+import './styles/widgets.css' // Account → Widgets / App icon, the streak card, the workout sheet's extras
 import './styles/responsive.css' // last: adapts everything above to small, short, landscape and tablet screens
 import App from './App.tsx'
 import LaunchIntro from './components/LaunchIntro.tsx'

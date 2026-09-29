@@ -7,11 +7,17 @@ const redis = Redis.fromEnv();
 
 const DEFAULT_CONFIG = {
   voucherValueGBP: 5.00,
-  voucherPointsCost: 2500,
+  // 1,500 since 28 Sep 2026 (was 2,500): about 1.5 months of doing everything. Same as src/lib/points.ts VOUCHER_POINTS.
+  voucherPointsCost: 1500,
   donationValueGBP: 2.50,
   donationPointsCost: 1000,
-  mealScanPointsAward: 50,
-  monthlyRedemptionCapGBP: 3.00
+  // today's first food scan (once a day). Small, like every award since 28 Sep 2026: a perfect month comes to about
+  // 1,000 points (src/lib/points.ts). NB a `config:rewards` value in Redis overrides this default.
+  mealScanPointsAward: 2,
+  // £ cap for charity donations. Vouchers aren't counted against it — they have their own limit below
+  // (the £5 voucher could never fit under a £3 cap, so vouchers were impossible to redeem).
+  monthlyRedemptionCapGBP: 3.00,
+  voucherMonthlyLimit: 1 // one coffee voucher per person per calendar month
 };
 
 export async function getRewardConfig() {
@@ -55,4 +61,24 @@ export async function recordRedemption(appUserId, valueGBP) {
   // Expire ~35 days out so old monthly counters don't accumulate forever.
   await redis.expire(key, 60 * 60 * 24 * 35);
   return newTotal;
+}
+
+// One-per-month voucher limit. Reserves the slot atomically (INCR first) so two taps at once can't both
+// get a voucher; call releaseVoucherSlot if the order then fails, so the user can try again.
+export async function reserveVoucherSlot(appUserId, config) {
+  const key = `voucher_count:${appUserId}:${monthKey()}`;
+  const count = await redis.incr(key);
+  await redis.expire(key, 60 * 60 * 24 * 35);
+  if (count > config.voucherMonthlyLimit) {
+    await redis.decr(key);
+    return {
+      allowed: false,
+      message: `You've had this month's coffee voucher — the next one unlocks on ${firstOfNextMonthLabel()}.`
+    };
+  }
+  return { allowed: true, key };
+}
+
+export async function releaseVoucherSlot(slot) {
+  if (slot?.key) await redis.decr(slot.key);
 }

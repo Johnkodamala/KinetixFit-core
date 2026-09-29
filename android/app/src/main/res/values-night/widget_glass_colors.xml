@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget cards, dark: solid deep ink (see values/widget_glass_colors.xml). -->
+<resources>
+    <color name="kx_glass_fill">#FF1C262D</color>
+    <color name="kx_glass_fill_2">#FF10171C</color>
+    <color name="kx_glass_sheen">#0FFFFFFF</color>
+    <color name="kx_glass_edge">#26FFFFFF</color>
+    <color name="kx_glass_glow">#404FD1E8</color>
+    <color name="kx_glass_ink">#F4F8FA</color>
+    <color name="kx_glass_ink_2">#AAB8C0</color>
+    <color name="kx_glass_ink_3">#7F8E97</color>
+    <color name="kx_glass_chip">#2B4FD1E8</color>
+    <color name="kx_glass_track">#1FFFFFFF</color>
+    <color name="kx_glass_btn_soft">#264FD1E8</color>
+    <color name="kx_glass_water">#5AD8EE</color>
+    <!-- Water glass: text on the frosted card — white over a dark wallpaper -->
+    <color name="kx_lg_ink">#FFFFFFFF</color>
+    <color name="kx_lg_ink_2">#E6FFFFFF</color>
+    <color name="kx_lg_shadow">#00000000</color>
+    <!-- Streak widget + Check-in (flame orange), "done" green, and the Plus lock badge -->
+    <color name="kx_streak">#FFFF8A5E</color>
+    <color name="kx_good">#FF3CC98A</color>
+    <color name="kx_plus_from">#FFFF8A5E</color>
+    <color name="kx_plus_to">#FF7B61FF</color>
+</resources>

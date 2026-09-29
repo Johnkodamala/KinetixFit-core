@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round white + that sits on the water (Water level): solid, a hairline edge, no shadow. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:angle="270" android:startColor="#FFFFFFFF" android:endColor="#FFEAF6FA" />
+    <stroke android:width="1dp" android:color="#80FFFFFF" />
+</shape>

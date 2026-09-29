@@ -5,4 +5,7 @@
     <color name="kx_launch_bg">#16181F</color>
     <!-- App background (bg token in src/index.css); values-night/colors.xml has the dark one -->
     <color name="kx_app_bg">#F3F4F0</color>
+    <!-- Widgets: the water accent for the + on the white Water level button; the widget card colours live in
+         widget_glass_colors.xml (values + values-night). -->
+    <color name="kx_widget_water">#0C8FB5</color>
 </resources>

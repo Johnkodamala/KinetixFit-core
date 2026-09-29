@@ -11,6 +11,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { createPortal } from 'react-dom';
 import { ChevronIcon } from './Icons';
 import * as feedback from '../lib/feedback';
+import { useBackHandler } from '../lib/backButton';
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const roundTo = (n: number, decimals: number) => Number(n.toFixed(decimals));
@@ -29,10 +30,12 @@ interface MeasureFieldProps {
   decimals?: number;
   /** a labelled tick every N steps */
   labelEvery?: number;
+  /** a second reading beside the unit, e.g. "5 ft 10 in" for a height typed in inches */
+  caption?: string;
   onChange: (value: number) => void;
 }
 
-export function MeasureField({ label, value, unit, min, max, step = 1, decimals = 0, labelEvery = 10, onChange }: MeasureFieldProps) {
+export function MeasureField({ label, value, unit, min, max, step = 1, decimals = 0, labelEvery = 10, caption, onChange }: MeasureFieldProps) {
   const id = useId();
   const format = (n: number) => n.toFixed(decimals);
   // While typing, the field shows the person's own text; otherwise it follows the value (ruler etc.)
@@ -81,6 +84,7 @@ export function MeasureField({ label, value, unit, min, max, step = 1, decimals 
           aria-describedby={outOfRange ? `${id}-hint` : undefined}
         />
         <span className="kx-measure-unit">{unit}</span>
+        {caption && <span className="kx-measure-caption">{caption}</span>}
       </div>
       {outOfRange && editing && (
         <p id={`${id}-hint`} className="kx-field-hint">Enter {format(min)}–{format(max)} {unit}</p>
@@ -211,7 +215,8 @@ export function Segmented<T extends string | number | null>({ label, options, va
 }
 
 export function ChoiceCards<T extends string | number>({ label, options, value, onChange, columns = 1, hideLabel = false, compact = false }: {
-  label: string; options: Choice<T>[]; value: T; onChange: (value: T) => void; columns?: 1 | 2 | 4; hideLabel?: boolean;
+  /** null = nothing chosen yet */
+  label: string; options: Choice<T>[]; value: T | null; onChange: (value: T) => void; columns?: 1 | 2 | 4; hideLabel?: boolean;
   /** short single-line options in a grid (e.g. regions) */
   compact?: boolean;
 }) {
@@ -267,6 +272,8 @@ export function Sheet({ open, title, onClose, children }: {
   // re-run the open/close effect and pull focus back to the panel.
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  // Android back closes the sheet instead of changing the page underneath it
+  useBackHandler(open, onClose);
 
   useEffect(() => {
     if (!closing) return;

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Check-in (Plus, 2x2 and 4x2): "How's your energy?" with five tappable pips — a tap checks you in (haptic) — or,
+     once checked in, a tick with today's energy and the streak. Colour and haptic are the person's settings.
+     CheckInWidget.java -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="14dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:id="@+id/chip" android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip"
+            android:padding="5dp" android:src="@drawable/ic_widget_target" android:tint="@color/kx_glass_water" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="CHECK-IN" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        <ImageView android:id="@+id/flame" android:layout_width="14dp" android:layout_height="14dp" android:src="@drawable/ic_widget_flame"
+            android:tint="@color/kx_streak" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/streak" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="2dp"
+            android:text="12" android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_streak" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/ask" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="vertical" android:gravity="bottom">
+        <TextView android:id="@+id/question" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="How’s your energy?" android:textSize="14sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+            <LinearLayout android:id="@+id/pip1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:paddingVertical="2dp" android:contentDescription="Energy 1 of 5">
+                <ImageView android:id="@+id/pip1_dot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:adjustViewBounds="true" android:src="@drawable/widget_pip_preview"
+                    android:importantForAccessibility="no" />
+                <TextView android:id="@+id/pip1_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="Drained" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/pip2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:paddingVertical="2dp" android:contentDescription="Energy 2 of 5">
+                <ImageView android:id="@+id/pip2_dot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:adjustViewBounds="true" android:src="@drawable/widget_pip_preview"
+                    android:importantForAccessibility="no" />
+                <TextView android:id="@+id/pip2_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="Low" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/pip3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:paddingVertical="2dp" android:contentDescription="Energy 3 of 5">
+                <ImageView android:id="@+id/pip3_dot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:adjustViewBounds="true" android:src="@drawable/widget_pip_preview"
+                    android:importantForAccessibility="no" />
+                <TextView android:id="@+id/pip3_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="Okay" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/pip4" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:paddingVertical="2dp" android:contentDescription="Energy 4 of 5">
+                <ImageView android:id="@+id/pip4_dot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:adjustViewBounds="true" android:src="@drawable/widget_pip_preview"
+                    android:importantForAccessibility="no" />
+                <TextView android:id="@+id/pip4_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="Good" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            </LinearLayout>
+            <LinearLayout android:id="@+id/pip5" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:paddingVertical="2dp" android:contentDescription="Energy 5 of 5">
+                <ImageView android:id="@+id/pip5_dot" android:layout_width="wrap_content" android:layout_height="wrap_content" android:adjustViewBounds="true" android:src="@drawable/widget_pip_preview"
+                    android:importantForAccessibility="no" />
+                <TextView android:id="@+id/pip5_label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="Full" android:textSize="10sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/done" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:orientation="horizontal" android:gravity="center_vertical" android:visibility="gone">
+        <ImageView android:id="@+id/done_tick" android:layout_width="44dp" android:layout_height="44dp" android:importantForAccessibility="no" />
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checked in"
+                android:textSize="16sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+            <TextView android:id="@+id/done_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Energy 4/5 · 12-day streak" android:textSize="12sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3" android:maxLines="2" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

@@ -196,3 +196,19 @@ export const BarcodeIcon = (p: IconProps) => (
     <path d="M3 5v14" /><path d="M8 5v14" /><path d="M12 5v14" /><path d="M17 5v14" /><path d="M21 5v14" />
   </svg>
 );
+
+// Your cycle: a drop inside a ring (the cycle), drawn to match the set above.
+export const CycleIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M20.5 12a8.5 8.5 0 1 1-3.1-6.6" /><path d="m17.8 2.8.2 3-3 .3" />
+    <path d="M12 8.2c1.6 2 2.6 3.5 2.6 4.8a2.6 2.6 0 0 1-5.2 0c0-1.3 1-2.8 2.6-4.8Z" />
+  </svg>
+);
+
+/** Lucide "x": remove / close */
+export const CloseIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+);

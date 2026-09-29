@@ -1,0 +1,129 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "paneer",
+ "generic": [
+  {
+   "fdcId": 2709631,
+   "description": "Palak Paneer",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 101
+    },
+    {
+     "nutrientId": 1003,
+     "value": 5.42
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.28
+    },
+    {
+     "nutrientId": 1004,
+     "value": 7.02
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.9
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.81
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.89
+    },
+    {
+     "nutrientId": 1093,
+     "value": 242
+    },
+    {
+     "nutrientId": 1092,
+     "value": 244
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.55
+    },
+    {
+     "nutrientId": 1087,
+     "value": 60
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 100
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 200
+    }
+   ]
+  },
+  {
+   "fdcId": 2705740,
+   "description": "Cheese, paneer",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 299
+    },
+    {
+     "nutrientId": 1003,
+     "value": 15.86
+    },
+    {
+     "nutrientId": 1005,
+     "value": 22.46
+    },
+    {
+     "nutrientId": 1004,
+     "value": 15.52
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 9.021
+    },
+    {
+     "nutrientId": 2000,
+     "value": 23.33
+    },
+    {
+     "nutrientId": 1093,
+     "value": 185
+    },
+    {
+     "nutrientId": 1092,
+     "value": 728
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 597
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 246
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 123
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

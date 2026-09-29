@@ -9,6 +9,9 @@ public class MainActivity extends BridgeActivity {
         // local plugins: must be registered before super.onCreate
         registerPlugin(SystemThemePlugin.class);
         registerPlugin(NativeFeedbackPlugin.class);
+        registerPlugin(WidgetBridgePlugin.class);
+        registerPlugin(MoveReminderPlugin.class);
+        registerPlugin(AppIconPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

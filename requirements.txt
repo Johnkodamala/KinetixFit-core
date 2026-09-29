@@ -20,6 +20,8 @@
 # build-tools;36.0.0
 # cmdline-tools;latest             sdkmanager, avdmanager
 # emulator                         for running an AVD (needs a system image, created via Android Studio)
+# system-images;android-36;google_apis;arm64-v8a   optional, ~1.5 GB: AVD "kx_pixel" (Pixel 7) created 2026-09-27
+#                                  avdmanager create avd -n kx_pixel -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
 
 # ── Gradle (downloaded automatically by android/gradlew on first build) ───────
 # gradle                          8.14.3   android/gradle/wrapper/gradle-wrapper.properties

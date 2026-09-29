@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Water level (2x2): the glass card IS the glass - water rises from the bottom (WidgetArt.waterLevel at the exact
+     size); header, count and amount on top (they turn white once the water reaches them); glossy white + on the water. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true">
+    <ImageView android:id="@+id/water" android:layout_width="match_parent" android:layout_height="match_parent"
+        android:scaleType="fitXY" android:src="@drawable/widget_preview_level" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:id="@+id/chip" android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip"
+            android:padding="5dp" android:src="@drawable/ic_widget_drop" android:tint="@color/kx_glass_water" android:importantForAccessibility="no" />
+        <TextView android:id="@+id/label" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="WATER" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        
+    </LinearLayout>
+        <TextView android:id="@+id/count_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="750 ml" android:textSize="36sp" android:textStyle="bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <ImageView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" android:visibility="gone" android:layout_marginTop="8dp" />
+        <TextView android:id="@+id/sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 2 L" android:textSize="13sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+    </LinearLayout>
+    <TextView android:id="@+id/add_glass" android:layout_width="50dp" android:layout_height="50dp"
+            android:background="@drawable/widget_btn_white_round" android:gravity="center" android:includeFontPadding="false"
+            android:text="+" android:textSize="26sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_widget_water"
+            android:contentDescription="Add a glass of water" android:layout_gravity="bottom|end" android:layout_margin="14dp" />
+</FrameLayout>

@@ -1,5 +1,6 @@
 // Private serverless endpoint to verify corporate subscription status
 import { handleCors } from './_lib/cors.js';
+import { ENTITLEMENT_ID, entitlementIsActive } from './_lib/plus.js';
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return;
@@ -27,10 +28,8 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Check if the "KinetixFit Pro" corporate entitlement is active
-    const isActive = data.subscriber?.entitlements?.['KinetixFit Pro']?.expires_date
-      ? new Date(data.subscriber.entitlements['KinetixFit Pro'].expires_date) > new Date()
-      : false;
+    // Lifetime grants have no expiry date — they used to be reported as expired here.
+    const isActive = entitlementIsActive(data.subscriber?.entitlements?.[ENTITLEMENT_ID]);
 
     return res.status(200).json({
       status: isActive ? 'Active' : 'Expired/Trial Pending',

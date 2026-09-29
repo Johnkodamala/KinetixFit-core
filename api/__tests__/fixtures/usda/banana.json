@@ -1,0 +1,755 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "banana",
+ "generic": [
+  {
+   "fdcId": 2709224,
+   "description": "Banana, raw",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 97
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.74
+    },
+    {
+     "nutrientId": 1005,
+     "value": 22.71
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.112
+    },
+    {
+     "nutrientId": 2000,
+     "value": 15.8
+    },
+    {
+     "nutrientId": 1093,
+     "value": 0
+    },
+    {
+     "nutrientId": 1092,
+     "value": 326
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 5
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 126
+    },
+    {
+     "disseminationText": "1 linear inch",
+     "gramWeight": 15
+    },
+    {
+     "disseminationText": "1 banana",
+     "gramWeight": 126
+    },
+    {
+     "disseminationText": "1 cup, mashed",
+     "gramWeight": 225
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 slice",
+     "gramWeight": 6
+    }
+   ]
+  },
+  {
+   "fdcId": 173944,
+   "description": "Bananas, raw",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 89
+    },
+    {
+     "nutrientId": 1003,
+     "value": 1.09
+    },
+    {
+     "nutrientId": 1005,
+     "value": 22.84
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.33
+    },
+    {
+     "nutrientId": 1079,
+     "value": 2.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.112
+    },
+    {
+     "nutrientId": 2000,
+     "value": 12.23
+    },
+    {
+     "nutrientId": 1093,
+     "value": 1
+    },
+    {
+     "nutrientId": 1092,
+     "value": 358
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.26
+    },
+    {
+     "nutrientId": 1087,
+     "value": 5
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2705660,
+   "description": "Banana split",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 199
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.42
+    },
+    {
+     "nutrientId": 1005,
+     "value": 32.59
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.88
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1
+    },
+    {
+     "nutrientId": 1258,
+     "value": 4.07
+    },
+    {
+     "nutrientId": 2000,
+     "value": 24.17
+    },
+    {
+     "nutrientId": 1093,
+     "value": 97
+    },
+    {
+     "nutrientId": 1092,
+     "value": 212
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.17
+    },
+    {
+     "nutrientId": 1087,
+     "value": 74
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 banana split",
+     "gramWeight": 490
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 490
+    }
+   ]
+  },
+  {
+   "fdcId": 2709200,
+   "description": "Banana chips",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 519
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.3
+    },
+    {
+     "nutrientId": 1005,
+     "value": 58.4
+    },
+    {
+     "nutrientId": 1004,
+     "value": 33.6
+    },
+    {
+     "nutrientId": 1079,
+     "value": 7.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 28.97
+    },
+    {
+     "nutrientId": 2000,
+     "value": 35.34
+    },
+    {
+     "nutrientId": 1093,
+     "value": 6
+    },
+    {
+     "nutrientId": 1092,
+     "value": 536
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.25
+    },
+    {
+     "nutrientId": 1087,
+     "value": 18
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 40
+    },
+    {
+     "disseminationText": "1 slice",
+     "gramWeight": 2
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 72
+    }
+   ]
+  },
+  {
+   "fdcId": 2709225,
+   "description": "Banana, baked",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 161
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.82
+    },
+    {
+     "nutrientId": 1005,
+     "value": 32.43
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.21
+    },
+    {
+     "nutrientId": 1079,
+     "value": 1.8
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.728
+    },
+    {
+     "nutrientId": 2000,
+     "value": 24.74
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 322
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.06
+    },
+    {
+     "nutrientId": 1087,
+     "value": 13
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 banana",
+     "gramWeight": 140
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 140
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 140
+    }
+   ]
+  },
+  {
+   "fdcId": 2709342,
+   "description": "Banana nectar",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 74
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.26
+    },
+    {
+     "nutrientId": 1005,
+     "value": 18.01
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.13
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.6
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.039
+    },
+    {
+     "nutrientId": 2000,
+     "value": 15.51
+    },
+    {
+     "nutrientId": 1093,
+     "value": 2
+    },
+    {
+     "nutrientId": 1092,
+     "value": 115
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 4
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 fl oz (NFS)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 fl oz (no ice)",
+     "gramWeight": 31
+    },
+    {
+     "disseminationText": "1 fl oz (with ice)",
+     "gramWeight": 23
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 248
+    }
+   ]
+  },
+  {
+   "fdcId": 2705697,
+   "description": "Banana pudding",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 160
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.57
+    },
+    {
+     "nutrientId": 1005,
+     "value": 28
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.26
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.22
+    },
+    {
+     "nutrientId": 2000,
+     "value": 19.74
+    },
+    {
+     "nutrientId": 1093,
+     "value": 128
+    },
+    {
+     "nutrientId": 1092,
+     "value": 149
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.42
+    },
+    {
+     "nutrientId": 1087,
+     "value": 41
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 130
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 190
+    }
+   ]
+  },
+  {
+   "fdcId": 173945,
+   "description": "Bananas, dehydrated, or banana powder",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 346
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.89
+    },
+    {
+     "nutrientId": 1005,
+     "value": 88.28
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.81
+    },
+    {
+     "nutrientId": 1079,
+     "value": 9.9
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.698
+    },
+    {
+     "nutrientId": 2000,
+     "value": 47.3
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 1491
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.15
+    },
+    {
+     "nutrientId": 1087,
+     "value": 22
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2708004,
+   "description": "Pie, banana cream",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 284
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.42
+    },
+    {
+     "nutrientId": 1005,
+     "value": 32.35
+    },
+    {
+     "nutrientId": 1004,
+     "value": 16.17
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 7.367
+    },
+    {
+     "nutrientId": 2000,
+     "value": 19.13
+    },
+    {
+     "nutrientId": 1093,
+     "value": 168
+    },
+    {
+     "nutrientId": 1092,
+     "value": 90
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.6
+    },
+    {
+     "nutrientId": 1087,
+     "value": 39
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 slice, any size",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 250
+    },
+    {
+     "disseminationText": "1 surface inch",
+     "gramWeight": 18.9
+    },
+    {
+     "disseminationText": "1 individual pie",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 pie, any size",
+     "gramWeight": 1600
+    }
+   ]
+  },
+  {
+   "fdcId": 169394,
+   "description": "Pepper, banana, raw",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 27
+    },
+    {
+     "nutrientId": 1003,
+     "value": 1.66
+    },
+    {
+     "nutrientId": 1005,
+     "value": 5.35
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.45
+    },
+    {
+     "nutrientId": 1079,
+     "value": 3.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.048
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.95
+    },
+    {
+     "nutrientId": 1093,
+     "value": 13
+    },
+    {
+     "nutrientId": 1092,
+     "value": 256
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.46
+    },
+    {
+     "nutrientId": 1087,
+     "value": 14
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 168849,
+   "description": "Snacks, banana chips",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 519
+    },
+    {
+     "nutrientId": 1003,
+     "value": 2.3
+    },
+    {
+     "nutrientId": 1005,
+     "value": 58.4
+    },
+    {
+     "nutrientId": 1004,
+     "value": 33.6
+    },
+    {
+     "nutrientId": 1079,
+     "value": 7.7
+    },
+    {
+     "nutrientId": 1258,
+     "value": 28.97
+    },
+    {
+     "nutrientId": 2000,
+     "value": 35.34
+    },
+    {
+     "nutrientId": 1093,
+     "value": 6
+    },
+    {
+     "nutrientId": 1092,
+     "value": 536
+    },
+    {
+     "nutrientId": 1089,
+     "value": 1.25
+    },
+    {
+     "nutrientId": 1087,
+     "value": 18
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2709802,
+   "description": "Peppers, banana, raw",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 27
+    },
+    {
+     "nutrientId": 1003,
+     "value": 1.66
+    },
+    {
+     "nutrientId": 1005,
+     "value": 5.35
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.45
+    },
+    {
+     "nutrientId": 1079,
+     "value": 3.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.048
+    },
+    {
+     "nutrientId": 2000,
+     "value": 1.95
+    },
+    {
+     "nutrientId": 1093,
+     "value": 13
+    },
+    {
+     "nutrientId": 1092,
+     "value": 256
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.46
+    },
+    {
+     "nutrientId": 1087,
+     "value": 14
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 45
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 150
+    },
+    {
+     "disseminationText": "1 whole",
+     "gramWeight": 45
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

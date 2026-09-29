@@ -36,7 +36,9 @@
   box-shadow: 0 10px 20px -10px color-mix(in srgb, var(--accent) 85%, transparent);
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast);
 }
-.primary-btn:hover { background: var(--accent-press); }
+@media (hover: hover) {
+  .primary-btn:hover { background: var(--accent-press); }
+}
 .primary-btn:active { transform: scale(0.97); }
 .primary-btn:disabled { background: var(--accent-soft); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
 
@@ -51,5 +53,8 @@
   font-weight: 650;
   transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast);
 }
-.secondary-btn:hover { background: var(--line); }
-.secondary-btn:active { transform: scale(0.97); }
+@media (hover: hover) {
+  .secondary-btn:hover { background: var(--line); }
+}
+.secondary-btn:active:not(:disabled) { transform: scale(0.97); background: var(--line); }
+.secondary-btn:disabled { color: var(--ink-3); opacity: 0.6; cursor: not-allowed; }

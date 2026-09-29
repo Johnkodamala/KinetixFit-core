@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Steps, wide (4x2): the ring on the left, header, count, goal and last updated beside it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="horizontal" android:gravity="center_vertical" android:padding="16dp">
+    <ImageView android:id="@+id/ring" android:layout_width="wrap_content" android:layout_height="match_parent"
+        android:adjustViewBounds="true" android:scaleType="fitCenter" android:src="@drawable/widget_preview_ring_steps" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+        android:layout_marginStart="16dp" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip"
+            android:padding="5dp" android:src="@drawable/ic_widget_steps" android:tint="#FF6E9EFF" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="STEPS" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        <TextView android:id="@+id/percent" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="62%" android:textSize="12sp" android:fontFamily="@font/kx_text_bold" android:textColor="#FF6E9EFF" android:maxLines="1" />
+    </LinearLayout>
+        <ImageView android:id="@+id/steps" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" />
+        <TextView android:id="@+id/goal" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 10,000 steps" android:textSize="13sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+        <TextView android:id="@+id/updated" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Open Kinetix Fit to update" android:textSize="10sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" android:layout_marginTop="6dp" />
+    </LinearLayout>
+</LinearLayout>

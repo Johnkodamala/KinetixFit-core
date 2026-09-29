@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A Check-in energy pip in the widget picker's preview (the widget draws its own in the person's colour). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="28dp" android:height="28dp" />
+    <gradient android:angle="270" android:startColor="#FFC4B5FF" android:endColor="#FF7B61FF" />
+</shape>

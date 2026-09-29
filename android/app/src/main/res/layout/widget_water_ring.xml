@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Water ring (2x2): a gradient ring with a glow (WidgetArt.gradientRing), the count inside, amount + next and a glossy round + below. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="16dp">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <ImageView android:id="@+id/ring" android:layout_width="match_parent" android:layout_height="match_parent"
+            android:scaleType="fitCenter" android:src="@drawable/widget_preview_ring" android:importantForAccessibility="no" />
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+            android:orientation="vertical" android:gravity="center_horizontal">
+        <TextView android:id="@+id/count_text" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="750 ml" android:textSize="26sp" android:textStyle="bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <ImageView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:adjustViewBounds="true" android:scaleType="fitStart" android:tint="@color/kx_glass_ink" android:visibility="gone" />
+        <TextView android:id="@+id/of" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="of 2 L" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+        </LinearLayout>
+    </FrameLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="10dp" android:orientation="horizontal" android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical">
+        <TextView android:id="@+id/sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="500 ml" android:textSize="15sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink" android:maxLines="1" />
+        <TextView android:id="@+id/next" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Next 17:00" android:textSize="11sp" android:fontFamily="@font/kx_text" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" />
+        </LinearLayout>
+        <TextView android:id="@+id/add_glass" android:layout_width="46dp" android:layout_height="46dp"
+            android:background="@drawable/widget_btn_water_round" android:gravity="center" android:includeFontPadding="false"
+            android:text="+" android:textSize="24sp" android:fontFamily="@font/kx_text_bold" android:textColor="#FFFFFFFF"
+            android:contentDescription="Add a glass of water" />
+    </LinearLayout>
+</LinearLayout>

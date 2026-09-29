@@ -1,10 +1,39 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">KinetixFit</string>
-    <string name="title_activity_main">KinetixFit</string>
+    <string name="app_name">Kinetix Fit</string>
+    <string name="title_activity_main">Kinetix Fit</string>
     <string name="package_name">com.jnglobalventures.kinetixfit</string>
     <string name="custom_url_scheme">com.jnglobalventures.kinetixfit</string>
     <!-- Shown when a user taps "Privacy policy" in the Health Connect permissions dialog
          (required by Health Connect — see @capgo/capacitor-health's README). -->
     <string name="health_connect_privacy_policy_url">https://kinetixfit.co.uk/privacy-policy</string>
+    <string name="widget_hydration_label">Water bottle</string>
+    <string name="widget_hydration_description">A bottle that fills up with today’s water, with a button to add a glass</string>
+    <string name="widget_water_level_label">Water level</string>
+    <string name="widget_water_level_description">The whole widget fills with water as you drink — tap + to add a glass</string>
+    <string name="widget_water_ring_label">Water ring</string>
+    <string name="widget_water_ring_description">A ring towards today’s water goal in your wallpaper colours</string>
+    <string name="widget_water_quick_label">Water quick add</string>
+    <string name="widget_water_quick_description">Add a glass or a bottle in one tap, with today’s progress</string>
+    <string name="widget_water_week_label">Water this week</string>
+    <string name="widget_water_week_description">Today’s glasses beside the last seven days and your goal</string>
+    <string name="widget_glass_label">Water glass</string>
+    <string name="widget_glass_description">A glass that fills up with today’s water on a frosted-glass card, with a button to add a glass</string>
+    <string name="widget_rings_label">Daily rings</string>
+    <string name="widget_rings_description">Steps, water and food as three rings towards today’s goals</string>
+    <string name="widget_today_label">Kinetix Fit today</string>
+    <string name="widget_today_description">Steps, calories left, quests and today’s water</string>
+    <string name="widget_scan_label">Quick scan</string>
+    <string name="widget_scan_description">Snap a meal or scan a barcode in one tap</string>
+    <string name="widget_steps_label">Steps</string>
+    <string name="widget_steps_description">Today’s steps with a ring towards your goal</string>
+    <string name="widget_streak_label">Streak</string>
+    <string name="widget_streak_description">Your check-in streak and the last seven days</string>
+    <!-- KinetixFit Plus widgets (a locked card without Plus) -->
+    <string name="widget_checkin_label">Check-in (Plus)</string>
+    <string name="widget_checkin_description">Tap how your energy is and you’re checked in — keeps your streak</string>
+    <string name="widget_quick_log_label">Quick log (Plus)</string>
+    <string name="widget_quick_log_description">Your own buttons for water and workouts, logged in one tap</string>
+    <string name="widget_stats_label">My stats (Plus)</string>
+    <string name="widget_stats_description">The two to four numbers you choose, in your colour</string>
 </resources>

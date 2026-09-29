@@ -2,12 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CAPACITOR_DEBUG</key>
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>KinetixFit</string>
+	<string>Kinetix Fit</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,34 +20,51 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.jnglobalventures.kinetixfit</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kinetixfit</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>KinetixFit reads your heart rate, HRV, sleep, and step data to personalise your fitness targets and verify your daily activity.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>KinetixFit uses your camera to scan food barcodes and photos for nutrition information.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>KinetixFit only reads from Apple Health and never adds or changes your health data.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Kinetix Fit uses your camera to scan food barcodes and photos for nutrition information.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Kinetix Fit reads your heart rate, HRV, sleep, steps, workouts, distance, calories burned, blood oxygen, breathing rate, blood pressure, VO2 max, weight and body fat to show them on Today, personalise your targets and verify your daily activity.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Kinetix Fit only reads from Apple Health and never adds or changes your health data.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Kinetix Fit does not add photos to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kinetix Fit lets you choose a food photo from your library to check its nutrition.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
-    <false/>
-    <key>UISceneConfigurations</key>
-    <dict>
-      <key>UIWindowSceneSessionRoleApplication</key>
-      <array>
-        <dict>
-            <key>UISceneConfigurationName</key>
-            <string>Default Configuration</string>
-            <key>UISceneDelegateClassName</key>
-            <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-            <key>UISceneStoryboardFile</key>
-            <string>Main</string>
-        </dict>
-      </array>
-    </dict>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
 	</dict>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -57,8 +74,6 @@
 	<array>
 		<string>arm64</string>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

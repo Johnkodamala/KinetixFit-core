@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Water glass, in the widget picker only: the tumbler half full (the real one is drawn by WidgetArt.waterGlass). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="60dp" android:height="78dp" android:viewportWidth="60" android:viewportHeight="78">
+    <path android:fillColor="#33FFFFFF" android:pathData="M7,8 L12.5,70 A17.5,3.5 0 0,0 47.5,70 L53,8 A23,4.6 0 0,0 7,8 Z" />
+    <path android:pathData="M11.3,36 L13.7,62.8 A16.3,3.26 0 0,0 46.3,62.8 L48.7,36 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="32" android:endX="0" android:endY="66"
+                android:startColor="#F25AD6EE" android:endColor="#FF0E8FB8" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFC4F6FC" android:pathData="M11.3,36 A18.7,3.74 0 1,0 48.7,36 A18.7,3.74 0 1,0 11.3,36 Z" />
+    <path android:strokeColor="#99FFFFFF" android:strokeWidth="0.9" android:pathData="M13.7,62.8 A16.3,3.26 0 1,0 46.3,62.8 A16.3,3.26 0 1,0 13.7,62.8 Z" />
+    <path android:strokeColor="#B3FFFFFF" android:strokeWidth="2.6" android:strokeLineCap="round" android:pathData="M13.8,15 L16.6,58" />
+    <path android:strokeColor="#F2FFFFFF" android:strokeWidth="1.2"
+        android:pathData="M7,8 L12.5,70 A17.5,3.5 0 0,0 47.5,70 L53,8 A23,4.6 0 0,1 7,8 A23,4.6 0 0,1 53,8" />
+</vector>

@@ -1,0 +1,899 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "milk",
+ "generic": [
+  {
+   "fdcId": 2705384,
+   "description": "Milk, NFS",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 52
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.33
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.83
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.14
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.249
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.88
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 156
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 125
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2705385,
+   "description": "Milk, whole",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 61
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.27
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.63
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.2
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.86
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.81
+    },
+    {
+     "nutrientId": 1093,
+     "value": 38
+    },
+    {
+     "nutrientId": 1092,
+     "value": 150
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 123
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2705501,
+   "description": "Milk, malted",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 66
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.19
+    },
+    {
+     "nutrientId": 1005,
+     "value": 8.64
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.05
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.195
+    },
+    {
+     "nutrientId": 2000,
+     "value": 7.81
+    },
+    {
+     "nutrientId": 1093,
+     "value": 60
+    },
+    {
+     "nutrientId": 1092,
+     "value": 149
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.71
+    },
+    {
+     "nutrientId": 1087,
+     "value": 159
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 256
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 32
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 256
+    }
+   ]
+  },
+  {
+   "fdcId": 170882,
+   "description": "Milk, sheep, fluid",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 108
+    },
+    {
+     "nutrientId": 1003,
+     "value": 5.98
+    },
+    {
+     "nutrientId": 1005,
+     "value": 5.36
+    },
+    {
+     "nutrientId": 1004,
+     "value": 7
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 4.603
+    },
+    {
+     "nutrientId": 1093,
+     "value": 44
+    },
+    {
+     "nutrientId": 1092,
+     "value": 137
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.1
+    },
+    {
+     "nutrientId": 1087,
+     "value": 193
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2705387,
+   "description": "Milk, low fat (1%)",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 43
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.38
+    },
+    {
+     "nutrientId": 1005,
+     "value": 5.18
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.95
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.568
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.96
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 159
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 126
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2708086,
+   "description": "Milk 'n Cereal bar",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 413
+    },
+    {
+     "nutrientId": 1003,
+     "value": 6.47
+    },
+    {
+     "nutrientId": 1005,
+     "value": 72.05
+    },
+    {
+     "nutrientId": 1004,
+     "value": 10.98
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 9.114
+    },
+    {
+     "nutrientId": 2000,
+     "value": 45.97
+    },
+    {
+     "nutrientId": 1093,
+     "value": 319
+    },
+    {
+     "nutrientId": 1092,
+     "value": 254
+    },
+    {
+     "nutrientId": 1089,
+     "value": 5.99
+    },
+    {
+     "nutrientId": 1087,
+     "value": 410
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 General Mills bar",
+     "gramWeight": 40
+    },
+    {
+     "disseminationText": "1 Kellogg's bar",
+     "gramWeight": 24
+    },
+    {
+     "disseminationText": "1 bar",
+     "gramWeight": 40
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 40
+    }
+   ]
+  },
+  {
+   "fdcId": 174650,
+   "description": "Milk and cereal bar",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 413
+    },
+    {
+     "nutrientId": 1003,
+     "value": 6.47
+    },
+    {
+     "nutrientId": 1005,
+     "value": 72.05
+    },
+    {
+     "nutrientId": 1004,
+     "value": 10.98
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.4
+    },
+    {
+     "nutrientId": 1258,
+     "value": 9.114
+    },
+    {
+     "nutrientId": 2000,
+     "value": 45.97
+    },
+    {
+     "nutrientId": 1093,
+     "value": 319
+    },
+    {
+     "nutrientId": 1092,
+     "value": 254
+    },
+    {
+     "nutrientId": 1089,
+     "value": 5.99
+    },
+    {
+     "nutrientId": 1087,
+     "value": 410
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 2705507,
+   "description": "Milk shake with malt",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 125
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.76
+    },
+    {
+     "nutrientId": 1005,
+     "value": 13.64
+    },
+    {
+     "nutrientId": 1004,
+     "value": 6.11
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1258,
+     "value": 3.659
+    },
+    {
+     "nutrientId": 2000,
+     "value": 12.04
+    },
+    {
+     "nutrientId": 1093,
+     "value": 66
+    },
+    {
+     "nutrientId": 1092,
+     "value": 190
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.06
+    },
+    {
+     "nutrientId": 1087,
+     "value": 131
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 milkshake (10 fl oz)",
+     "gramWeight": 280
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 280
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 28
+    }
+   ]
+  },
+  {
+   "fdcId": 2705388,
+   "description": "Milk, fat free (skim)",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 34
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.43
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.92
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.08
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.049
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 41
+    },
+    {
+     "nutrientId": 1092,
+     "value": 167
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 132
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    }
+   ]
+  },
+  {
+   "fdcId": 2705386,
+   "description": "Milk, reduced fat (2%)",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 50
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.36
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.9
+    },
+    {
+     "nutrientId": 1004,
+     "value": 1.9
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.11
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.89
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 159
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 126
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    }
+   ]
+  },
+  {
+   "fdcId": 170875,
+   "description": "Milk, low sodium, fluid",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 61
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.1
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.46
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.46
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.154
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.46
+    },
+    {
+     "nutrientId": 1093,
+     "value": 3
+    },
+    {
+     "nutrientId": 1092,
+     "value": 253
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1087,
+     "value": 101
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 171274,
+   "description": "Milk, buttermilk, dried",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 387
+    },
+    {
+     "nutrientId": 1003,
+     "value": 34.3
+    },
+    {
+     "nutrientId": 1005,
+     "value": 49
+    },
+    {
+     "nutrientId": 1004,
+     "value": 5.78
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 3.598
+    },
+    {
+     "nutrientId": 2000,
+     "value": 49
+    },
+    {
+     "nutrientId": 1093,
+     "value": 517
+    },
+    {
+     "nutrientId": 1092,
+     "value": 1592
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1087,
+     "value": 1184
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 172225,
+   "description": "Milk, buttermilk, fluid, whole",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 62
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.21
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.88
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.31
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.899
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.88
+    },
+    {
+     "nutrientId": 1093,
+     "value": 105
+    },
+    {
+     "nutrientId": 1092,
+     "value": 135
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.03
+    },
+    {
+     "nutrientId": 1087,
+     "value": 115
+    }
+   ],
+   "foodMeasures": []
+  },
+  {
+   "fdcId": 171265,
+   "description": "Milk, whole, 3.25% milkfat, with added vitamin D",
+   "dataType": "SR Legacy",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 61
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.15
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.8
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.25
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.865
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.05
+    },
+    {
+     "nutrientId": 1093,
+     "value": 43
+    },
+    {
+     "nutrientId": 1092,
+     "value": 132
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.03
+    },
+    {
+     "nutrientId": 1087,
+     "value": 113
+    }
+   ],
+   "foodMeasures": []
+  }
+ ],
+ "branded": []
+}

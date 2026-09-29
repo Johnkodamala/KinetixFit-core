@@ -28,10 +28,7 @@
   animation: kx-rise var(--dur-slow) var(--ease-out) both;
 }
 
-/* Welcome: the dark track panel from Today, set into the top of the card */
-.ob-card-hero { padding: 8px 8px 22px; }
-.ob-card-hero > :not(.ob-hero-panel) { margin-left: 14px; margin-right: 14px; }
-.ob-card-hero > .ob-btn-primary { width: calc(100% - 28px); }
+/* The dark track panel from Today: the top of the sign-in screen (compact) and About you */
 .ob-hero-panel {
   position: relative;
   overflow: hidden;
@@ -55,6 +52,7 @@
   font-size: 14px;
   letter-spacing: 0.1em;
   color: var(--hero-ink);
+  white-space: nowrap;
 }
 .ob-hero-title {
   font-family: var(--font-display);
@@ -67,6 +65,9 @@
   animation: kx-rise var(--dur-slow) var(--ease-out) 0.25s both;
 }
 .ob-hero-title em { font-style: normal; color: var(--accent); }
+/* Sign-in screen: a short brand panel, so the form stays on screen with the keyboard up */
+.ob-hero-panel.ob-hero-compact { flex: none; min-height: 168px; gap: 28px; margin-bottom: 18px; }
+.ob-hero-compact .ob-hero-title { font-size: clamp(28px, 8.4vw, 36px); }
 
 .ob-title {
   font-family: var(--font-display);
@@ -116,10 +117,14 @@
   border: none;
   box-shadow: 0 10px 20px -10px color-mix(in srgb, var(--accent) 85%, transparent);
 }
-.ob-btn-primary:hover { background: var(--accent-press); }
+@media (hover: hover) {
+  .ob-btn-primary:hover { background: var(--accent-press); }
+}
 .ob-btn-primary:disabled { background: var(--accent-soft); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
 .ob-btn-secondary { background: var(--surface-2); color: var(--ink); border: none; }
-.ob-btn-secondary:hover { background: var(--line); }
+@media (hover: hover) {
+  .ob-btn-secondary:hover { background: var(--line); }
+}
 .ob-btn-google {
   background: var(--surface);
   color: var(--ink);
@@ -129,13 +134,20 @@
   justify-content: center;
   gap: 10px;
 }
-.ob-btn-google:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .ob-btn-google:hover { background: var(--surface-2); }
+}
 .ob-btn-primary:active, .ob-btn-secondary:active, .ob-btn-google:active { transform: scale(0.97); }
 .ob-btn-row { display: flex; gap: 10px; margin-top: 8px; }
 .ob-btn-row .ob-btn-secondary { flex: 0 0 34%; }
 
 .ob-link { color: var(--accent); font-weight: 700; cursor: pointer; background: none; border: none; font-size: 14px; padding: 0; }
-.ob-link:hover { text-decoration: underline; }
+.ob-link:disabled { color: var(--ink-3); cursor: default; }
+/* "Send the confirmation email again", under the sign-in messages */
+.ob-resend { display: block; margin: -4px 0 16px; text-align: left; }
+@media (hover: hover) {
+  .ob-link:hover { text-decoration: underline; }
+}
 .ob-error, .ob-success {
   font-size: 14px;
   line-height: 1.45;
@@ -149,32 +161,8 @@
 .ob-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--ink-4); font-size: 13px; }
 .ob-divider::before, .ob-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
-/* Progress dots: the active one stretches into a short lane */
-.ob-dots { display: flex; justify-content: center; gap: 6px; margin-top: 22px; }
-.ob-dot { width: 7px; height: 7px; border-radius: var(--r-pill); background: var(--line-strong); transition: width var(--dur) var(--ease-out), background var(--dur); }
-.ob-dot.active { width: 22px; background: var(--accent); }
 .ob-footnote { font-size: 13px; color: var(--ink-3); text-align: center; line-height: 1.6; margin-top: 18px; }
 .ob-footnote a { color: var(--ink-2); }
-
-/* "What you can do" list */
-.ob-features { display: flex; flex-direction: column; gap: 10px; margin: 18px 0 24px; }
-.ob-feature {
-  display: flex; gap: 14px; align-items: flex-start;
-  padding: 14px;
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  animation: kx-rise var(--dur-slow) var(--ease-out) both;
-}
-.ob-feature:nth-child(2) { animation-delay: 80ms; }
-.ob-feature:nth-child(3) { animation-delay: 160ms; }
-.ob-feature-icon {
-  flex: none; width: 40px; height: 40px; border-radius: 12px;
-  display: grid; place-items: center;
-  color: var(--metric);
-  background: color-mix(in srgb, var(--metric) 14%, var(--surface));
-}
-.ob-feature strong { font-size: 16px; color: var(--ink); }
-.ob-feature p { font-size: 14px; color: var(--ink-2); margin: 2px 0 0; line-height: 1.45; }
 
 /* Permission + setup steps */
 .ob-badge {
@@ -240,10 +228,6 @@
   .ob-card > .ob-btn-row,
   .ob-card > .ob-actions { margin-top: auto; }
 
-  /* Welcome: the track panel takes the top of the screen */
-  .ob-card-hero { padding: 4px 0 0; }
-  .ob-card-hero > :not(.ob-hero-panel) { margin-left: 4px; margin-right: 4px; }
-  .ob-card-hero > .ob-btn-primary { width: calc(100% - 8px); }
   .ob-hero-panel {
     flex: 1 1 auto;
     min-height: 300px;

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- My stats (Plus, 2x2): the two to four numbers the person picks in the app, two per row, each with a bar towards
+     its goal where it has one; the colour is theirs too. StatsWidget.java; widget_stats_wide.xml is one row. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_glass" android:clipToOutline="true" android:orientation="vertical" android:padding="14dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:gravity="center_vertical">
+        <ImageView android:id="@+id/chip" android:layout_width="24dp" android:layout_height="24dp" android:background="@drawable/widget_chip"
+            android:padding="5dp" android:src="@drawable/ic_widget_trophy" android:tint="@color/kx_glass_water" android:importantForAccessibility="no" />
+        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:text="MY STATS" android:textSize="11sp" android:fontFamily="@font/kx_text_bold"
+            android:letterSpacing="0.12" android:textColor="@color/kx_glass_ink_2" android:maxLines="1" />
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:gravity="bottom">
+        <LinearLayout android:id="@+id/row1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+        <LinearLayout android:id="@+id/cell1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginEnd="10dp"
+            android:orientation="vertical" android:gravity="start">
+            <ImageView android:id="@+id/cell1_num" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:tint="@color/kx_glass_ink" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/cell1_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="steps" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" android:ellipsize="end" />
+            <ImageView android:id="@+id/cell1_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cell2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="start">
+            <ImageView android:id="@+id/cell2_num" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:tint="@color/kx_glass_ink" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/cell2_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="steps" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" android:ellipsize="end" />
+            <ImageView android:id="@+id/cell2_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+        <LinearLayout android:id="@+id/cell3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginEnd="10dp"
+            android:orientation="vertical" android:gravity="start">
+            <ImageView android:id="@+id/cell3_num" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:tint="@color/kx_glass_ink" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/cell3_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="steps" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" android:ellipsize="end" />
+            <ImageView android:id="@+id/cell3_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cell4" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:orientation="vertical" android:gravity="start">
+            <ImageView android:id="@+id/cell4_num" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:adjustViewBounds="true" android:tint="@color/kx_glass_ink" android:importantForAccessibility="no" />
+            <TextView android:id="@+id/cell4_label" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="steps" android:textSize="11sp" android:fontFamily="@font/kx_text_bold" android:textColor="@color/kx_glass_ink_3" android:maxLines="1" android:ellipsize="end" />
+            <ImageView android:id="@+id/cell4_bar" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                android:adjustViewBounds="true" android:scaleType="fitXY" android:importantForAccessibility="no" />
+        </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

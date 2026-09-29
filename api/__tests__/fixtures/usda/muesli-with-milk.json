@@ -1,0 +1,453 @@
+{
+ "_source": "USDA FoodData Central CSVs (SR Legacy 2018-04, FNDDS 2024-10-31) shaped like /v1/foods/search results; branded entries noted individually. Built for api/__tests__ by a one-off script.",
+ "query": "muesli with milk",
+ "generic": [
+  {
+   "fdcId": 2705412,
+   "description": "Oat milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 45
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.66
+    },
+    {
+     "nutrientId": 1005,
+     "value": 5.37
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.33
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.5
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0.187
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.04
+    },
+    {
+     "nutrientId": 1093,
+     "value": 43
+    },
+    {
+     "nutrientId": 1092,
+     "value": 18
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.21
+    },
+    {
+     "nutrientId": 1087,
+     "value": 155
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2705384,
+   "description": "Milk, NFS",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 52
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.33
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.83
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.14
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.249
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.88
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 156
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 125
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2705395,
+   "description": "Goat milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 69
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.56
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.45
+    },
+    {
+     "nutrientId": 1004,
+     "value": 4.14
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.667
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.45
+    },
+    {
+     "nutrientId": 1093,
+     "value": 50
+    },
+    {
+     "nutrientId": 1092,
+     "value": 204
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.05
+    },
+    {
+     "nutrientId": 1087,
+     "value": 134
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    }
+   ]
+  },
+  {
+   "fdcId": 2705411,
+   "description": "Rice milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 47
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.28
+    },
+    {
+     "nutrientId": 1005,
+     "value": 9.17
+    },
+    {
+     "nutrientId": 1004,
+     "value": 0.97
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1258,
+     "value": 0
+    },
+    {
+     "nutrientId": 2000,
+     "value": 5.28
+    },
+    {
+     "nutrientId": 1093,
+     "value": 39
+    },
+    {
+     "nutrientId": 1092,
+     "value": 27
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.2
+    },
+    {
+     "nutrientId": 1087,
+     "value": 118
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    }
+   ]
+  },
+  {
+   "fdcId": 2705385,
+   "description": "Milk, whole",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 61
+    },
+    {
+     "nutrientId": 1003,
+     "value": 3.27
+    },
+    {
+     "nutrientId": 1005,
+     "value": 4.63
+    },
+    {
+     "nutrientId": 1004,
+     "value": 3.2
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 1.86
+    },
+    {
+     "nutrientId": 2000,
+     "value": 4.81
+    },
+    {
+     "nutrientId": 1093,
+     "value": 38
+    },
+    {
+     "nutrientId": 1092,
+     "value": 150
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0
+    },
+    {
+     "nutrientId": 1087,
+     "value": 123
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    },
+    {
+     "disseminationText": "1 individual school container",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    }
+   ]
+  },
+  {
+   "fdcId": 2705413,
+   "description": "Coconut milk",
+   "dataType": "Survey (FNDDS)",
+   "foodNutrients": [
+    {
+     "nutrientId": 1008,
+     "value": 31
+    },
+    {
+     "nutrientId": 1003,
+     "value": 0.21
+    },
+    {
+     "nutrientId": 1005,
+     "value": 2.92
+    },
+    {
+     "nutrientId": 1004,
+     "value": 2.08
+    },
+    {
+     "nutrientId": 1079,
+     "value": 0
+    },
+    {
+     "nutrientId": 1258,
+     "value": 2.083
+    },
+    {
+     "nutrientId": 2000,
+     "value": 2.5
+    },
+    {
+     "nutrientId": 1093,
+     "value": 19
+    },
+    {
+     "nutrientId": 1092,
+     "value": 19
+    },
+    {
+     "nutrientId": 1089,
+     "value": 0.3
+    },
+    {
+     "nutrientId": 1087,
+     "value": 188
+    }
+   ],
+   "foodMeasures": [
+    {
+     "disseminationText": "Guideline amount per fl oz of beverage",
+     "gramWeight": 2.5
+    },
+    {
+     "disseminationText": "Quantity not specified",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 cup",
+     "gramWeight": 244
+    },
+    {
+     "disseminationText": "1 fl oz",
+     "gramWeight": 30.5
+    },
+    {
+     "disseminationText": "Guideline amount per cup of hot cereal",
+     "gramWeight": 61
+    }
+   ]
+  }
+ ],
+ "branded": []
+}

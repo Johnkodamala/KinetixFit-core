@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Plus lock badge on a locked Plus widget: the app's Plus gradient (clay → violet). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="999dp" />
+    <gradient android:angle="0" android:startColor="@color/kx_plus_from" android:endColor="@color/kx_plus_to" />
+</shape>

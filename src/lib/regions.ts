@@ -1,5 +1,6 @@
-// Regions offered in onboarding ("Where are you based?"), each with one well-established, checkable
-// fact about getting active there. Keep facts true and neutral — they're shown as "Did you know?".
+// UK regions, offered after the country in onboarding ("Which part of the UK?"), each with one well-established,
+// checkable fact about getting active there. Keep facts true and neutral — they're shown as "Did you know?".
+// Other countries' facts live in src/lib/countries.ts. Old profiles may still hold 'outside_uk' (no longer offered).
 export interface Region {
   id: string;
   name: string;
@@ -19,7 +20,6 @@ export const REGIONS: Region[] = [
   { id: 'scotland', name: 'Scotland', fact: 'Ben Nevis is the highest mountain in the British Isles, at 1,345 metres.' },
   { id: 'wales', name: 'Wales', fact: 'The Wales Coast Path follows almost the whole Welsh coastline — about 870 miles.' },
   { id: 'northern_ireland', name: 'Northern Ireland', fact: 'The Giant’s Causeway is made of around 40,000 interlocking basalt columns.' },
-  { id: 'outside_uk', name: 'Outside the UK', fact: 'The UK’s Chief Medical Officers recommend at least 150 minutes of moderate activity a week — about 20 minutes a day.' },
 ];
 
 export const regionById = (id: string | null | undefined) => REGIONS.find(r => r.id === id) ?? null;

@@ -15,11 +15,125 @@
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:exported="true">
+            <!-- No launcher entry here: the launcher icon is one of the .Icon* aliases below (app icons). -->
+            <!-- Widget shortcuts: kinetixfit://scan/photo, kinetixfit://scan/barcode, kinetixfit://today (src/App.tsx) -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="kinetixfit" />
             </intent-filter>
         </activity>
+
+        <!-- App icons (Account → App icon, src/lib/appIcons.ts): one launcher entry per icon, all opening MainActivity.
+             Exactly one is enabled — Classic by default; AppIconPlugin.java switches them. Keep in step with its IDS. -->
+        <activity-alias android:name=".IconClassic" android:targetActivity=".MainActivity" android:enabled="true" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconMidnight" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_midnight" android:roundIcon="@mipmap/ic_launcher_midnight">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconAurora" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_aurora" android:roundIcon="@mipmap/ic_launcher_aurora">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconGold" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_gold" android:roundIcon="@mipmap/ic_launcher_gold">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconEmber" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_ember" android:roundIcon="@mipmap/ic_launcher_ember">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconKxTrack" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_kx_track" android:roundIcon="@mipmap/ic_launcher_kx_track">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconKxMono" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_kx_mono" android:roundIcon="@mipmap/ic_launcher_kx_mono">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconKxPulse" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_kx_pulse" android:roundIcon="@mipmap/ic_launcher_kx_pulse">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconKxChrome" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:label="@string/title_activity_main" android:icon="@mipmap/ic_launcher_kx_chrome" android:roundIcon="@mipmap/ic_launcher_kx_chrome">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+        </activity-alias>
+
+        <!-- Home-screen widgets (WidgetStore.java has what they show) -->
+        <receiver android:name=".HydrationWidget" android:exported="false" android:label="@string/widget_hydration_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_hydration_info" />
+        </receiver>
+        <receiver android:name=".TodayWidget" android:exported="false" android:label="@string/widget_today_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_today_info" />
+        </receiver>
+
+        <receiver android:name=".ScanWidget" android:exported="false" android:label="@string/widget_scan_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_scan_info" />
+        </receiver>
+        <receiver android:name=".StepsWidget" android:exported="false" android:label="@string/widget_steps_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_steps_info" />
+        </receiver>
+
+        <!-- More water widget styles + Daily rings (27 Sep 2026, for the user to pick from) -->
+        <receiver android:name=".WaterLevelWidget" android:exported="false" android:label="@string/widget_water_level_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_water_level_info" />
+        </receiver>
+        <receiver android:name=".WaterRingWidget" android:exported="false" android:label="@string/widget_water_ring_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_water_ring_info" />
+        </receiver>
+        <receiver android:name=".WaterQuickWidget" android:exported="false" android:label="@string/widget_water_quick_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_water_quick_info" />
+        </receiver>
+        <receiver android:name=".WaterWeekWidget" android:exported="false" android:label="@string/widget_water_week_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_water_week_info" />
+        </receiver>
+        <receiver android:name=".RingsWidget" android:exported="false" android:label="@string/widget_rings_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_rings_info" />
+        </receiver>
+
+        <receiver android:name=".GlassWidget" android:exported="false" android:label="@string/widget_glass_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_glass_info" />
+        </receiver>
+
+        <!-- Streak (free) and the KinetixFit Plus widgets (28 Sep 2026): Check-in, Quick log, My stats -->
+        <receiver android:name=".StreakWidget" android:exported="false" android:label="@string/widget_streak_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_streak_info" />
+        </receiver>
+        <receiver android:name=".CheckInWidget" android:exported="false" android:label="@string/widget_checkin_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_checkin_info" />
+        </receiver>
+        <receiver android:name=".QuickLogWidget" android:exported="false" android:label="@string/widget_quick_log_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_quick_log_info" />
+        </receiver>
+        <receiver android:name=".StatsWidget" android:exported="false" android:label="@string/widget_stats_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_stats_info" />
+        </receiver>
+
+        <!-- Movement breaks: a check every ~15 min in the active hours, re-armed after a reboot or update -->
+        <receiver android:name=".MoveReminderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -36,31 +150,26 @@
     <!-- Lets scheduled hydration reminders fire at their exact configured time rather than
          an approximate one (Android 12+ batches inexact alarms by default). -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Movement breaks (MoveReminderReceiver): the step counter needs "Physical activity" on Android 10+, and the
+         15-minute check is re-armed after a reboot. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- Health Connect: @capgo/capacitor-health declares read+write for every data type it supports.
-         The app only reads heartRate, heartRateVariability, restingHeartRate, sleep and steps
-         (requestAuthorization in src/App.tsx), and Play review rejects apps that declare health
-         permissions they don't use — so strip the rest. If App.tsx starts requesting a new type,
-         delete its line here. -->
-    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" tools:node="remove" />
+         The app only reads heartRate, heartRateVariability, restingHeartRate, sleep, steps and workouts (READ_EXERCISE),
+         and since 28 Sep the body and vitals types: distance, active + total calories burned, oxygen saturation,
+         respiratory rate, blood pressure, VO2 max, weight and body fat (HEALTH_READ_TYPES in src/App.tsx). Play review
+         rejects apps that declare health permissions they don't use — so strip the rest. If App.tsx starts requesting
+         a new type, delete its line here (and add it to the Play Console health declaration). -->
     <uses-permission android:name="android.permission.health.READ_BASAL_BODY_TEMPERATURE" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_BASAL_METABOLIC_RATE" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_BLOOD_GLUCOSE" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_BLOOD_PRESSURE" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_BODY_FAT" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_BODY_TEMPERATURE" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_DISTANCE" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_EXERCISE" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_FLOORS_CLIMBED" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_HEIGHT" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_HYDRATION" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_MINDFULNESS" tools:node="remove" />
     <uses-permission android:name="android.permission.health.READ_NUTRITION" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_OXYGEN_SATURATION" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_RESPIRATORY_RATE" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_VO2_MAX" tools:node="remove" />
-    <uses-permission android:name="android.permission.health.READ_WEIGHT" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_BASAL_BODY_TEMPERATURE" tools:node="remove" />
     <uses-permission android:name="android.permission.health.WRITE_BASAL_METABOLIC_RATE" tools:node="remove" />
