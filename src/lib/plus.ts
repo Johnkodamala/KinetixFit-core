@@ -2,7 +2,7 @@
 // these; the app only shows them.
 
 /** Entitlement identifier in the RevenueCat dashboard (customers see "KinetixFit Plus"). */
-export const PLUS_ENTITLEMENT = 'KinetixFit Pro';
+export const PLUS_ENTITLEMENT = 'kinetixfit_pro';
 
 /** Photo + barcode scans per day (the person's own midnight). Typed food checks are unlimited. */
 export const FREE_DAILY_SCANS = 2;

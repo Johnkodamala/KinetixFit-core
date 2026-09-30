@@ -276,7 +276,7 @@ for Samsung's workout calories; 1.4 lacks the late-evening list) — debug build
     `app_name`, iOS `CFBundleDisplayName`), widgets, notifications, legal pages, server messages — and in the logo's
     wordmark: `assets/icon*.png`, the iOS `AppIcon-1024.png`, Android launcher layers at every density (regenerated from
     the edited source; the unused Capacitor `splash.png` drawables still say KinetixFit). Code identifiers, the RevenueCat
-    entitlement `KinetixFit Pro`, bundle/target names and these docs keep "KinetixFit".
+    entitlement (identifier `kinetixfit_pro`, display name "KinetixFit Pro"), bundle/target names and these docs keep "KinetixFit".
   - **Notifications redesigned** (`src/lib/notifications.ts`, badges from `scripts/app-icons/notify.mjs`): a coloured
     badge per kind (Android large icon; iOS attachment `public/notify/*.png`), a header line ("Hydration · 2 L goal"),
     longer text when expanded, actions (**Add a glass**, **Remind me in 30 min**, **Check in**), a 19:30 **streak
@@ -365,7 +365,7 @@ for Samsung's workout calories; 1.4 lacks the late-evening list) — debug build
    After merging: re-scan the badam milk bottle, a less common food, AI meal ideas with a Plus (promo) account, then APK 1.3.
 3. Still open: the smartwatch question on Today; Account → Reminders hours; Country (the S21 FE resolved to India);
    pick the water widget styles to keep.
-4. Plus can't be bought yet: Play Console subscription + RevenueCat entitlement **`KinetixFit Pro`** + offering.
+4. Plus can't be bought yet: Play Console subscription + RevenueCat entitlement **`kinetixfit_pro`** (display name KinetixFit Pro; exists, 3 products) + a package in the `default` offering (empty on 1 Oct).
 5. Before any non-UK country goes live: charity agreements, Tremendous funding per currency, privacy policy + terms per
    market, store availability; double-check Singapore's fibre figure and the onboarding facts. [Countries]
 6. Play Console Health Connect declaration: add **exercise** (READ_EXERCISE) and, since 28 Sep late evening, **distance,
@@ -728,7 +728,7 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
   checks and charity donations stay free. Limits live in `src/lib/plus.ts` (display) and `api/_lib/scanQuota.js`
   (enforced; counts only successful scans, fails open if Redis is down). Plus is checked server-side against
   RevenueCat in `api/_lib/plus.js` (5-min Redis cache; strict/fresh for voucher payouts). Entitlement identifier
-  stays **`KinetixFit Pro`** (promo codes already grant it); customers see "KinetixFit Plus".
+  is **`kinetixfit_pro`** — the identifier, not the display name "KinetixFit Pro" (1 Oct: the code wrongly used the display name, so neither promo grants nor the server Plus check could ever match; fixed); customers see "KinetixFit Plus".
 - Buying: Account → Your plan sells `offerings.current.availablePackages[0]` via RevenueCat; until Play Console /
   App Store products + a RevenueCat offering exist, the button says Plus isn't on sale yet. Restore purchase is there.
 - `lookup-barcode` now requires `appUserId` (older app builds that don't send it get "Sign in to scan a barcode").
