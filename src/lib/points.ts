@@ -1,5 +1,5 @@
 // The points economy. Points turn into real things: a charity donation at 1,000 points and, with Plus, a coffee
-// voucher at 1,500 (VOUCHER_POINTS; api/_lib/rewardConfig.js). So they come slowly. Someone who does everything, every day earns
+// voucher at 1,000 too (VOUCHER_POINTS; api/_lib/rewardConfig.js). So they come slowly. Someone who does everything, every day earns
 // about 1,000 points in a month (the "perfect month" test in points.test.ts keeps it there). A typical month is
 // about half that.
 //
@@ -33,18 +33,22 @@ export const LEVEL_XP = 500;
 export const MONTHLY_POINTS_GUIDE = 1000;
 
 /**
- * What a coffee voucher costs (Plus, one a month): 1,500 since 28 Sep 2026 (was 2,500 — with about 1,000 points in a
- * perfect month that took 2.5–5 months). The server decides: keep api/_lib/rewardConfig.js voucherPointsCost the same
- * (rewards.test.ts checks), and note a `config:rewards` value in production Redis overrides that default.
+ * What a coffee voucher costs (Plus, one a month): 1,000 since 1 Oct 2026 (was 1,500 from 28 Sep, and 2,500 before that —
+ * with about 1,000 points in a perfect month the 2,500 took 2.5–5 months). The same as a charity donation. The server
+ * decides: keep api/_lib/rewardConfig.js voucherPointsCost the same (rewards.test.ts checks), and note a `config:rewards`
+ * value in production Redis overrides that default.
  */
-export const VOUCHER_POINTS = 1500;
+export const VOUCHER_POINTS = 1000;
 
-/** Server-side caps on one quest claim (api/complete-quest.js). */
+/** The most one quest may be worth — a sanity check on src/lib/quests.ts (rewards.test.ts). The server pays from its own table, api/_lib/quests.js. */
 export const MAX_QUEST_POINTS = 10;
 export const MAX_QUEST_XP = 40;
 
 /** XP within the current level (0 – LEVEL_XP). */
 export const xpIntoLevel = (xp: number, level: number) => Math.min(LEVEL_XP, Math.max(0, xp - (level - 1) * LEVEL_XP));
+
+/** The level an XP total has reached (level 2 starts at 500 XP). The server works it out the same way for the level-up bonus. */
+export const levelForXp = (xp: number) => Math.floor(Math.max(0, xp) / LEVEL_XP) + 1;
 
 /** One level at a time: the level after gaining XP up to `newXp` (older accounts can hold more XP than their level). */
 export const levelAfter = (newXp: number, level: number) => (newXp >= level * LEVEL_XP ? level + 1 : level);

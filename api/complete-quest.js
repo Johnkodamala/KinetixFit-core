@@ -15,17 +15,13 @@ import { Redis } from '@upstash/redis';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
 import { verifiedUserId } from './_lib/supabaseAuth.js';
+import { awardLevelUps } from './_lib/pointsLedger.js';
+import { questById } from './_lib/quests.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 
 const redis = Redis.fromEnv();
 const MAX_EARN_EVENTS_PER_DAY = 20;
 const ACTIVITY_STEPS_THRESHOLD = 2000;
-// The most one quest claim can award. Points are worth real donations/vouchers and a perfect month should come to
-// about 1,000 (src/lib/points.ts, quests pay 5–8), so older app builds that still ask for 120–220 get the cap.
-// Keep in step with MAX_QUEST_POINTS / MAX_QUEST_XP in src/lib/points.ts.
-const MAX_QUEST_POINTS = 10;
-const MAX_QUEST_XP = 40;
-const clampAward = (value, max) => Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
 
 async function verifyQuest(appUserId, verificationType, today) {
   if (verificationType === 'unverifiable_by_design') {
@@ -73,12 +69,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { appUserId, taskId, verificationType, completed } = req.body;
-  const xpValue = clampAward(req.body.xpValue, MAX_QUEST_XP);
-  const pointsValue = clampAward(req.body.pointsValue, MAX_QUEST_POINTS);
+  const { appUserId, taskId, completed } = req.body;
   if (!appUserId || !taskId) {
     return res.status(400).json({ error: 'appUserId and taskId are required.' });
   }
+  // A claim is paid what the quest is worth on the server (api/_lib/quests.js), whatever points, XP or verification type the
+  // request says; an id that isn't a quest earns nothing. Points turn into real donations and vouchers.
+  const quest = questById(taskId);
+  if (!quest) {
+    return res.status(400).json({ error: 'Unknown quest.' });
+  }
+  const { points: pointsValue, xp: xpValue, verificationType } = quest;
 
   // Un-completing doesn't earn anything server-side — the dedup lock (once verified-complete for
   // the day) is intentionally one-way; see src/App.tsx for why.
@@ -125,6 +126,7 @@ export default async function handler(req, res) {
           .from('points_ledger')
           .insert({ user_id: userId, day: today, award_id: `quest:${taskId}`, points: pointsValue, xp: xpValue });
         if (ledgerError) console.warn('points_ledger insert failed:', ledgerError.message);
+        else await awardLevelUps(admin, userId, today).catch(error => console.warn('level-up award failed:', error.message));
       }
     }
 

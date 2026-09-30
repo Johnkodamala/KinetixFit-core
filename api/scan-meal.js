@@ -12,6 +12,9 @@ import { handleCors } from './_lib/cors.js';
 import { checkScanQuota, recordScan, quotaExceededBody } from './_lib/scanQuota.js';
 import { fromTypical, lookupNutrition } from './_lib/nutrition.js';
 import { IdentifyError } from './_lib/identify.js';
+import { verifiedUserId } from './_lib/supabaseAuth.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { grantOnce } from './_lib/pointsLedger.js';
 import { identifyMealWithClaude } from './_lib/identifyClaude.js';
 import { combine, gramsOf } from './_lib/mealTotals.js';
 
@@ -228,6 +231,15 @@ export default async function handler(req, res) {
         if (!alreadyAwarded) {
           const config = await getRewardConfig();
           result.pointsAwarded = config.mealScanPointsAward;
+          // With a verified session the award is also a points_ledger row, which the database will not give twice for a
+          // day even if Redis forgot it. No session (an older build): Redis alone, as before.
+          const userId = await verifiedUserId(req);
+          const admin = userId ? supabaseAdmin() : null;
+          if (admin) {
+            const given = await grantOnce(admin, userId, { day: today, awardId: 'meal_scan', points: config.mealScanPointsAward });
+            if (given === 'duplicate') result.pointsAwarded = 0;
+            else if (given === 'error') console.warn('meal_scan points_ledger insert failed (Redis dedup still applies)');
+          }
           await redis.set(awardKey, '1', { ex: 60 * 60 * 24 * 2 });
           await logAuditEvent(appUserId, {
             type: 'earn',

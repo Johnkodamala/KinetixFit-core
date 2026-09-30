@@ -7,8 +7,9 @@ const redis = Redis.fromEnv();
 
 const DEFAULT_CONFIG = {
   voucherValueGBP: 5.00,
-  // 1,500 since 28 Sep 2026 (was 2,500): about 1.5 months of doing everything. Same as src/lib/points.ts VOUCHER_POINTS.
-  voucherPointsCost: 1500,
+  // 1,000 since 1 Oct 2026 (was 1,500, and 2,500 before 28 Sep): about a month of doing everything, the same as a charity
+  // donation. Same as src/lib/points.ts VOUCHER_POINTS.
+  voucherPointsCost: 1000,
   donationValueGBP: 2.50,
   donationPointsCost: 1000,
   // today's first food scan (once a day). Small, like every award since 28 Sep 2026: a perfect month comes to about

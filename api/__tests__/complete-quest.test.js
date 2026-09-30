@@ -36,6 +36,7 @@ vi.mock('../_lib/supabaseAdmin.js', () => ({
       from(table) {
         const store = table === 'quest_claims' ? claimsStore : ledgerStore;
         return {
+          select: () => ({ eq: (column, value) => ({ then: resolve => resolve({ data: store.filter(r => r[column] === value), error: null }) }) }),
           insert: async (row) => {
             const dupe = table === 'quest_claims' && store.some(r => r.user_id === row.user_id && r.day === row.day && r.quest_id === row.quest_id);
             if (dupe) return { error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
@@ -63,8 +64,9 @@ function call({ body = {}, headers = {} } = {}) {
 }
 
 const claimBody = (over = {}) => ({
-  appUserId: 'maya@example.com', taskId: 'quest-steps', verificationType: 'unverifiable_by_design',
-  xpValue: 10, pointsValue: 5, completed: true, ...over,
+  // Q-steps-10000 is worth 8 points and 30 XP on the server (api/_lib/quests.js); what the request says it is worth is ignored.
+  appUserId: 'maya@example.com', taskId: 'Q-steps-10000', verificationType: 'activity',
+  xpValue: 30, pointsValue: 8, completed: true, ...over,
 });
 
 beforeEach(() => {
@@ -76,11 +78,34 @@ beforeEach(() => {
   adminConfigured = true;
 });
 
+describe('which quests, and what they are worth', () => {
+  it('pays what the quest is worth on the server, whatever the request says', async () => {
+    const res = await call({ body: claimBody({ taskId: 'Q-sleep-7h', xpValue: 999, pointsValue: 999, verificationType: 'unverifiable_by_design' }) });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ xpAwarded: 25, pointsAwarded: 7 });
+  });
+
+  it('refuses an id that is not a quest, and earns nothing for it', async () => {
+    for (const taskId of ['quest-steps', 'Q-invented-1', 'q-food-3', '__proto__', 'constructor', 'toString', 42]) {
+      const res = await call({ body: claimBody({ taskId }), headers: { authorization: 'Bearer good-token' } });
+      expect(res.statusCode, String(taskId)).toBe(400);
+    }
+    expect(claimsStore).toHaveLength(0);
+    expect(ledgerStore).toHaveLength(0);
+  });
+
+  it('cannot be farmed by inventing ids: only real quests, once each a day, pay', async () => {
+    mockUserId = 'uid-123';
+    for (let i = 0; i < 15; i += 1) await call({ body: claimBody({ taskId: `Q-fake-${i}` }), headers: { authorization: 'Bearer good-token' } });
+    expect(ledgerStore).toHaveLength(0);
+  });
+});
+
 describe('without a verified session (older app builds)', () => {
   it('still awards on the Redis-only path and never touches Postgres', async () => {
     const res = await call({ body: claimBody() });
     expect(res.statusCode).toBe(200);
-    expect(res.body).toMatchObject({ success: true, xpAwarded: 10, pointsAwarded: 5 });
+    expect(res.body).toMatchObject({ success: true, xpAwarded: 30, pointsAwarded: 8 });
     expect(claimsStore).toHaveLength(0);
     expect(ledgerStore).toHaveLength(0);
   });
@@ -98,8 +123,8 @@ describe('with a verified session', () => {
   it('writes a durable quest_claims row and a points_ledger row', async () => {
     const res = await call({ body: claimBody(), headers: { authorization: 'Bearer good-token' } });
     expect(res.statusCode).toBe(200);
-    expect(claimsStore).toEqual([{ user_id: 'uid-123', day: expect.any(String), quest_id: 'quest-steps', points: 5, xp: 10 }]);
-    expect(ledgerStore).toEqual([{ user_id: 'uid-123', day: expect.any(String), award_id: 'quest:quest-steps', points: 5, xp: 10 }]);
+    expect(claimsStore).toEqual([{ user_id: 'uid-123', day: expect.any(String), quest_id: 'Q-steps-10000', points: 8, xp: 30 }]);
+    expect(ledgerStore).toEqual([{ user_id: 'uid-123', day: expect.any(String), award_id: 'quest:Q-steps-10000', points: 8, xp: 30 }]);
   });
 
   it("rejects a second claim for the same quest/day at the database level, even if Redis's key were gone", async () => {
@@ -108,6 +133,20 @@ describe('with a verified session', () => {
     const res = await call({ body: claimBody(), headers: { authorization: 'Bearer good-token' } });
     expect(res.statusCode).toBe(409);
     expect(claimsStore).toHaveLength(1); // never double-written
+  });
+
+  it('pays the level-up bonus when a claim takes the ledger’s XP to a new level (500 XP a level), once', async () => {
+    ledgerStore.push({ user_id: 'uid-123', day: '2026-09-01', award_id: 'checkin:x', points: 5, xp: 480 });
+    await call({ body: claimBody({ taskId: 'Q-workout' }), headers: { authorization: 'Bearer good-token' } }); // 520 XP: level 2
+    const levelUps = () => ledgerStore.filter(r => r.award_id.startsWith('levelup:'));
+    expect(levelUps()).toEqual([{ user_id: 'uid-123', day: expect.any(String), award_id: 'levelup:2', points: 10, xp: 0 }]);
+    await call({ body: claimBody({ taskId: 'Q-hrv' }), headers: { authorization: 'Bearer good-token' } }); // 560 XP: still level 2
+    expect(levelUps()).toHaveLength(1);
+  });
+
+  it('gives no level-up bonus for XP the phone merely says it has', async () => {
+    await call({ body: claimBody({ xpValue: 400 }), headers: { authorization: 'Bearer good-token' } });
+    expect(ledgerStore.some(r => r.award_id.startsWith('levelup:'))).toBe(false);
   });
 
   it('falls back to Redis-only behaviour when Supabase admin is not configured', async () => {

@@ -57,9 +57,11 @@ describe('the example run of small wins (the beats)', () => {
     expect(totals.at(-1)).toBe(REWARDS.voucherPoints);
   });
 
-  it('passes the charity donation on the way', () => {
-    const milestone = beats.find(b => Number(b.dataset.total) === REWARDS.donationPoints);
-    expect(milestone?.textContent).toMatch(new RegExp(formatGBP(REWARDS.donationValueGBP).replace('.', '\\.')));
+  it('ends on the coffee, at the price of a coffee', () => {
+    const milestone = beats.find(b => Number(b.dataset.total) === REWARDS.voucherPoints);
+    expect(milestone?.textContent).toMatch(new RegExp(formatGBP(REWARDS.voucherValueGBP)));
+    expect(milestone?.matches('.beat--coffee')).toBe(true);
+    expect(beats.at(-1)).toBe(milestone);
   });
 
   it('adds only real point values, one win at a time, on the days', () => {
@@ -94,7 +96,7 @@ describe('the example run of small wins (the beats)', () => {
 describe('cupLevel', () => {
   it('runs from empty to a full cup at the voucher cost, and never past it', () => {
     expect(cupLevel(0)).toBe(0);
-    expect(cupLevel(750)).toBe(0.5);
+    expect(cupLevel(REWARDS.voucherPoints / 2)).toBe(0.5);
     expect(cupLevel(REWARDS.voucherPoints)).toBe(1);
     expect(cupLevel(99999)).toBe(1);
     expect(cupLevel(-10)).toBe(0);
@@ -110,7 +112,8 @@ describe('statusFor', () => {
   it('says what the points are enough for', () => {
     expect(statusFor(0)).toBe('Watch the points add up.');
     expect(statusFor(25)).toBe('Every small win adds up.');
-    expect(statusFor(REWARDS.donationPoints)).toBe('£2.50 for charity, or keep going.');
+    // a coffee and a charity donation cost the same, so the coffee message is the one at their shared price
+    expect(REWARDS.donationPoints).toBeGreaterThanOrEqual(REWARDS.voucherPoints);
     expect(statusFor(REWARDS.voucherPoints)).toBe('Coffee’s on us.');
   });
 });

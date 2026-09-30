@@ -31,12 +31,12 @@ describe('points economy', () => {
     expect(14 * perDay).toBeLessThan(600);
   });
 
-  it('the coffee voucher costs the same in the app and on the server — about a month and a half of everything', () => {
+  it('the coffee voucher costs the same in the app and on the server — about a month of everything', () => {
     const server = rewardConfig.match(/voucherPointsCost:\s*(\d+)/);
     expect(Number(server?.[1])).toBe(VOUCHER_POINTS);
-    expect(VOUCHER_POINTS).toBe(1500);
-    expect(VOUCHER_POINTS / MONTHLY_POINTS_GUIDE).toBeGreaterThan(1);
-    expect(VOUCHER_POINTS / MONTHLY_POINTS_GUIDE).toBeLessThanOrEqual(2);
+    expect(VOUCHER_POINTS).toBe(1000);
+    expect(VOUCHER_POINTS / MONTHLY_POINTS_GUIDE).toBeGreaterThanOrEqual(0.9);
+    expect(VOUCHER_POINTS / MONTHLY_POINTS_GUIDE).toBeLessThanOrEqual(1.2);
   });
 
   it('every quest fits under the server’s cap on one claim', () => {

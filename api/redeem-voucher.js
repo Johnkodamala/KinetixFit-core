@@ -1,16 +1,18 @@
 // Private serverless endpoint to process verified reward redemptions.
 //
-// IMPORTANT LIMITATION: pointBalance below is still client-submitted, not checked against a
-// server-side point ledger — quest completions are now verified server-side (see
-// api/complete-quest.js) and every earn/spend event is audit-logged, but the running point
-// *balance* itself still lives client-side. What IS server-enforced here, independent of that:
-// the monthly £ redemption cap (see api/_lib/rewardConfig.js) and no-double-redeem via the cap
-// counter, since both only depend on tracking successful redemptions, not on point legitimacy.
+// The points balance and the "2 quests done today" gate are read from the database (points_ledger, quest_claims) for
+// the account the request's session token belongs to — never from the request body, which a modified app could fill
+// with anything. A redemption writes a negative points_ledger row. A request with no valid session is refused (older
+// app builds sent none). The voucher goes to that account's own email, never to an address in the request body. Also server-enforced: the monthly £ redemption cap and one voucher a month (see
+// api/_lib/rewardConfig.js).
 import { getRewardConfig, reserveVoucherSlot, releaseVoucherSlot } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
 import { COUNTRY_REWARDS, requestCountry } from './_lib/countries.js';
 import { isPlusUser } from './_lib/plus.js';
+import { verifiedUser } from './_lib/supabaseAuth.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
+import { ledgerBalance, claimedQuestIds, recordSpend } from './_lib/pointsLedger.js';
 
 export default async function handler(req, res) {
   if (handleCors(req, res)) return;
@@ -19,15 +21,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { email, userName, pointBalance, simulatedCadence, todayQuestsCompleted } = req.body;
-  if (!email) {
-    return res.status(400).json({ error: 'email is required.' });
-  }
+  const { userName, simulatedCadence } = req.body;
 
   // Vouchers are live country by country (api/_lib/countries.js); elsewhere the app shows them as coming soon.
   const country = requestCountry(req.body.country);
   if (!country || !COUNTRY_REWARDS[country].vouchersLive) {
     return res.status(403).json({ error: `Vouchers in ${COUNTRY_REWARDS[country]?.name ?? 'your country'} are coming soon.`, code: 'COMING_SOON' });
+  }
+
+  // Whose points these are comes from the session token, not from anything in the request body.
+  const user = await verifiedUser(req);
+  const userId = user?.id;
+  const email = user?.email;
+  const admin = userId ? supabaseAdmin() : null;
+  if (!userId || !email) {
+    return res.status(401).json({ error: 'Sign in again (or update the app) to swap points for a voucher.', code: 'AUTH_REQUIRED' });
+  }
+  if (!admin) {
+    return res.status(503).json({ error: 'Vouchers are unavailable right now. Please try again later.' });
   }
 
   // Vouchers (coffee etc.) are a KinetixFit Plus benefit. Checked fresh with RevenueCat and strict: if the
@@ -47,14 +58,21 @@ export default async function handler(req, res) {
   }
 
   // 2. Stage 2 Anti-Cheat: Validate effort thresholds
-  if (todayQuestsCompleted < 2) {
+  const today = new Date().toISOString().slice(0, 10);
+  const claimedToday = await claimedQuestIds(admin, userId, today);
+  const balance = await ledgerBalance(admin, userId);
+  if (!claimedToday || !balance) {
+    return res.status(503).json({ error: 'Could not check your points right now. Please try again.' });
+  }
+
+  if (claimedToday.length < 2) {
     return res.status(400).json({
       error: 'EFFORT THRESHOLD UNMET',
       details: 'A minimum of 2 daily quests must be verified to unlock reward redemptions.'
     });
   }
 
-  if (pointBalance < config.voucherPointsCost) {
+  if (balance.points < config.voucherPointsCost) {
     return res.status(400).json({
       error: 'INSUFFICIENT BALANCE',
       details: `A minimum of ${config.voucherPointsCost} points is required to cash out a £${config.voucherValueGBP.toFixed(2)} voucher.`
@@ -109,6 +127,11 @@ export default async function handler(req, res) {
     if (!response.ok) {
       throw new Error(orderData.errors?.[0]?.message || 'Reward provider error');
     }
+
+    // The voucher is ordered, so the points go. The monthly slot above already stops a second redemption racing this one.
+    // If the write fails the order still stands: say so loudly so it can be put right by hand.
+    const spent = await recordSpend(admin, userId, { day: today, awardId: 'voucher', points: config.voucherPointsCost });
+    if (!spent) console.error(`Voucher ordered for ${userId} but the points_ledger spend row was not written`);
 
     await logAuditEvent(email, {
       type: 'spend',

@@ -39,6 +39,23 @@ vi.mock('../_lib/scanQuota.js', () => ({
 }));
 vi.mock('../_lib/rewardConfig.js', () => ({ getRewardConfig: vi.fn(async () => ({ mealScanPointsAward: 2 })) }));
 vi.mock('../_lib/auditLog.js', () => ({ logAuditEvent: vi.fn(async () => {}) }));
+// A verified session (null = none, as older builds) and a points_ledger whose key is (user, day, award id).
+let mockUserId = null;
+vi.mock('../_lib/supabaseAuth.js', () => ({ verifiedUserId: async () => mockUserId }));
+const ledger = [];
+let failLedger = false;
+vi.mock('../_lib/supabaseAdmin.js', () => ({
+  supabaseAdmin: () => ({
+    from: () => ({
+      insert: async row => {
+        if (failLedger) return { error: { code: '50000', message: 'down' } };
+        if (ledger.some(r => r.user_id === row.user_id && r.day === row.day && r.award_id === row.award_id)) return { error: { code: '23505', message: 'duplicate key' } };
+        ledger.push(row);
+        return { error: null };
+      },
+    }),
+  }),
+}));
 const { recordScan } = await import('../_lib/scanQuota.js');
 // the per-scan usage line: kept out of the test output, read by the test that checks it
 const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -102,6 +119,7 @@ beforeEach(() => {
   vi.clearAllMocks(); // call history only; the fakes keep working
   store.clear();
   Object.assign(quota, { allowed: true, plus: false, limit: 2, used: 0 });
+  mockUserId = null; ledger.length = 0; failLedger = false;
   claude.reply = null;
   claude.requests.length = 0;
   usdaQueries.length = 0;
@@ -306,6 +324,37 @@ describe('single foods: the contract the app relies on', () => {
   it('points only for the first check of the day', async () => {
     expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
     expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(0);
+  });
+
+  describe('the points ledger', () => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    it('records the first check of the day as a ledger row when the session is verified', async () => {
+      mockUserId = 'user-1';
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
+      expect(ledger).toEqual([{ user_id: 'user-1', day: today, award_id: 'meal_scan', points: 2, xp: 0 }]);
+      await typed('banana', { appUserId: 'user@example.com' });
+      expect(ledger).toHaveLength(1);
+    });
+
+    it('gives nothing when the ledger already has today’s bonus, even if Redis forgot it', async () => {
+      mockUserId = 'user-1';
+      ledger.push({ user_id: 'user-1', day: today, award_id: 'meal_scan', points: 2, xp: 0 });
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(0);
+      expect(ledger).toHaveLength(1);
+    });
+
+    it('still gives the points (Redis dedup) when the ledger write fails', async () => {
+      mockUserId = 'user-1';
+      failLedger = true;
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
+      expect(ledger).toHaveLength(0);
+    });
+
+    it('writes no ledger row without a verified session (older builds), and the points work as before', async () => {
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
+      expect(ledger).toHaveLength(0);
+    });
   });
 });
 

@@ -28,11 +28,11 @@ function scrollToBeat(index: number) {
 const settle = () => new Promise(r => setTimeout(r, 760));
 
 describe('without motion', () => {
-  it('shows the finished story: a full cup at 1,500', () => {
+  it('shows the finished story: a full cup at 1,000', () => {
     stubBrowser({ reducedMotion: true });
     const story = initRewards()!;
     expect(story.total()).toBe(REWARDS.voucherPoints);
-    expect(count()).toBe('1,500');
+    expect(count()).toBe('1,000');
     expect(status()).toBe('Coffee’s on us.');
     expect(level()).toBe(1);
     expect(cup().classList.contains('is-full')).toBe(true);
@@ -61,7 +61,7 @@ describe('with motion, following the scroll', () => {
     scrollToBeat(1);
     await settle();
     expect(count()).toBe('13');
-    expect(level()).toBeCloseTo(13 / 1500, 5);
+    expect(level()).toBeCloseTo(13 / REWARDS.voucherPoints, 5);
     expect(status()).toBe('Every small win adds up.');
     const beats = [...document.querySelectorAll('.beat')];
     expect(beats[0].classList.contains('is-past')).toBe(true);
@@ -69,18 +69,15 @@ describe('with motion, following the scroll', () => {
     expect(beats[2].classList.contains('is-active') || beats[2].classList.contains('is-past')).toBe(false);
   });
 
-  it('passes the charity milestone, then brews the coffee', async () => {
+  it('brews the coffee on the last beat, not before', async () => {
     const beats = [...document.querySelectorAll<HTMLElement>('.beat')];
-    const charity = beats.findIndex(b => Number(b.dataset.total) === REWARDS.donationPoints);
-    scrollToBeat(charity);
+    scrollToBeat(beats.length - 2);
     await settle();
-    expect(count()).toBe('1,000');
-    expect(status()).toMatch(/charity/);
-    expect(document.querySelector('.cup__mark--charity')!.classList.contains('is-reached')).toBe(true);
+    expect(status()).not.toBe('Coffee’s on us.');
     expect(document.querySelector('.cup__mark--coffee')!.classList.contains('is-reached')).toBe(false);
     scrollToBeat(beats.length - 1);
     await settle();
-    expect(count()).toBe('1,500');
+    expect(count()).toBe('1,000');
     expect(cup().classList.contains('is-full')).toBe(true);
     expect(document.querySelector('.cup__mark--coffee')!.classList.contains('is-reached')).toBe(true);
   });
@@ -104,7 +101,6 @@ describe('with motion, following the scroll', () => {
 
 describe('the cup’s milestone marks', () => {
   it('carry the real thresholds', () => {
-    expect(document.querySelector<HTMLElement>('.cup__mark--charity')!.dataset.points).toBe(String(REWARDS.donationPoints));
     expect(document.querySelector<HTMLElement>('.cup__mark--coffee')!.dataset.points).toBe(String(REWARDS.voucherPoints));
   });
 });
@@ -113,7 +109,7 @@ describe('numbers filled in from the config', () => {
   it('writes every [data-reward] from REWARDS', () => {
     document.querySelectorAll<HTMLElement>('[data-reward]').forEach(el => { el.textContent = '?'; });
     fillRewardNumbers();
-    expect(document.querySelector('[data-reward="voucherPoints"]')!.textContent).toBe('1,500');
+    expect(document.querySelector('[data-reward="voucherPoints"]')!.textContent).toBe('1,000');
     expect(document.querySelector('[data-reward="voucherValue"]')!.textContent).toBe('£5');
     expect(document.querySelector('[data-reward="donationValue"]')!.textContent).toBe('£2.50');
     expect(document.querySelectorAll('[data-reward]')).toHaveLength(10);
