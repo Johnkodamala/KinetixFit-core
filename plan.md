@@ -1,8 +1,46 @@
 # KinetixFit: Backend Database as Source of Truth — STATUS (2026-09-30, end of session)
 
 **Read this first in a new conversation.** The original plan (schema, decisions, phasing) is preserved
-below under "Original plan". This top section is the handoff: what's actually done, verified, and
-left — nothing here has been committed or pushed (per standing project rule, only commit when asked).
+below under "Original plan". This top section is the handoff.
+
+## Status at a glance
+
+- **Code: committed**, not pushed, not merged. Commit `73ffa01` ("feat: sync all account data to
+  Supabase, server-authoritative quest claims") on branch `initial-changes`, 42 files. Push/PR/merge are
+  separate, explicit steps whenever the user asks (per standing project rule).
+- **Verified working** on the test Supabase project only, across Android (S21 FE), the iOS simulator,
+  and a real iPhone (13 mini) — full login → sync → offline-write → reconnect → logout-wipe → re-login
+  cycles on each. 2 real bugs were found and fixed during that testing (Android; see "What's done"
+  below); iOS testing found no new ones. A 3rd bug (the backfill-flag issue) was found in a later code
+  review, not device testing, and is **not yet fixed** — see step 2 below.
+- **Production has zero tables.** The code is inert there until the migration is applied — see
+  "Next steps" below for the exact order that keeps this safe for the live website.
+- `npm test`: 1,124 passing (as of the 2026-09-30 backfill-flag fix, below). `tsc -b`: clean. `npm run
+  build` / `npm run build:web`: clean. `npm run lint`: 4 pre-existing, non-blocking React Compiler
+  diagnostics in `App.tsx` (unchanged from before this batch's commit — see "Known limitations";
+  deliberately deferred, see `CLAUDE.md` → Current status).
+
+## Next steps (in order — read this before doing anything)
+
+1. **Before merging to `main`: apply `supabase/migrations/0001_source_of_truth.sql` to the production
+   Supabase project (ref `qlsdmczmnmsjhqptnkym`) and add `SUPABASE_SERVICE_ROLE_KEY` to Vercel.** This
+   order matters, not just tidiness: merging first would let the live website's `/app/` sync against
+   production before the tables exist, which — because of the backfill-flag bug below — would
+   permanently strand pre-migration users' historical data. Both are dashboard actions the user does
+   (Claude is blocked from production deploys/secrets in auto mode).
+2. ~~**Fix the backfill-flag bug in `sync.ts` first**~~ **Done (2026-09-30).** `pushAllKeyed()` now returns
+   `Promise<boolean>` (checks each `upsert`'s `{ error }` the same way `pushKeyed` already did) and
+   `syncAllOnLogin()` only calls `setBackfilled(domain.name)` when that push fully succeeded — a failed
+   push (table not migrated yet, transient network error) now leaves the domain un-backfilled so the
+   one-time "push everything local" pass retries on the next login. Pinned with 2 new tests in
+   `sync.test.ts` (`describe('syncAllOnLogin — keyed-domain backfill', ...)`: one forcing an upsert
+   failure and asserting the backfilled flag stays unset, one confirming success still sets it).
+   `npm test`: 1,124 passing (was 1,122). `tsc -b`, `npm run build`, `npm run build:web` all clean; lint
+   unchanged (same pre-existing 4 diagnostics, see "Known limitations").
+3. Decide on the 4 lint diagnostics: leave as a known issue, or spend time isolating/fixing them.
+4. Decide whether to widen phase 9 (quest claims) to authoritative running totals + server-computed
+   streaks, rather than the narrower "dedup only" scope shipped here.
+5. Push the branch, open the PR, merge when ready (after steps 1–2, per the ordering above).
 
 ## What's done
 
@@ -80,17 +118,17 @@ iPhone for that). User has since logged out on the S21 FE themselves. The stale 
 - **Detected workouts don't sync bidirectionally into the UI** — a remote-only detected workout (from
   another device) lands in a read-only local history cache, never the live `detectedWorkouts` state or
   Rewards counting, to avoid changing how points/badges are earned.
-- **3 React Compiler lint diagnostics remain in `App.tsx`** (`react-hooks/purity` at the
+- **4 React Compiler lint diagnostics remain in `App.tsx`** (`react-hooks/purity` ×2 at the
   `submitCheckIn`/`rewardCheckIns` forward-reference, `react-hooks/preserve-manual-memoization` ×2 near
   `foodLog`'s `useMemo` and the gut-report `useMemo`, both about `todayDateKey`). Confirmed via
   `git stash` that the original file lints clean and today's cumulative changes introduced this —
   bisecting exactly which change tipped React Compiler's heuristics wasn't done (severe time cost for a
   lint-only, non-runtime-affecting diagnostic; `npm run build`, `tsc -b`, and all tests are unaffected).
-  Flagged for a decision on whether it's worth chasing.
-- **Production still has no schema.** Everything above ran against the test project only. Applying
-  `supabase/migrations/0001_source_of_truth.sql` to production, and adding a new
-  `SUPABASE_SERVICE_ROLE_KEY` secret to Vercel (needed for phase 9's admin writes to work live), are
-  separate, explicit steps whenever the user is ready — not done, not attempted.
+  Flagged for a decision on whether it's worth chasing — see "Next steps" above.
+- **Production still has no schema**, and there's a real ordering hazard around fixing that — see
+  "Next steps" above for why the migration must land before any merge to `main`.
+- ~~**The `pushAllKeyed`/`syncAllOnLogin` backfill-flag bug**~~ **Fixed 2026-09-30** — see step 2 in
+  "Next steps" above.
 - **iOS**: `npx cap sync ios` confirmed clean (no Windows-path regression in `Package.swift`). **Now
   exercised on the iPhone 17 simulator** (a later session, `.env` temporarily swapped to the test
   Supabase project as for the S21 FE, then restored — see "iOS simulator verification" below). Still
@@ -180,18 +218,9 @@ keyed, not because of any extra care taken beyond the swap/restore sequence itse
   "Durga" as briefly shown on screen — see mishap above) was not restored, since the user confirmed this
   phone isn't their tracked device anyway.
 - `npm test`: 1,122 passing. `tsc -b`: clean. `npm run build` / `npm run build:web`: clean. `npm run
-  lint`: 3 pre-existing-pattern errors surfaced (see above) — not fixed.
-- Nothing committed or pushed. `git status` shows ~19 modified + ~20 new files (see `git status
-  --short` for the exact list) plus this `plan.md` and the new `supabase/` directory.
-
-## Next up (user to choose)
-
-1. Decide on the 3 lint diagnostics: leave as a known issue, or spend time isolating/fixing them.
-2. Apply the migration to production + add `SUPABASE_SERVICE_ROLE_KEY` to Vercel, when ready to go live.
-3. ~~Exercise the new sync code on iOS~~ — done, on both the iPhone 17 simulator and the user's real
-   iPhone 13 mini (see above). No bugs found on either.
-4. Decide whether to widen phase 9 to authoritative running totals + server-computed streaks.
-5. Commit/PR when ready (nothing has been committed yet).
+  lint`: 4 pre-existing-pattern errors surfaced (see "Known limitations") — not fixed.
+- **Committed**: `73ffa01` on `initial-changes`, 42 files. Not pushed, not merged. See "Next steps" at
+  the top of this file for what's left and in what order.
 
 ---
 

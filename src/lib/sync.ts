@@ -152,10 +152,12 @@ export async function syncAllOnLogin(): Promise<void> {
   for (const domain of keyedDomains.values()) {
     if (!isBackfilled(domain.name)) {
       // First sync for this domain: push everything local first (existing local-only data is never
-      // lost), then pull down anything the server already had that this device doesn't.
-      await pushAllKeyed(domain);
+      // lost), then pull down anything the server already had that this device doesn't. Only mark it
+      // backfilled if every local record actually made it up — otherwise a failed push (e.g. the table
+      // doesn't exist yet, or a transient network error) would permanently strand this user's local data.
+      const ok = await pushAllKeyed(domain);
       await pullKeyed(domain);
-      setBackfilled(domain.name);
+      if (ok) setBackfilled(domain.name);
     } else {
       await pullKeyed(domain);
       await pushKeyed(domain);
@@ -225,14 +227,18 @@ export async function pushKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
 }
 
 /** Pushes every local record regardless of dirty state — only for the one-time backfill on first sync,
- * so a phone-only user's existing data is never lost even though it predates this file's bookkeeping. */
-async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
+ * so a phone-only user's existing data is never lost even though it predates this file's bookkeeping.
+ * Returns false if any upsert failed, so the caller knows not to mark this domain backfilled yet. */
+async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<boolean> {
   const uid = await currentUserId();
-  if (!uid) return;
+  if (!uid) return false;
   const records = domain.load() as Record<string, T>;
+  let ok = true;
   for (const [key, value] of Object.entries(records)) {
-    await supabase.from(domain.table).upsert(domain.toRemote(key, value, uid));
+    const { error } = await supabase.from(domain.table).upsert(domain.toRemote(key, value, uid));
+    if (error) ok = false;
   }
+  return ok;
 }
 
 /** Pulls every remote row and merges remote-only or remote-newer records into local storage. A record

@@ -5,12 +5,16 @@ const selectResult = { data: null as Record<string, unknown> | null, error: null
 const selectManyResult = { data: null as Record<string, unknown>[] | null, error: null as Error | null };
 const upsertResult = { data: null as Record<string, unknown> | null, error: null as Error | null };
 const upsertCalls: Record<string, unknown>[] = [];
+// When set to a table name, every upsert() against that table resolves with an error instead of null —
+// lets a test force one domain's push to fail without affecting other domains still registered from
+// earlier tests in this file (the singleton/keyed domain registries are module-level and never reset).
+let failUpsertForTable: string | null = null;
 
 vi.mock('./supabase', () => ({
   isSupabaseConfigured: true,
   supabase: {
     auth: { getUser: () => getUser() },
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
           maybeSingle: async () => selectResult,
@@ -19,11 +23,12 @@ vi.mock('./supabase', () => ({
       }),
       upsert: (row: Record<string, unknown>) => {
         upsertCalls.push(row);
+        const error = table === failUpsertForTable ? new Error(`upsert failed for ${table}`) : null;
         return {
           select: () => ({
             maybeSingle: async () => upsertResult,
           }),
-          then: (resolve: (r: { error: null }) => void) => resolve({ error: null }),
+          then: (resolve: (r: { error: Error | null }) => void) => resolve({ error }),
         };
       },
     }),
@@ -61,6 +66,7 @@ beforeEach(() => {
   upsertResult.data = null;
   upsertResult.error = null;
   upsertCalls.length = 0;
+  failUpsertForTable = null;
 });
 
 describe('outbox bookkeeping', () => {
@@ -212,6 +218,38 @@ describe('keyed domains', () => {
     selectManyResult.data = [];
     const domain = makeKeyedDomain({ name: 'keyedthing3' });
     expect(await pullKeyed(domain)).toBe('empty');
+  });
+});
+
+describe('syncAllOnLogin — keyed-domain backfill', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+
+  it('does not mark a domain backfilled when its one-time push fails — a retry must run again next login', async () => {
+    const domain = makeKeyedDomain({
+      name: 'keyed-backfill-fail', table: 'keyed_backfill_fail_table', load: () => ({ a: { v: '1' } }),
+    });
+    registerKeyed(domain);
+    failUpsertForTable = 'keyed_backfill_fail_table';
+
+    await syncAllOnLogin();
+
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true); // the push was attempted
+    expect(localStorage.getItem('kx_sync_backfilled_keyed-backfill-fail')).not.toBe('1');
+  });
+
+  it('marks a domain backfilled once its one-time push succeeds', async () => {
+    const domain = makeKeyedDomain({
+      name: 'keyed-backfill-ok', table: 'keyed_backfill_ok_table', load: () => ({ a: { v: '1' } }),
+    });
+    registerKeyed(domain);
+
+    await syncAllOnLogin();
+
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true);
+    expect(localStorage.getItem('kx_sync_backfilled_keyed-backfill-ok')).toBe('1');
   });
 });
 

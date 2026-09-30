@@ -16,6 +16,25 @@ done once, in shared code.
 
 ## Current status (2026-09-30, ~04:00) — read this first in a new conversation
 
+**Backend-database migration (`plan.md`, separate from everything else below):** all 10 phases are done,
+tested, and device-verified; the code is committed but not merged. `plan.md`'s "Next steps" step 2 (the
+`pushAllKeyed`/`syncAllOnLogin` backfill-flag bug) is now fixed (`src/lib/sync.ts`, 2 new tests in
+`sync.test.ts`, 1,124 tests passing). Two other items on that list were reviewed and **deliberately
+deferred**, not forgotten:
+- **The 4 React Compiler lint diagnostics in `App.tsx`** all trace to one root cause: `todayDateKey`
+  (`const todayDateKey = localDayKey();`, line 1647) is recomputed fresh every render rather than
+  memoized, so the compiler can't prove it's a stable `useMemo` dependency (flagged at the `foodLog`
+  memo, line 1729, and the gut-report memo, line 2001) — and separately, `rewardCheckIns` (declared line
+  1563) is called from `submitCheckIn` (line 1112) earlier in the file, a forward-reference the compiler
+  also flags. A real fix means memoizing `todayDateKey` and/or reordering `rewardCheckIns`, touching
+  ~25 call sites of `todayDateKey` across the file — deferred as lint-only, non-runtime-affecting
+  (`tsc -b`, both builds, and all tests are unaffected).
+- **Widening phase 9** (server-authoritative points/streaks) beyond the current "durable dedup + session
+  verification" scope, to authoritative running totals + server-computed streaks — deferred as a separate,
+  broader feature that would touch the Rewards UI widely, not a fix for anything currently broken.
+Steps 1 (apply the migration to production Supabase + add the service-role key to Vercel) and 5 (push,
+open the PR, merge) are still the user's to do, in that order, per `plan.md`.
+
 **Production** = PR #3 merged (`984c4c8`, 2026-09-29 ~19:03): the website redesign, the food-scan fix (steps 0-6) and
 the 27–30 Sep app batch are now live — see the bullet below for what that included. PR #2 = `bf46d08` (2026-09-26,
 the app pass + the non-fatal `scan-meal` points fix). PR #1 = `d066406`. Restore point: tag `pre-redesign` = `a900b56`
