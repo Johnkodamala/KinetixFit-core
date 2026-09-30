@@ -3,7 +3,7 @@
 // Promo codes (redeem-promo.js) grant this same entitlement.
 import { Redis } from '@upstash/redis';
 
-export const ENTITLEMENT_ID = 'KinetixFit Pro';
+export const ENTITLEMENT_ID = 'kinetixfit_pro';
 
 const redis = Redis.fromEnv();
 const CACHE_SECONDS = 5 * 60;
