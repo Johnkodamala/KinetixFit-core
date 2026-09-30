@@ -14,9 +14,31 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-10-01, ~00:40) — read this first in a new conversation
+## Current status (2026-10-01, ~01:30) — read this first in a new conversation
 
-**1 Oct: points are becoming server-authoritative ("phase 9"), steps 1–2 of 4 are written but NOT committed or deployed.**
+### Next steps to publish to Google Play (in order — the user's plan, 1 Oct)
+
+Everything below is **committed on `initial-changes` (4 commits, `4e6a53d`…`a7c2ebb`) but NOT pushed, merged or deployed**; tests 1,209 pass.
+1. **Push `initial-changes`, open a PR into `main`, merge it.** Vercel deploys the server from `main` — wait for the preview to be
+   green first. **Server before app**: the new endpoints (`claim-checkins`, the ledger-backed `redeem-voucher` / `donate-charity`,
+   quest table) must be live before any app build that calls them ships, or a phone's local points can be absorbed by the
+   higher server total (see Deploy order below). No Supabase migration is needed (the 13 tables from `0001` are already live).
+2. **Bump the version and build the release.** `android/app/build.gradle` is still `versionCode 8` / `"1.7"` → `9` / `"1.8"`.
+   **Release signing is not set up** (no keystore in the repo — `*.jks`/`*.keystore` are gitignored on purpose): create an
+   upload keystore + `signingConfigs` (back the key up — losing it means no more updates under this app ID), then
+   `npm run build && npx cap sync android && cd android && ./gradlew bundleRelease` (Play needs the AAB). Use the `JAVA_HOME` from `~/.zshrc` (the system JDK 11 fails Gradle).
+3. **Test against the deployed server, then upload.** On a phone (S21 FE `RZCT815G2ND`, `adb`; `uiautomator dump` for tap
+   coordinates; WebView is debuggable over `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>` for reading
+   localStorage/network), with a real account: a morning check-in (+5 pts/+10 XP should reach `points_ledger`), the first food
+   check of the day (+2), a quest claim, logout → sign-in (points/XP/claims must come back), and — with Plus and ≥1,000 points —
+   a voucher/donation refusal below the balance. Then upload to the Play Console (internal testing first).
+   **User actions still open:** Play Console Health Connect data-use declaration + data-safety form + privacy-policy URL;
+   Supabase SMTP; RevenueCat/Play products for real purchases (see Android checklist below).
+Checked already: production Redis has no `config:rewards` key, so the coffee voucher really is 1,000 points live.
+Not needed for launch: step 4 of the points plan (server-computed streak display) and a SQL `points_balance` view (the ledger sum
+fails closed at 1,000 rows per account, ~4 months of heavy use — add the view before then).
+
+**1 Oct: points are server-authoritative ("phase 9"): steps 1–3 of 4 done and committed, not pushed or deployed; step 4 (streaks) is optional.**
 The S21 FE test of the live sync (30 Sep, see "Backend database sync") passed: login, offline queue + flush, logout wipe,
 re-login restore, quest claims. It found bugs, all fixed in the working tree: (1) a 409 on a quest claim left it stuck on
 "tap to claim" → now shown as claimed; (2) claims made elsewhere weren't restored → `src/lib/questClaims.ts` reads today's
