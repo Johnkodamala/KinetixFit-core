@@ -8,6 +8,7 @@
 // Sounds can be switched off (stored in localStorage 'kx_sounds'); haptics follow the phone's settings.
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { notePreferencesChanged } from './preferencesSync';
 
 const SOUND_KEY = 'kx_sounds';
 const native = Capacitor.isNativePlatform();
@@ -26,6 +27,7 @@ export const isSoundOn = () => soundOn;
 export function setSoundOn(on: boolean) {
   soundOn = on;
   try { localStorage.setItem(SOUND_KEY, on ? 'on' : 'off'); } catch { /* private mode */ }
+  notePreferencesChanged();
 }
 
 // --- Web Audio: one shared context, created on first use (after a touch, as browsers require) ---

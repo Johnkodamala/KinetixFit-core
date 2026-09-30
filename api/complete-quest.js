@@ -14,6 +14,8 @@
 import { Redis } from '@upstash/redis';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
+import { verifiedUserId } from './_lib/supabaseAuth.js';
+import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 
 const redis = Redis.fromEnv();
 const MAX_EARN_EVENTS_PER_DAY = 20;
@@ -100,6 +102,31 @@ export default async function handler(req, res) {
 
   try {
     const { verified, verificationNote } = await verifyQuest(appUserId, verificationType, today);
+
+    // Durable, authoritative record — only when the request carries a verified Supabase session (see
+    // supabaseAuth.js); older app builds without one keep working on the Redis dedup/rate-limit alone,
+    // exactly as before. quest_claims' own (user_id, day, quest_id) unique constraint is a second,
+    // database-enforced dedup guard independent of Redis's TTL'd key, so a claim can never be double
+    // counted even if a Redis key were ever evicted early.
+    const userId = await verifiedUserId(req);
+    const admin = userId ? supabaseAdmin() : null;
+    if (userId && admin) {
+      const { error: claimError } = await admin
+        .from('quest_claims')
+        .insert({ user_id: userId, day: today, quest_id: taskId, points: pointsValue, xp: xpValue });
+      if (claimError) {
+        // unique_violation: already claimed today on the server, regardless of what Redis says
+        if (claimError.code === '23505') {
+          return res.status(409).json({ error: 'This quest has already been completed today.' });
+        }
+        console.warn('quest_claims insert failed (Redis dedup still applies):', claimError.message);
+      } else {
+        const { error: ledgerError } = await admin
+          .from('points_ledger')
+          .insert({ user_id: userId, day: today, award_id: `quest:${taskId}`, points: pointsValue, xp: xpValue });
+        if (ledgerError) console.warn('points_ledger insert failed:', ledgerError.message);
+      }
+    }
 
     await redis.set(dedupKey, '1', { ex: 60 * 60 * 24 * 2 });
     await redis.set(rateLimitKey, countToday + 1, { ex: 60 * 60 * 24 });

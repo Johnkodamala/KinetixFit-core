@@ -4,8 +4,10 @@ import { localDayKey, localDayKeyDaysAgo } from './dates';
 import {
   addManualWorkout, updateManualWorkout, removeManualWorkout, loadManualWorkouts, saveManualWorkouts, fromLegacy,
   manualOnDay, manualWithinDays, workoutProblem, cleanType, formatMinutes, manualLabel, WORKOUT_TYPES, MORE_WORKOUT_TYPES,
-  MAX_WORKOUT_ENTRY,
+  MAX_WORKOUT_ENTRY, loadWorkoutTombstones, recordDetectedWorkouts, loadDetectedWorkoutHistory,
+  type DetectedWorkout,
 } from './workouts';
+import { isDirty } from './sync';
 import { cleanWidgetPrefs, loadWidgetPrefs, saveWidgetPrefs, flattenPrefs, quickActionLabel, DEFAULT_WIDGET_PREFS, WIDGETS } from './widgets';
 import { APP_ICONS, canUseIcon, shouldRevertIcon, isAppIconId } from './appIcons';
 
@@ -25,6 +27,31 @@ describe('hand-added workouts', () => {
     list = removeManualWorkout(list, run.id);
     expect(list).toHaveLength(1);
     expect(loadManualWorkouts()).toEqual(list);
+  });
+
+  it('recordDetectedWorkouts persists a 30-day-window read and marks new/changed ones dirty', () => {
+    const w: DetectedWorkout = { id: 'hc-1', type: 'running', label: 'Run', start: Date.now() - 60_000, minutes: 25, kcal: 200, km: 4, source: 'Health Connect' };
+    recordDetectedWorkouts([w]);
+    expect(loadDetectedWorkoutHistory()['hc-1']).toEqual(w);
+    expect(isDirty('workouts')).toBe(true);
+  });
+
+  it('recordDetectedWorkouts drops anything older than 30 days', () => {
+    const stale: DetectedWorkout = { id: 'old-1', type: 'running', label: 'Run', start: Date.now() - 31 * 86_400_000, minutes: 25, kcal: 200, km: 4, source: 'Health Connect' };
+    const fresh: DetectedWorkout = { id: 'new-1', type: 'running', label: 'Run', start: Date.now() - 60_000, minutes: 25, kcal: 200, km: 4, source: 'Health Connect' };
+    recordDetectedWorkouts([stale]);
+    recordDetectedWorkouts([fresh]); // the second call's own trim drops the now-stale first entry
+    const history = loadDetectedWorkoutHistory();
+    expect(history['old-1']).toBeUndefined();
+    expect(history['new-1']).toEqual(fresh);
+  });
+
+  it('removing a workout tombstones it (for sync) and marks it dirty', () => {
+    const list = addManualWorkout([], { type: 'Run', minutes: 30, day: today }, 1000);
+    const run = list[0];
+    removeManualWorkout(list, run.id);
+    expect(loadWorkoutTombstones()[run.id]).toMatchObject({ day: today });
+    expect(isDirty('workouts')).toBe(true);
   });
 
   it('lists a day, and the last few days', () => {

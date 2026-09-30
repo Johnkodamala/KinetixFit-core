@@ -14,32 +14,58 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-09-30, ~01:00) — read this first in a new conversation
+## Current status (2026-09-30, ~04:00) — read this first in a new conversation
 
-**Production** = PR #2 merged (`bf46d08`, 2026-09-26): the app pass (navigation, glass look, health fixes, iOS build) +
-the non-fatal `scan-meal` points fix. PR #1 = `d066406`. Restore point: tag `pre-redesign` = `a900b56` (or Vercel →
-Deployments → Instant Rollback). Production Redis fixed 2026-09-27 (see Environment variables);
+**Production** = PR #3 merged (`984c4c8`, 2026-09-29 ~19:03): the website redesign, the food-scan fix (steps 0-6) and
+the 27–30 Sep app batch are now live — see the bullet below for what that included. PR #2 = `bf46d08` (2026-09-26,
+the app pass + the non-fatal `scan-meal` points fix). PR #1 = `d066406`. Restore point: tag `pre-redesign` = `a900b56`
+(or Vercel → Deployments → Instant Rollback). Production Redis fixed 2026-09-27 (see Environment variables);
 `curl -X POST https://www.kinetixfit.co.uk/api/sync-health-data -H 'Content-Type: application/json' -d '{"appUserId":"test@example.invalid","steps":1}'`
 returns `{"success":true}`.
 
-**30 Sep ~01:00: the whole batch (~313 paths / 405 files) is committed on `initial-changes`, pushed, and a PR into `main` is open — the user asked to push it to production; the user merges it (a merge to `main` deploys production).** Before that, nothing had been pushed since PR #2 (`b73a8e6`). Lint 0,
+**30 Sep ~04:00: v1.7 regression report investigated, not yet reproduced — barcode and photo scanning both work on the
+S21 FE against the now-merged production server.** The user reported "missing capture button" in barcode scanning and
+failed photo scans in v1.7 (they connected the S21 FE, `adb`-driven). Live-tested end to end (screenshots + logcat,
+`uiautomator dump` for exact tap coordinates — screenshot pixel positions do **not** map 1:1 to `adb shell input tap`
+coordinates without checking real bounds first): the Today camera FAB opens the "Scan food" modal correctly; **"Scan
+barcode" launches the native `OSBARCScannerActivity` scanner** — it has no manual shutter button, but that's the
+continuous-auto-detect design of `@capacitor/barcode-scanner` and `handleBarcodeScan()` is unchanged since v1.6, so
+it isn't a new regression; **"Take a photo" opens the real system camera with a visible shutter button** and works.
+No crash, no error in `Capacitor/Console` logs either time. Camera permission is granted. Did not take/submit a real
+photo or scan a real barcode (would spend the day's photo/barcode quota and, for photos, a real Claude API call —
+holding off without the user's OK). **Still open: get the user's exact reproduction steps** (which device — S21 FE /
+A55 / iPhone — and what exactly was missing/failed) before changing any scanning code; two broad guesses were already
+ruled out live rather than acted on blind.
+**Also found while probing (not part of the original ask, user asked to explore it):** the **"Check a food" typed
+search has a real accuracy bug** — correctly spelled foods match well (banana 105 kcal/118 g, avocado 322 kcal/201 g,
+chicken breast 165 kcal/100 g, roti 202 kcal/68 g, watermelon piece 30 kcal/100 g all check out against USDA), and an
+unrecognised typo fails safely ("chiken breast", "bananna" → "Could not find nutrition data for…"), **but "avacado"
+(typo) matched a branded product whose name contains the same typo** ("EVOLUTION FRESH, ORGANIC AVOCADO GREENS,
+AVACADO, AVACADO") and returned 46 kcal/100 g — a 3.5× undercount of real avocado (~160 kcal/100 g) — with no warning,
+and it got saved to the phone's saved-foods list, so it would keep returning the wrong number on reuse. Root cause:
+`matchScore()`'s whole-word rule in `api/_lib/nutrition.js` matches a misspelled query against whole words in a
+branded product's *name*, and this product happens to contain the same misspelling. Not yet fixed — **waiting on the
+user's decision** whether to fold this into the current scanning-regression work or track it separately.
+
+**30 Sep ~01:00: the whole batch (~313 paths / 405 files) is committed on `initial-changes` and was merged into `main`
+via PR #3 (see above).** Before that, nothing had been pushed since PR #2 (`b73a8e6`). Lint 0,
 **`npm test` 1,068 tests pass** (`src/lib` + `src/site` + `api/__tests__`); `tsc -b`, `npm run build`, `cap sync` (Android + iOS) and
 `assembleDebug` pass (29 Sep, with the whole food-scan fix and the amount fix; the iOS simulator build is from before the
-28 Sep late-evening batch). **The food-scan fix: steps 0-6 done and step 7's local checks pass (see the first bullet below). Left: the
-real-photo preview test — it spends real Claude API credits, so it waits for the user's explicit OK.**
-Ask before committing. **Merge soon:** many fixes are server-side and only reach users once
-`api/` is on `main` — **the food-scan fix** (photo scans that failed whenever Claude thought, one food per photo,
-watermelon slice → candy, curd → soybean curd), the food lookup accuracy fix (the live server can still log a banana as 152 g carbs), vegetarian
+28 Sep late-evening batch). **The food-scan fix: steps 0-6 shipped to production with PR #3. The real-photo preview
+test (step 7's last item — real Claude API credits) was never run before merging; production is now getting real
+photos from real users instead**, so the 30 Sep regression report above is the first real-world signal since the merge.
+**Now live (since the PR #3 merge):** the food-scan fix (photo scans that failed whenever Claude thought, one food per photo,
+watermelon slice → candy, curd → soybean curd), the food lookup accuracy fix (banana no longer logs as 152 g carbs), vegetarian
 meal ideas + barcode status, AI meal ideas returning 9 (paged 3 at a time) and never repeating, the smaller rewards
-(quest claims capped at 10 points / 40 XP, first scan 2 points), **the 1,500-point voucher** (until the merge the live
-server still refuses vouchers under 2,500 points, though the app offers one at 1,500), UK days → the phone's own day,
+(quest claims capped at 10 points / 40 XP, first scan 2 points), **the 1,500-point voucher** (the live server now accepts
+it at 1,500, not 2,500), UK days → the phone's own day,
 country checks, **AI meal ideas by country (Indian only in India, never beef) and typed allergies**, the privacy
 policy listing the new health data, and more. **A `config:rewards` value in production Redis overrides `mealScanPointsAward` and
-`voucherPointsCost`** — check it after the merge (the app deducts whatever the server says it took).
+`voucherPointsCost`** — worth checking (the app deducts whatever the server says it took).
 **APK 1.7** (versionCode 8, 29 Sep 03:55) is in `Claude Space/KinetixFit-builds/Kinetix-Fit-1.7.apk`: 1.6 + the
 food-scan fix's app side (several foods per photo, typed meals, ml by density, the saved-food guard) + the amount fix
-(29 Sep, below). Against the live server it behaves as before for photos (an older server's answer → the old flow)
-until the merge. **APK 1.6** (versionCode 7, 28 Sep 21:56) is the previous one (1.5 from 21:39 said "Calories burned"
+(29 Sep, below). It now talks to the merged production server (the new food-scan/photo/barcode behaviour applies) —
+this is the build the 30 Sep regression report and investigation above are both about. **APK 1.6** (versionCode 7, 28 Sep 21:56) is the previous one (1.5 from 21:39 said "Calories burned"
 for Samsung's workout calories; 1.4 lacks the late-evening list) — debug builds signed with this Mac's debug key like
 1.2, so each installs over older ones and keeps data.
 

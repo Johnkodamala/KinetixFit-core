@@ -6,6 +6,7 @@
 // and the settings of the Plus widgets — Check-in, Quick log and My stats — which the person edits in the app. The
 // Plus widgets show a locked card on the home screen unless the app last said the person has Plus (`plus`).
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { notePreferencesChanged } from './preferencesSync';
 
 export interface WidgetSnapshot {
   day: string;
@@ -290,6 +291,7 @@ export function loadWidgetPrefs(): WidgetPrefs {
 export function saveWidgetPrefs(prefs: WidgetPrefs): WidgetPrefs {
   const clean = cleanWidgetPrefs(prefs);
   localStorage.setItem(PREFS_KEY, JSON.stringify(clean));
+  notePreferencesChanged();
   return clean;
 }
 
