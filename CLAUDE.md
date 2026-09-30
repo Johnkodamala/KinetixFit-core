@@ -14,13 +14,42 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-09-30, ~04:00) — read this first in a new conversation
+## Current status (2026-10-01, ~00:40) — read this first in a new conversation
 
-**Backend-database migration (`plan.md`, separate from everything else below):** all 10 phases are done,
-tested, and device-verified; the code is committed but not merged. `plan.md`'s "Next steps" step 2 (the
-`pushAllKeyed`/`syncAllOnLogin` backfill-flag bug) is now fixed (`src/lib/sync.ts`, 2 new tests in
-`sync.test.ts`, 1,124 tests passing). Two other items on that list were reviewed and **deliberately
-deferred**, not forgotten:
+**1 Oct: points are becoming server-authoritative ("phase 9"), steps 1–2 of 4 are written but NOT committed or deployed.**
+The S21 FE test of the live sync (30 Sep, see "Backend database sync") passed: login, offline queue + flush, logout wipe,
+re-login restore, quest claims. It found bugs, all fixed in the working tree: (1) a 409 on a quest claim left it stuck on
+"tap to claim" → now shown as claimed; (2) claims made elsewhere weren't restored → `src/lib/questClaims.ts` reads today's
+`quest_claims` (UTC day, as the server files them) after sign-in; (3) logout left points/XP/claims in memory → the app
+reloads after logout; (4) the dashboard stayed empty after sign-in until a restart (App-level state is read from storage
+once) → a sign-in that lands on Today reloads once (`syncThenContinue`). **Why points matter:** `api/redeem-voucher.js`
+used to trust a client-sent `pointBalance`. Plan, one step each: **(1, done)** vouchers + donations require a verified session
+and read the balance from `points_ledger` (`api/_lib/pointsLedger.js`; older builds get 401 `AUTH_REQUIRED`); **(2, done)** the
+server writes every earn to the ledger: quest claims (+ level-ups), the once-a-day scan bonus (`scan-meal.js`), check-ins +
+the 7-day streak bonus (`api/claim-checkins.js`, sent by `src/lib/checkinClaims.ts` after a check-in and on every app resume);
+**(3, done)** after sign-in and on every app resume the phone reads its `points_ledger` totals (`src/lib/ledgerBalance.ts`) and keeps the higher of its own and the server's points/XP (never lowers; level follows XP) — verified on the S21 FE: after a logout wipe + sign-in it shows the server's 7 pts / 25 XP; **(4, todo)** streaks computed on the server. Ledger sum reads stop at 1,000 rows (PostgREST page) and
+then fail closed — a SQL sum/view would lift that. **Coffee voucher is now 1,000 points** (was 1,500; same as a charity
+donation): server default, `VOUCHER_POINTS`, website config/story/FAQ all updated — production Redis has no
+`config:rewards` key (checked 1 Oct: `GET` → nil), so the code defaults apply (voucher 1,000, donation 1,000, scan bonus 2). **Before deploying steps 1–2:** the server then
+refuses redemption without a token (builds ≤1.7), and only quest points are in the ledger for accounts that earned scan/check-in
+points before (step 3 and a backfill decision). **1 Oct, pre-Play-Store:** quest claims are now paid from the server's own table (`api/_lib/quests.js`, parity-tested against
+`src/lib/quests.ts`; unknown ids → 400, request points/XP/verification type ignored) and the voucher goes to the verified session's
+email, never the request body (`verifiedUser` in `supabaseAuth.js`).
+**Deploy order:** server (steps 1–2) first, then app builds, or points a phone earned locally but the server never recorded (e.g. a check-in whose `claim-checkins` call 404'd) are absorbed by the higher server total. Tests: 1,209 pass; lint = the same 4 React Compiler diagnostics.
+
+## Earlier status (2026-09-30, ~04:00)
+
+**Backend database sync is now LIVE in production (2026-09-30).** PR #4 ("Sync all account data to
+Supabase, server-authoritative quest claims") merged into `main`. The production Supabase project
+(ref `qlsdmczmnmsjhqptnkym`) has the full 13-table schema applied and `SUPABASE_SERVICE_ROLE_KEY` is set
+in Vercel. The backfill-flag bug (`pushAllKeyed`/`syncAllOnLogin` in `src/lib/sync.ts` marking a domain
+backfilled even when its one-time push failed) was found and fixed before merging — see "Backend database
+sync" under Roadmap below for the full architecture, schema, known limitations, and device-verification
+history (this used to live in a separate `plan.md`, now folded in here and deleted since the work is
+done). **Not yet done: validating the live production behavior** — the whole thing was verified against a
+**test** Supabase project only; nothing has confirmed yet that a real device signs in, syncs, and wipes
+correctly against the **production** project now that it's live. That's the immediate next step.
+Two decisions were reviewed and **deliberately deferred**, not forgotten:
 - **The 4 React Compiler lint diagnostics in `App.tsx`** all trace to one root cause: `todayDateKey`
   (`const todayDateKey = localDayKey();`, line 1647) is recomputed fresh every render rather than
   memoized, so the compiler can't prove it's a stable `useMemo` dependency (flagged at the `foodLog`
@@ -32,8 +61,6 @@ deferred**, not forgotten:
 - **Widening phase 9** (server-authoritative points/streaks) beyond the current "durable dedup + session
   verification" scope, to authoritative running totals + server-computed streaks — deferred as a separate,
   broader feature that would touch the Rewards UI widely, not a fix for anything currently broken.
-Steps 1 (apply the migration to production Supabase + add the service-role key to Vercel) and 5 (push,
-open the PR, merge) are still the user's to do, in that order, per `plan.md`.
 
 **Production** = PR #3 merged (`984c4c8`, 2026-09-29 ~19:03): the website redesign, the food-scan fix (steps 0-6) and
 the 27–30 Sep app batch are now live — see the bullet below for what that included. PR #2 = `bf46d08` (2026-09-26,
@@ -361,9 +388,10 @@ Old data from before the 27 Sep reset is in `Claude Space/KinetixFit-backups/202
 - **iOS:** in sync with Android (`scripts/ios-sim/`: `sim.sh build|launch|shot|proxy`, `wi.mjs`, `ui.py`, `tap-el.sh`;
   if ui.py can't connect, start the idb companion). Not yet: `VITE_REVENUECAT_IOS_PUBLIC_KEY`, TestFlight (paid team).
 
-**Next up (user to choose):** (0) finish the food-scan fix (the real-photo preview test, APK 1.7), try the builds, then commit / PR / merge; (1) Play
-Console + RevenueCat products for Plus, then Play internal testing (release signing); (2) syncing the food log, gut
-checks, periods, water and profile to the account (all phone-only; switching phones loses them); (3) rewards in more
+**Next up (user to choose):** (0) done — PR #4 merged 2026-09-30, backend sync live in production, next step is
+validating it there (see "Backend database sync" above); (1) Play
+Console + RevenueCat products for Plus, then Play internal testing (release signing); (2) ~~syncing the food log, gut
+checks, periods, water and profile to the account~~ done, see "Backend database sync" above; (3) rewards in more
 countries; (4) iOS paid team (TestFlight); (5) the website: redesign done (4 steps, 29–30 Sep) — check it on a real phone,
 then the waiting-on-user items above before the merge deploys it.
 
@@ -442,6 +470,106 @@ a new tab). In zsh, don't store `adb -s SERIAL` in a variable — it won't word-
 - `api/` changes only reach the apps once deployed to Vercel (the CORS change is live since `d066406`).
 
 ## Roadmap / open work
+
+### Backend database sync — Supabase Postgres as source of truth (merged 2026-09-30, PR #4)
+
+Before this, all user data (food logs, water, workouts, gut checks, periods, check-ins, vitals history,
+points/XP/streaks, profile, preferences) lived in `localStorage` only, per device — switching phones lost
+everything, logout didn't clear local data (a second account signing into the same device saw the first
+account's data), and there was no durable history for future AI features. Now Supabase Postgres is the
+durable source of truth for all of it; localStorage is a cache/offline layer on top.
+
+**Decisions locked in with the user, still in force for any future work here:**
+1. Last-write-wins only for singleton data (profile, preferences). Append-only/editable logs use stable
+   IDs + idempotent server-side upserts — records are never silently overwritten or dropped by a stale write.
+2. Sync on app open/resume + flush queued writes on reconnect. No Supabase Realtime.
+3. Points/streaks/quest claims are **server-authoritative** (server is the only writer of truth) — see
+   "narrower than planned" below.
+4. Full logout data wipe (`clearAllDomainData()`) — no account's local data may persist or leak into
+   another account's session.
+5. Server retains complete history indefinitely — no retention pruning server-side (local caches can keep
+   their existing caps for on-device performance).
+6. `@capacitor/network` for connectivity detection.
+
+**Schema** (`supabase/migrations/0001_source_of_truth.sql`, applied to production 2026-09-30): 13 tables,
+all `user_id uuid references auth.users(id) on delete cascade`, RLS `for all using (auth.uid() = user_id)
+with check (auth.uid() = user_id)`, `updated_at` auto-maintained by trigger, no server-side retention
+pruning. `profiles` + `preferences` (singleton, LWW); `saved_foods`, `food_log_entries`, `water_logs`,
+`workouts` (manual + detected merged, `source` column), `periods` (soft-delete via `deleted_at`);
+`gut_checks`, `morning_checkins` (pk `(user_id, day)`, edit-in-place); `vitals_history` (event-level, pk
+a unique reading id, **not** `(user_id, day, metric, source)` — that would collapse same-day readings like
+hourly heart-rate samples); `points_ledger`, `streaks`, `quest_claims` (server-authoritative).
+
+**Sync engine** (`src/lib/sync.ts`, one generic module, not per-domain hand-written sync — every domain
+reduces to two shapes):
+- **Singleton, LWW** (`profiles`, `preferences`): upsert whole row, remote wins unless local `updated_at`
+  is newer (`pushSingleton`/`pullSingleton`).
+- **Keyed rows, idempotent merge** (everything else): stable client-generated IDs or natural
+  `(user_id, day)` keys, upsert-by-key — a record present locally but not remotely is always pushed, never
+  dropped (`pushKeyed`/`pullKeyed`, plus `pushAllKeyed` for the one-time first-login backfill).
+- `writeJson` (`src/lib/storage.ts`, extracted out of the per-module read/write helpers each domain file
+  used to keep privately) enqueues changed data into an outbox (`kx_sync_outbox` in localStorage) so every
+  write is durable offline immediately. Flush loop triggers on `@capacitor/network`
+  connectivity-restored, app foreground/resume, and reconnect (`flushOutbox`).
+- **Deletes are tombstones, never hard deletes**, on both client and server: `deleted_at` instead of
+  removing the row/localStorage entry, so an offline device's stale "still exists" push can't resurrect
+  something deleted elsewhere. `saved_foods` is the one deletable-in-principle domain with **no**
+  tombstone — no delete UI exists for saved foods today, so none was invented.
+- Every domain wired: `profileSync.ts`, `preferencesSync.ts`, `gutSync.ts`, `checkinsSync.ts`,
+  `periodsSync.ts`, `waterSync.ts`, `savedFoodsSync.ts`, `foodLogSync.ts`, `workoutsSync.ts`,
+  `vitalsHistorySync.ts` (also persists a rolling 30-day history of wearable data — steps, sleep,
+  daily heart-rate average, detected workouts — that used to only be read live, never stored).
+
+**Login** (`onSessionChange` in `App.tsx`, routed through one guarded `syncThenContinue` effect event —
+see "two competing paths" bug below): pull remote data for every registered domain before continuing.
+First-run backfill: if remote has no rows for a domain, push local straight up (`pushAllKeyed` /
+`syncAllOnLogin`) — only marked backfilled on success, so a failed push (table not migrated yet, network
+blip) retries next login (the fix that shipped 2026-09-30, see `sync.test.ts`).
+
+**Logout** (`handleLogout` in `App.tsx`): best-effort final outbox flush, then `clearAllDomainData()` wipes
+every domain's localStorage keys + the sync engine's own bookkeeping (outbox, mtimes, backfill flags).
+
+**Server-authoritative quest claims** (narrower than the original plan — see "not yet done" below):
+`api/_lib/supabaseAuth.js` (verifies the caller's real session token) + `api/_lib/supabaseAdmin.js`
+(service-role writes) wired into `api/complete-quest.js`. Writes a durable `quest_claims` row
+(DB-unique-constraint-enforced dedup on `(user_id, day, quest_id)`) + `points_ledger` row. Older app builds
+without a token still work on the pre-existing Redis-only path.
+
+**Not yet done / deliberately deferred:**
+- Phase 9 (points) is dedup + verification only — the endpoint still returns a point/xp *delta*, not an
+  authoritative running total, and streaks still increment client-side. Widening this touches the Rewards
+  UI broadly.
+- Detected workouts don't sync bidirectionally into the UI — a remote-only detected workout lands in a
+  read-only local history cache, never the live `detectedWorkouts` state or Rewards counting, to avoid
+  changing how points/badges are earned.
+- 4 React Compiler lint diagnostics in `App.tsx` (see "Current status" above).
+
+**Device verification (against a separate test Supabase project, `KinetixFit Test` ref
+`ocaxkjpkklixjtkhkttt` — never production, until the 2026-09-30 merge):** full login → sync →
+offline-write → reconnect → logout-wipe → re-login cycles verified on the real S21 FE, the iOS 17
+simulator, and the user's real iPhone 13 mini. Two real bugs found and fixed on the S21 FE: (1) the logout
+wipe list was missing several keys added later in the same session (`kx_vitals_history`,
+`kx_detected_workouts_history`, the `*_deleted` tombstone-history keys) — fixed, pinned in `sync.test.ts`;
+(2) login had two competing paths racing (`handleAuthSubmit`'s direct path vs `onSessionChange`'s
+listener-driven sync pull) that could push a placeholder profile over a freshly-pulled real one — fixed by
+routing everything through one guarded `syncThenContinue` reached only via the listener. No new bugs found
+on iOS. A backup/restore mishap on the S21 FE (a stale `run-as tar` snapshot taken while the app was still
+running) briefly showed a placeholder profile under an old cached account on that phone — no data was
+lost (production had no tables yet at the time) and that phone isn't the user's real tracked device.
+Real-iPhone testing backed up the user's actual 24-key localStorage via a live JS eval before touching
+anything, restored it verbatim afterward, and confirmed the real account (`sivadurgaksd@gmail.com`,
+"Siva Durga", 4-day streak, "Synced with Apple Health") was never exposed to the test Supabase project
+with an active session — a different Supabase project means a different localStorage session-token key.
+
+**Harmless leftovers from that testing, safe to ignore/delete whenever:** the test Supabase project has a
+few leftover test users with synced test data; `Claude Space/KinetixFit-backups/2026-09-30-s21fe-pre-synctest/`
+holds the stale S21 FE backup tars (not reliable — don't restore them). `.env.test.local` (gitignored)
+still holds the test project's keys, reusable for any future test-project work.
+
+**Next: validate this against production now that it's live** — sign in on a real device (or the web app)
+against the **production** Supabase project, confirm data lands in the new tables, confirm offline →
+reconnect flush, confirm logout wipes cleanly, confirm re-login restores. None of the testing above ever
+touched production.
 
 ### Android (current focus)
 - [x] Toolchain installed, debug APK builds (2026-09-25)
@@ -582,7 +710,7 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
 - Buying: Account → Your plan sells `offerings.current.availablePackages[0]` via RevenueCat; until Play Console /
   App Store products + a RevenueCat offering exist, the button says Plus isn't on sale yet. Restore purchase is there.
 - `lookup-barcode` now requires `appUserId` (older app builds that don't send it get "Sign in to scan a barcode").
-- Vouchers: **1,500 points** (user decision 2026-09-28; was 2,500) and **one coffee voucher per person per calendar
+- Vouchers: **1,000 points** (user decision 2026-10-01; was 1,500 from 2026-09-28, 2,500 before) and **one coffee voucher per person per calendar
   month** (user decision 2026-09-27) —
   `reserveVoucherSlot` in `api/_lib/rewardConfig.js` (atomic INCR, released if the Tremendous order fails).
   Vouchers no longer count against `monthlyRedemptionCapGBP` (£3, now donations only).
@@ -1188,6 +1316,10 @@ src/lib/healthSources.ts    # Health Connect writer package → name ("Samsung H
 src/lib/regions.ts          # UK regions (after the country), a fact each, motivational lines
 src/lib/countries.ts        # the 9 countries: locale, currency, units, BMI/fibre/allergen guidance, charities; fmtNumber/fmtDate/fmtMoney
 src/lib/supabase.ts         # Supabase client; exports isSupabaseConfigured
+src/lib/storage.ts          # readJson/writeJson — shared local read/write, writeJson enqueues into the sync outbox
+src/lib/sync.ts             # generic sync engine: singleton (LWW) + keyed (idempotent) domains, outbox, backfill, logout wipe
+src/lib/*Sync.ts            # profileSync, preferencesSync, gutSync, checkinsSync, periodsSync, waterSync, savedFoodsSync,
+                            #   foodLogSync, workoutsSync, vitalsHistorySync — one per domain, registers with sync.ts
 src/lib/server.ts           # serverUrl() — relative on web, absolute Vercel URL in native apps
 src/lib/plus.ts             # KinetixFit Plus: entitlement id, free/Plus scan limits, benefit list (display only)
 src/lib/quests.ts           # questsForToday() — data-driven quests (steps/sleep/HRV/food/workout), progress + claim rules
@@ -1257,6 +1389,10 @@ api/                        # Vercel serverless functions (NOT bundled into the 
   _lib/countries.js         #   country reward rules (live flags, charity ids), safeTimeZone(), dayKey()
   _lib/rewardConfig.js      #   reward economics, donation £ cap, one-voucher-a-month slot
   _lib/auditLog.js
+  _lib/supabaseAuth.js      #   verifies the caller's real Supabase session token (server-authoritative quest claims)
+  _lib/supabaseAdmin.js     #   service-role Supabase client (SUPABASE_SERVICE_ROLE_KEY) for writes that bypass RLS
+supabase/migrations/0001_source_of_truth.sql  # the 13-table schema + RLS (see Roadmap → Backend database sync); applied
+                            #   to production 2026-09-30 — future schema changes are new numbered migration files here
 android/                    # Capacitor Android project (Gradle). android/app/src/main/assets/public is generated by `cap sync` — don't edit
 android/app/src/main/java/com/jnglobalventures/kinetixfit/
                             # MainActivity (registers the local plugins), SystemThemePlugin (night mode → "System"
