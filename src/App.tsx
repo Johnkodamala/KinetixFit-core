@@ -8,6 +8,10 @@ import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
 import { syncAllOnLogin, flushOutbox, clearAllDomainData } from './lib/sync';
+import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
+import { bearerHeader } from './lib/sessionToken';
+import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
+import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
 import './lib/preferencesSync';
 import './lib/gutSync';
@@ -57,7 +61,7 @@ import MealResultCard, { type MealCard } from './components/MealResultCard';
 import { setupNotifications, styled, scheduleNotifications, nutritionAlert, reminderHours, hydrationNotifications, hydrationSnoozeNotification, cancelHydration, ACTION_SNOOZE, ACTION_ADD_GLASS, ACTION_CHECK_IN, NUTRITION_BASE_ID, gutReminderNotifications, cancelGutReminders, GUT_REMINDER_HOUR, streakReminderNotifications, cancelStreakReminders, STREAK_REMINDER_TIME } from './lib/notifications';
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
 import { updateWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
-import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, xpIntoLevel as xpIntoLevelOf } from './lib/points';
+import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
 import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, avoidedThere, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
 import { APP_ICONS, DEFAULT_APP_ICON, appIconInfo, appIconPreview, appIconSupported, canUseIcon, changeAppIcon, currentAppIcon, shouldRevertIcon, type AppIconId } from './lib/appIcons';
@@ -1109,7 +1113,10 @@ export default function App() {
     setCheckIns(next);
     setCheckInSleep(null);
     setEditingCheckIn(false);
-    if (first) rewardCheckIns(next, [localDayKey()]);
+    if (first) {
+      rewardCheckIns(next, [localDayKey()]);
+      void claimCheckIns([localDayKey()]);
+    }
   };
   // The check-in streak (src/lib/streak.ts): days in a row with a check-in, worked out from them; the best is saved.
   const [bestStreakSaved, setBestStreakSaved] = useState(() => loadBestStreak());
@@ -1558,6 +1565,38 @@ export default function App() {
     }
   };
 
+  // The server keeps the record of what this account has earned (points_ledger), so points and XP follow the account to a
+  // new phone or back after a logout. The phone keeps the higher of its own and the server's, so nothing is ever lowered
+  // (src/lib/ledgerBalance.ts). Does nothing when offline or signed out.
+  const applyServerBalance = (server: Balance | null) => {
+    if (!server) return;
+    setTotalVoucherPoints(prev => {
+      const next = Math.max(prev, server.points);
+      if (next !== prev) localStorage.setItem('kinetix_voucher_points', next.toString());
+      return next;
+    });
+    setXp(prev => {
+      const next = Math.max(prev, server.xp);
+      if (next !== prev) localStorage.setItem('kinetix_xp', next.toString());
+      return next;
+    });
+    setLevel(prev => {
+      const next = Math.max(prev, levelForXp(server.xp));
+      if (next !== prev) localStorage.setItem('kinetix_level', next.toString());
+      return next;
+    });
+  };
+  // On opening the app and each time it returns to the screen: tell the server about recent check-ins (it gives each day's
+  // points once, so asking again is harmless, and it covers a check-in made while offline), then read the balance back.
+  const claimThenReadBalance = useEffectEvent(() => claimCheckIns(claimableCheckInDays(checkIns)).then(() => fetchServerBalance()));
+  const applyBalance = useEffectEvent((server: Balance | null) => applyServerBalance(server));
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let current = true;
+    void claimThenReadBalance().then(server => { if (current) applyBalance(server); });
+    return () => { current = false; };
+  }, [isLoggedIn, foregroundTick]);
+
   // Points for check-ins newly filed on `days` (src/lib/points.ts: once a day, + the weekly streak bonus), and the
   // best streak saved if it grew.
   function rewardCheckIns(all: Record<string, { at: number }>, days: string[]) {
@@ -1620,6 +1659,13 @@ export default function App() {
       });
       const data = await response.json();
 
+      if (response.status === 409) {
+        // the server already has this claimed (another phone, or before this one's data was wiped): show it as claimed
+        // instead of leaving it on "tap to claim" for ever. The points were given when it was first claimed.
+        setClaimedQuestIds(prev => mergeClaimedQuestIds(prev, [id]));
+        notify('info', `"${task.text}" was already claimed today.`);
+        return;
+      }
       if (!response.ok) {
         notify('error', `${data.error || 'Could not complete this quest. Please try again.'}`);
         return;
@@ -2068,7 +2114,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/donate-charity'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ charityId, charityName, pointsValue: requiredPoints, appUserId: profile.email, country: country.code })
       });
       const data = await response.json();
@@ -2512,11 +2558,31 @@ export default function App() {
     loginSyncInFlightRef.current = true;
     syncAllOnLogin()
       .catch(() => { /* offline or a transient error: local data stays authoritative until the next sync */ })
-      .finally(() => {
+      .finally(async () => {
         const pulled = readLocalProfile();
         const withEmail = { ...profile, ...pulled, email, name: (pulled?.name || profile.name) || email.split('@')[0] };
         saveProfileToStorage(withEmail);
-        continueAfterSignIn(hasOnboarded(email), email);
+        const onboarded = hasOnboarded(email);
+        continueAfterSignIn(onboarded, email);
+        // quests this account already claimed today, from a phone or a session this one knows nothing about
+        const claimedIds = await fetchTodaysClaimedQuestIds();
+        const serverBalance = await fetchServerBalance();
+        if (onboarded) {
+          // Food, water, points and the rest of the dashboard state are read from storage once, when the app starts, so
+          // what the sign-in just pulled would stay invisible until the next launch. Reloading starts from it; the
+          // logged-in flag is already saved, so it comes back on Today without signing in again.
+          if (claimedIds.length) {
+            localStorage.setItem('kinetix_quests_claimed', JSON.stringify({
+              date: localDayKey(),
+              value: mergeClaimedQuestIds(loadToday('kinetix_quests_claimed', [] as string[]), claimedIds),
+            }));
+          }
+          writeLocalBalance(reconcileBalance(readLocalBalance(), serverBalance));
+          window.location.reload();
+        } else {
+          if (claimedIds.length) setClaimedQuestIds(prev => mergeClaimedQuestIds(prev, claimedIds));
+          applyServerBalance(serverBalance);
+        }
       });
   });
 
@@ -2539,6 +2605,10 @@ export default function App() {
     setAuthMode('login');
     setAuthError(null);
     setAuthMessage(null);
+    // The wipe above clears storage, but points, XP, claimed quests and the rest of the dashboard state live in memory
+    // here and would show the next account the last one's numbers until the app restarted. A reload starts from the
+    // wiped storage, so nothing can carry over.
+    window.location.reload();
   };
 
   // Restore/track the real Supabase session. If a session already exists (e.g. the app was
@@ -2745,7 +2815,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/scan-meal'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ foodText: name, appUserId: profile.email, timeZone: deviceTimeZone() })
       });
       if (!response.ok) return null;
@@ -2893,7 +2963,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/scan-meal'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ foodText: typed.name, appUserId: profile.email, timeZone: deviceTimeZone() })
       });
       const data = await response.json();
@@ -2927,7 +2997,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/scan-meal'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ image: base64Image, mimeType, appUserId: profile.email, timeZone: deviceTimeZone(), note: scanNote.trim() || undefined })
       });
       const data = await response.json();
@@ -3328,14 +3398,11 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/redeem-voucher'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({
           country: country.code,
-          email: profile.email,
           userName: profile.name,
-          pointBalance: totalVoucherPoints,
-          simulatedCadence: 0,
-          todayQuestsCompleted: tasksCompletedTodayCount
+          simulatedCadence: 0
         })
       });
       const data = await response.json();

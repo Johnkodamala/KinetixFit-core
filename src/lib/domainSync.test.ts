@@ -85,7 +85,7 @@ describe('water_logs domain adapter', () => {
   const t1 = Date.now() - 5000;
   const t2 = Date.now() - 6000;
   const t3 = Date.now() - 7000;
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => localDayKey(); // the phone's day, which is what the water log files a drink under (not the UTC date)
 
   it('an active drink maps to deletedAt: null and back', () => {
     saveWaterLog(withDrinks({}, [[t1, 300]]));
