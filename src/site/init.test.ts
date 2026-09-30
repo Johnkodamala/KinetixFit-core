@@ -42,7 +42,7 @@ describe('initSite on the home page', () => {
     await new Promise(r => setTimeout(r, 10));
     // …now
     expect(document.querySelector('.why .manifesto')!.classList.contains('is-in')).toBe(true);
-    expect(document.querySelector('[data-points-count]')!.textContent).toBe('1,500');
+    expect(document.querySelector('[data-points-count]')!.textContent).toBe('1,000');
   });
 
   it('wires the form, so a bad email gets its message', async () => {

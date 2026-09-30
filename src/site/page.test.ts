@@ -206,14 +206,14 @@ describe('copy that only says what is true', () => {
     });
     const faq = text(page).slice(text(page).indexOf('How do rewards work?'));
     expect(faq).toContain(`At ${formatPoints(REWARDS.donationPoints)} points you can give ${formatGBP(REWARDS.donationValueGBP)}`);
-    expect(faq).toContain(`At ${formatPoints(REWARDS.voucherPoints)} points, Plus members can get a ${formatGBP(REWARDS.voucherValueGBP)} coffee voucher`);
+    expect(faq).toContain(`or, if you’re a Plus member, get a ${formatGBP(REWARDS.voucherValueGBP)} coffee voucher`);
   });
 
   it('says how long a coffee takes, in line with a perfect month', () => {
     const weeks = (REWARDS.voucherPoints / REWARDS.perfectMonth) * (30 / 7);
-    expect(weeks).toBeGreaterThanOrEqual(6);
-    expect(weeks).toBeLessThan(7.5);
-    expect(words).toContain('six or seven weeks');
+    expect(weeks).toBeGreaterThanOrEqual(4);
+    expect(weeks).toBeLessThan(5);
+    expect(words).toContain('a coffee takes about a month');
   });
 
   it('gets the scan allowance right', () => {

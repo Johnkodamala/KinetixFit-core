@@ -1,5 +1,5 @@
 // The Rewards section's story: an example run of small wins scrolls past and the cup fills with the points they
-// add up to, from the first check-in to a coffee at 1,500. The beat whose top has passed the middle of the screen is
+// add up to, from the first check-in to a coffee at 1,000. The beat whose top has passed the middle of the screen is
 // the current one; its running total (data-total) sets the counter, the cup, the lane and the milestones.
 // Without JS, or with reduced motion, the section just shows the finished story (a full cup, every beat).
 import { REWARDS } from './config';
@@ -74,7 +74,7 @@ export function initRewards(doc: Document = document): RewardsStory | null {
     const level = cupLevel(total);
     visual.style.setProperty('--level', String(level));
     cup.classList.toggle('is-full', level >= 1);
-    // milestones compare points, not cup fractions (1,000 of 1,500 is 0.666…, never quite a rounded 0.6667)
+    // milestones compare points, not cup fractions (a rounded --at never quite equals the exact ratio)
     marks.forEach(mark => mark.classList.toggle('is-reached', total >= (Number(mark.dataset.points) || Infinity)));
     status.textContent = statusFor(total);
     cancelTween();
