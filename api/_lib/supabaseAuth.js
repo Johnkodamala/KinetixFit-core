@@ -15,6 +15,12 @@ const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
  * token keep working exactly as before.
  */
 export async function verifiedUserId(req) {
+  return (await verifiedUser(req))?.id ?? null;
+}
+
+/** The verified account itself — { id, email } — or null on the same terms as verifiedUserId. For things that must go to
+ * the account's own address (a voucher) rather than one the request names. */
+export async function verifiedUser(req) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const header = req.headers?.authorization || req.headers?.Authorization;
   const token = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7).trim() : null;
@@ -25,5 +31,5 @@ export async function verifiedUserId(req) {
   });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data?.user) return null;
-  return data.user.id;
+  return { id: data.user.id, email: data.user.email ?? null };
 }
