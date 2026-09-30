@@ -1,4 +1,5 @@
 import { Capacitor, SystemBars, SystemBarsStyle, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+import { notePreferencesChanged } from './preferencesSync';
 
 // Light / dark / follow the phone. The choice is resolved to <html data-theme="light|dark">, which
 // is the only thing the dark tokens in index.css key off. index.html sets it before first paint
@@ -50,6 +51,7 @@ export function setThemePref(pref: ThemePref) {
     else localStorage.setItem(STORAGE_KEY, pref);
   } catch { /* private mode: applies for this session only */ }
   applyTheme(pref);
+  notePreferencesChanged();
 }
 
 function setNativeSystemDark(dark: boolean) {

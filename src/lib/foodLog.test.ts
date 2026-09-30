@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   EXTRAS, ZERO, entryFromFood, entryNutrients, extraAmountText, extrasFromNote, extrasFromNoteExcept, extrasText, farFromTable,
-  findFoodByName, findTableFood, foodFromScan, foodFromScanItem, foodFromTable, isPlausible, loadFoodDays, loadFoods, mealCount, nameKey,
+  findFoodByName, findTableFood, foodFromScan, foodFromScanItem, foodFromTable, isPlausible, loadFoodDays, loadFoodEntryTombstones,
+  loadFoods, mealCount, nameKey,
   parseTypedPortion, portionText, saveFoodDays, savedFoodPortion, splitTypedMeal, sumNutrients, typicalUnit, withExtra,
   type LogEntry, type SavedFood, type ScanItem, type ScanPayload,
 } from './foodLog';
 import { localDayKey, localDayKeyDaysAgo } from './dates';
+import { isDirty } from './sync';
 
 const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
   id: 'e1', foodKey: 'name:toast', name: 'toast', qty: 2, unit: 'slice', unitGrams: 36, eaten: 1,
@@ -158,6 +160,20 @@ describe('food history storage', () => {
     localStorage.setItem('kx_food_log', JSON.stringify({ date: today, value: [entry()] }));
     expect(loadFoodDays()[today]).toHaveLength(1);
     expect(localStorage.getItem('kx_food_log')).toBeNull();
+  });
+
+  it('removing an entry tombstones it (for sync) and marks it dirty', () => {
+    const today = localDayKey();
+    saveFoodDays({ [today]: [entry({ id: 'kept' }), entry({ id: 'removed' })] });
+    saveFoodDays({ [today]: [entry({ id: 'kept' })] });
+    expect(loadFoodEntryTombstones().removed).toMatchObject({ day: today });
+    expect(isDirty('food_log_entries')).toBe(true);
+  });
+
+  it('the 90-day history cap dropping an old day is not a delete: no tombstone for its entries', () => {
+    const oldDay = localDayKeyDaysAgo(90);
+    saveFoodDays({ [localDayKey()]: [entry({ id: 'recent' })], [oldDay]: [entry({ id: 'aged-out' })] });
+    expect(loadFoodEntryTombstones()['aged-out']).toBeUndefined();
   });
 });
 

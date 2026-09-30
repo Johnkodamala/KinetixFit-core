@@ -2,10 +2,23 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useEffectEven
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Network } from '@capacitor/network';
 import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
+import { syncAllOnLogin, flushOutbox, clearAllDomainData } from './lib/sync';
+import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
+import './lib/preferencesSync';
+import './lib/gutSync';
+import './lib/checkinsSync';
+import './lib/periodsSync';
+import './lib/waterSync';
+import './lib/savedFoodsSync';
+import './lib/foodLogSync';
+import './lib/workoutsSync';
+import './lib/vitalsHistorySync';
+import { recordVitalReading, recordDailyVitalTotal } from './lib/vitalsHistory';
 import { alreadyRegistered, authErrorText, EMAIL_CONFIRMED_URL, PASSWORD_RESET_URL, RESEND_WAIT_S } from './lib/auth';
 import { serverUrl } from './lib/server';
 import { localDayKey, localDayKeyDaysAgo } from './lib/dates';
@@ -51,7 +64,7 @@ import { APP_ICONS, DEFAULT_APP_ICON, appIconInfo, appIconPreview, appIconSuppor
 import WidgetGallery, { type WidgetData } from './components/WidgetGallery';
 import { loadWaterLog, saveWaterLog, withDrinks, withoutDrink, loadWaterGoalMl, saveWaterGoalMl, loadGlassMl, saveGlassMl, dayMl, waterWeek, waterAmount, type WaterLog } from './lib/water';
 import { loadCheckIns, saveCheckIn, sleepEnergyInsight, SLEEP_CHOICES, ENERGY_LABELS, sleepChoiceLabel } from './lib/checkins';
-import { toDetected, rememberDetected, detectedWorkoutCount, isToday, loadManualWorkouts, addManualWorkout, updateManualWorkout, removeManualWorkout, manualOnDay, manualWithinDays, manualLabel, formatMinutes, type DetectedWorkout, type ManualWorkout, type WorkoutDraft } from './lib/workouts';
+import { toDetected, rememberDetected, detectedWorkoutCount, recordDetectedWorkouts, isToday, loadManualWorkouts, addManualWorkout, updateManualWorkout, removeManualWorkout, manualOnDay, manualWithinDays, manualLabel, formatMinutes, type DetectedWorkout, type ManualWorkout, type WorkoutDraft } from './lib/workouts';
 import WorkoutSheet, { WorkoutHistorySheet } from './components/WorkoutSheet';
 import CycleCard from './components/CycleCard';
 import VitalsCard from './components/VitalsCard';
@@ -586,6 +599,7 @@ export default function App() {
     setActiveCountry(countryOf(updatedProfile));
     setProfile(updatedProfile);
     localStorage.setItem('kinetix_profile', JSON.stringify(updatedProfile));
+    noteProfileChanged();
   };
   // Merge a few fields into the latest profile — safe for rapid updates (ruler scrolling, typing)
   const patchProfile = (changes: Partial<UserProfile>) => {
@@ -595,6 +609,7 @@ export default function App() {
       localStorage.setItem('kinetix_profile', JSON.stringify(next));
       return next;
     });
+    noteProfileChanged();
   };
 
   // --- 5. DYNAMIC MOTIVATION POPUPS & REVENUE DEFENSE CONTROLS ---
@@ -647,12 +662,27 @@ export default function App() {
   // Health Connect only answers apps that are on screen, so reads pause in the background and run again the
   // moment the app comes back (for example from Health Connect settings after allowing Samsung Health).
   const appActiveRef = useRef(true);
+  // Guards onSessionChange's sync-on-login block against running twice concurrently; reset on logout
+  // so the next login cycle (same app session) can sync again.
+  const loginSyncInFlightRef = useRef(false);
   const [foregroundTick, setForegroundTick] = useState(0);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       appActiveRef.current = isActive;
-      if (isActive) setForegroundTick(t => t + 1);
+      if (isActive) {
+        setForegroundTick(t => t + 1);
+        flushOutbox().catch(() => { /* offline: the outbox stays queued for the next foreground/reconnect */ });
+      }
+    });
+    return () => { listener.then(l => l.remove()); };
+  }, []);
+
+  // Flush the sync outbox the moment connectivity comes back — offline edits (any platform, including
+  // the website) don't have to wait for the next app-foreground to reach the server.
+  useEffect(() => {
+    const listener = Network.addListener('networkStatusChange', ({ connected }) => {
+      if (connected) flushOutbox().catch(() => { /* still offline, or a transient error: stays queued */ });
     });
     return () => { listener.then(l => l.remove()); };
   }, []);
@@ -715,6 +745,20 @@ export default function App() {
         if (hrResult.status === 'fulfilled') setHeartRateSeen(hrResult.value.samples.some(x => x.value > 0));
         const source = primarySourceLabel(rawSamples);
         if (source) setHealthSource(source);
+
+        // Persist the last 30 days of these trend figures (steps, sleep, the daily heart-rate average),
+        // not just read them live — one upserted row per day, so a fresh device (or the backend, for
+        // future trend/insight work) has real history instead of only ever seeing what's on the phone
+        // right now. `source` and `recordedAt` in the trend cards themselves are unaffected.
+        if (stepsResult.status === 'fulfilled') {
+          for (const { day, value } of toDayEntries(stepsResult.value.samples)) recordDailyVitalTotal('steps', day, Math.round(value));
+        }
+        if (hrResult.status === 'fulfilled') {
+          for (const { day, value } of toDayEntries(hrResult.value.samples)) recordDailyVitalTotal('heartRateDailyAverage', day, Math.round(value));
+        }
+        if (sleepResult.status === 'fulfilled') {
+          for (const { day, value } of sleepDayEntries(sleepResult.value.samples)) recordDailyVitalTotal('sleepMinutes', day, Math.round(value));
+        }
 
         setHealthTrends(prev => ({
           ...prev,
@@ -832,6 +876,7 @@ export default function App() {
           setLiveBpmAt(heart.at);
           // the server keeps today's snapshot, so only a reading from today goes there
           if (heart.at >= todayStart.getTime()) syncedBpm = Math.round(heart.value);
+          recordVitalReading('heartRate', heart.value, heart.at);
         } else if (hrResult.status === 'fulfilled') {
           setLiveBpm(null);
           setLiveBpmAt(null);
@@ -840,6 +885,7 @@ export default function App() {
         if (hrv) {
           syncedHrv = Math.round(hrv.value);
           setLiveHrv(syncedHrv);
+          recordVitalReading('heartRateVariability', hrv.value, hrv.at);
           const trimmedHistory = recordStressSnapshot(syncedHrv);
           setHealthTrends(prev => ({ ...prev, stress: buildDailyPoints(trimmedHistory, TRENDS_LOOKBACK_DAYS) }));
         }
@@ -920,6 +966,9 @@ export default function App() {
         else console.warn(`Health data read failed (${types[i]}):`, r.reason);
       });
       setVitals(next);
+      for (const [metric, reading] of Object.entries(next)) {
+        if (reading) recordVitalReading(metric, reading.value, reading.at);
+      }
       const meters = distance?.samples[0]?.value;
       const activeKcal = active?.samples[0]?.value;
       // Samsung Health's "total calories" are its workouts only (caloriesToday tells them from a whole day's)
@@ -1151,6 +1200,7 @@ export default function App() {
         const list = workouts.map(toDetected).filter((w): w is DetectedWorkout => w !== null);
         setDetectedWorkouts(list);
         setDetectedTotal(rememberDetected(list));
+        recordDetectedWorkouts(list);
         setWorkoutsRead('ok');
       } catch (err) {
         console.warn('Workout read failed:', err);
@@ -1510,7 +1560,7 @@ export default function App() {
 
   // Points for check-ins newly filed on `days` (src/lib/points.ts: once a day, + the weekly streak bonus), and the
   // best streak saved if it grew.
-  const rewardCheckIns = (all: Record<string, { at: number }>, days: string[]) => {
+  function rewardCheckIns(all: Record<string, { at: number }>, days: string[]) {
     const withCheckIn = new Set(Object.keys(all));
     let points = 0, xpGain = 0, bonus = 0, run = 0;
     for (const day of [...days].sort()) {
@@ -1526,7 +1576,7 @@ export default function App() {
     }
     const now = streakOf(withCheckIn, new Date(), bestStreakSaved);
     if (now.best > bestStreakSaved) setBestStreakSaved(saveBestStreak(now.best));
-  };
+  }
 
   // Quests claimed today (saved, so a restart doesn't offer the same points again).
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadToday('kinetix_quests_claimed', [] as string[]));
@@ -1549,9 +1599,16 @@ export default function App() {
 
     setCompletingTaskId(id);
     try {
+      // A verified session lets the server also write a durable, deduped record (quest_claims +
+      // points_ledger) — see api/complete-quest.js. Older sessions / signed-out edge cases still work
+      // exactly as before on the Redis-only path if there's no token to send.
+      const accessToken = isSupabaseConfigured ? (await supabase.auth.getSession()).data.session?.access_token : null;
       const response = await fetch(serverUrl('/api/complete-quest'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           appUserId: profile.email,
           taskId: id,
@@ -2369,12 +2426,8 @@ export default function App() {
       return;
     }
 
-    saveProfileToStorage({
-      ...profile,
-      email: emailInput,
-      name: profile.name || emailInput.split('@')[0]
-    });
-    continueAfterSignIn(hasOnboarded(emailInput), emailInput);
+    // The onAuthStateChange listener (onSessionChange) fires from this same sign-in and picks up
+    // from here — see syncThenContinue's comment for why this doesn't also act directly.
   };
 
   // "Send the confirmation email again" (Log in), for the address that signed up or was told to confirm
@@ -2446,10 +2499,36 @@ export default function App() {
     }
   }
 
+  // The one place a fresh sign-in/sign-up reaches the dashboard from: pulls remote account data (or
+  // back-fills it from this device, if the account has none yet) before deciding where onboarding
+  // resumes, so an existing account's data is there from the first frame on a new device, and a
+  // phone-only user's existing data is never lost. Reached only via onSessionChange (Supabase's
+  // onAuthStateChange listener) — handleAuthSubmit used to also call an equivalent path directly right
+  // after signInWithPassword/signUp resolved, but that ran before this pull and could push a local
+  // placeholder profile (just the typed email, no synced fields yet) over data this call had already
+  // pulled down correctly. The listener alone is reliable: it fires as part of the same sign-in call.
+  const syncThenContinue = useEffectEvent((email: string) => {
+    if (loginSyncInFlightRef.current) return;
+    loginSyncInFlightRef.current = true;
+    syncAllOnLogin()
+      .catch(() => { /* offline or a transient error: local data stays authoritative until the next sync */ })
+      .finally(() => {
+        const pulled = readLocalProfile();
+        const withEmail = { ...profile, ...pulled, email, name: (pulled?.name || profile.name) || email.split('@')[0] };
+        saveProfileToStorage(withEmail);
+        continueAfterSignIn(hasOnboarded(email), email);
+      });
+  });
+
   const handleLogout = async () => {
     if (isSupabaseConfigured) {
+      await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
       await supabase.auth.signOut();
     }
+    clearAllDomainData();
+    setProfile(DEFAULT_PROFILE);
+    setActiveCountry(countryOf(DEFAULT_PROFILE));
+    loginSyncInFlightRef.current = false;
     localStorage.removeItem('kinetix_logged_in');
     clearOnboardingStep();
     setIsLogged(false);
@@ -2476,7 +2555,7 @@ export default function App() {
       return;
     }
     if (newSession && !isLoggedIn && onboardingStep <= 2 && authMode !== 'reset') {
-      continueAfterSignIn(hasOnboarded(newSession.user.email), newSession.user.email);
+      syncThenContinue(newSession.user.email ?? '');
     }
   });
   useEffect(() => {

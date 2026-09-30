@@ -24,6 +24,8 @@ import { entryNutrients, type FoodDays, type LogEntry } from './foodLog';
 import { tagFits, type Diet, type DietTag } from './diet';
 import { allergiesIn, customAllergies } from './allergens';
 import type { CountryCode } from './countries';
+import { readJson, writeJson } from './storage';
+import { noteKeyedChange } from './sync';
 
 export type GutFeel = 1 | 2 | 3 | 4 | 5;
 export const GUT_FEELS: { value: GutFeel; label: string }[] = [
@@ -84,16 +86,12 @@ const validCheck = (c: unknown): c is GutCheck => {
 };
 
 export function loadGutChecks(): GutChecks {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    if (!saved || typeof saved !== 'object') return {};
-    const known = new Set(SYMPTOMS.map(s => s.id));
-    return Object.fromEntries(Object.entries(saved)
-      .filter(([, c]) => validCheck(c))
-      .map(([day, c]) => [day, { ...(c as GutCheck), symptoms: (c as GutCheck).symptoms.filter(s => known.has(s)) }]));
-  } catch {
-    return {};
-  }
+  const saved = readJson<Record<string, unknown>>(KEY) ?? {};
+  if (!saved || typeof saved !== 'object') return {};
+  const known = new Set(SYMPTOMS.map(s => s.id));
+  return Object.fromEntries(Object.entries(saved)
+    .filter(([, c]) => validCheck(c))
+    .map(([day, c]) => [day, { ...(c as GutCheck), symptoms: (c as GutCheck).symptoms.filter(s => known.has(s)) }]));
 }
 
 /** Saves one day's check-in (replacing any earlier one that day) and drops check-ins older than 90 days. */
@@ -101,7 +99,8 @@ export function saveGutCheck(all: GutChecks, day: string, check: GutCheck, today
   const oldest = addDays(today, -(KEEP_DAYS - 1));
   const next: GutChecks = { [day]: check };
   for (const [d, c] of Object.entries(all)) if (d >= oldest && d !== day) next[d] = c;
-  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* storage full or blocked: kept in memory */ }
+  writeJson(KEY, next);
+  noteKeyedChange('gut_checks', day);
   return next;
 }
 

@@ -16,6 +16,7 @@
 //
 // Everything stays on the phone (health data; not sent to the server or the AI).
 import { localDayKey } from './dates';
+import { noteKeyedChange } from './sync';
 
 const noon = (day: string) => new Date(`${day}T12:00:00`);
 export function shiftDay(day: string, n: number): string {
@@ -32,8 +33,23 @@ const MAX_CYCLE = 60;
 const KEEP = 24;
 export const LUTEAL_DAYS = 14;
 
-// --- Storage: kx_periods = the days periods started, oldest first ---
+// --- Storage: kx_periods = the days periods started, oldest first. A removed day moves into
+// kx_periods_deleted (day -> when, ms) rather than disappearing outright, so an offline device that
+// still has it locally can't push it back after another device deleted it (periodsSync.ts, sync.ts). ---
 const KEY = 'kx_periods';
+const DELETED_KEY = 'kx_periods_deleted';
+
+export function loadPeriodTombstones(): Record<string, number> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DELETED_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch {
+    return {};
+  }
+}
+function savePeriodTombstones(map: Record<string, number>) {
+  localStorage.setItem(DELETED_KEY, JSON.stringify(map));
+}
 
 /** Logged period starts. The first time, the profile's "last period started" date comes over as the first one. */
 export function loadPeriods(profileLastStart?: string | null): string[] {
@@ -48,8 +64,23 @@ export function loadPeriods(profileLastStart?: string | null): string[] {
 }
 
 export function savePeriods(list: string[]): string[] {
+  const prev = new Set<string>((() => {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
+  })());
   const clean = [...new Set(list.filter(isDay))].sort().slice(-KEEP);
   localStorage.setItem(KEY, JSON.stringify(clean));
+
+  const next = new Set(clean);
+  const tombstones = loadPeriodTombstones();
+  let tombstonesChanged = false;
+  for (const day of prev) {
+    if (!next.has(day)) { tombstones[day] = Date.now(); tombstonesChanged = true; noteKeyedChange('periods', day); }
+  }
+  for (const day of next) {
+    if (tombstones[day] !== undefined) { delete tombstones[day]; tombstonesChanged = true; noteKeyedChange('periods', day); }
+    else if (!prev.has(day)) noteKeyedChange('periods', day);
+  }
+  if (tombstonesChanged) savePeriodTombstones(tombstones);
   return clean;
 }
 

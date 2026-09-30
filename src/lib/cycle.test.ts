@@ -1,6 +1,7 @@
 // Period tracking (src/lib/cycle.ts): predictions from the person's own history.
 import { describe, expect, it } from 'vitest';
-import { addPeriod, removePeriod, loadPeriods, cycleStats, cycleToday, cycleContext, shiftDay, dayDiff, PHASE_TEXT } from './cycle';
+import { addPeriod, removePeriod, loadPeriods, loadPeriodTombstones, savePeriods, cycleStats, cycleToday, cycleContext, shiftDay, dayDiff, PHASE_TEXT } from './cycle';
+import { isDirty } from './sync';
 
 describe('period log', () => {
   it('moves the old "last period started" date over once, and keeps starts in order', () => {
@@ -14,6 +15,22 @@ describe('period log', () => {
   it('a start within 10 days of another is the same period, and future days are ignored', () => {
     expect(addPeriod(['2026-09-10'], '2026-09-12', '2026-09-28')).toEqual(['2026-09-12']);
     expect(addPeriod(['2026-09-10'], '2026-10-02', '2026-09-28')).toEqual(['2026-09-10']);
+  });
+
+  it('removing a period tombstones it (for sync) and marks it dirty, instead of just disappearing', () => {
+    savePeriods(['2026-09-10']);
+    expect(loadPeriodTombstones()).toEqual({});
+    savePeriods([]); // removed
+    expect(Object.keys(loadPeriodTombstones())).toEqual(['2026-09-10']);
+    expect(isDirty('periods')).toBe(true);
+  });
+
+  it('re-adding a previously removed day clears its tombstone', () => {
+    savePeriods(['2026-09-10']);
+    savePeriods([]);
+    expect(loadPeriodTombstones()).not.toEqual({});
+    savePeriods(['2026-09-10']);
+    expect(loadPeriodTombstones()).toEqual({});
   });
 
   it('survives bad saved data', () => {

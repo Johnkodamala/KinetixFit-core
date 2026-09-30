@@ -8,6 +8,7 @@
 import type { Workout } from '@capgo/capacitor-health';
 import { localDayKey, localDayKeyDaysAgo } from './dates';
 import { primarySourceLabel } from './healthSources';
+import { noteKeyedChange } from './sync';
 
 export interface DetectedWorkout {
   id: string;
@@ -72,6 +73,41 @@ export function rememberDetected(workouts: DetectedWorkout[]): number {
 }
 export function detectedWorkoutCount(): number {
   try { return (JSON.parse(localStorage.getItem(SEEN_KEY) || '[]') as string[]).length; } catch { return 0; }
+}
+
+// A durable local copy of the last 30 days of detected (watch/phone-tracked) workouts — the same
+// window Health.queryWorkouts already reads live in App.tsx — so this data exists on the backend for
+// trend analysis rather than only ever being read fresh from the device. Purely additive: reading,
+// counting and awarding for detected workouts elsewhere is unchanged; this is a persistence-only copy.
+const DETECTED_HISTORY_KEY = 'kx_detected_workouts_history';
+const DETECTED_HISTORY_DAYS = 30;
+
+export function loadDetectedWorkoutHistory(): Record<string, DetectedWorkout> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DETECTED_HISTORY_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch {
+    return {};
+  }
+}
+export function saveDetectedWorkoutHistory(records: Record<string, DetectedWorkout>) {
+  const oldest = Date.now() - DETECTED_HISTORY_DAYS * 86_400_000;
+  const kept = Object.fromEntries(Object.entries(records).filter(([, w]) => w.start >= oldest));
+  localStorage.setItem(DETECTED_HISTORY_KEY, JSON.stringify(kept));
+}
+
+/** Call with whatever Health.queryWorkouts just read (already a 30-day window). Only new/changed
+ * workouts are marked dirty for the next sync push. */
+export function recordDetectedWorkouts(workouts: DetectedWorkout[]): void {
+  const records = loadDetectedWorkoutHistory();
+  let changed = false;
+  for (const w of workouts) {
+    if (JSON.stringify(records[w.id]) === JSON.stringify(w)) continue;
+    records[w.id] = w;
+    changed = true;
+    noteKeyedChange('workouts', w.id);
+  }
+  if (changed) saveDetectedWorkoutHistory(records);
 }
 
 export const isToday = (ms: number) => localDayKey(new Date(ms)) === localDayKey();
@@ -164,10 +200,48 @@ export function loadManualWorkouts(legacy: string[] = []): ManualWorkout[] {
   }
 }
 
+// A removed workout moves here (id -> its day + when) instead of disappearing outright, so sync can
+// propagate the delete rather than an offline device resurrecting it (workoutsSync.ts, sync.ts). The
+// KEEP_DAYS cap below is NOT a delete: an id whose day is already outside it is never tombstoned, since
+// the server keeps complete history indefinitely regardless of the local cache's cap.
+const DELETED_KEY = 'kx_workouts_deleted';
+export function loadWorkoutTombstones(): Record<string, { day: string; deletedAt: number }> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DELETED_KEY) || '{}');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch {
+    return {};
+  }
+}
+function saveWorkoutTombstones(map: Record<string, { day: string; deletedAt: number }>) {
+  localStorage.setItem(DELETED_KEY, JSON.stringify(map));
+}
+
 /** Saves (dropping anything older than a year) and returns the sorted list. */
 export function saveManualWorkouts(list: ManualWorkout[]): ManualWorkout[] {
   const oldest = localDayKeyDaysAgo(KEEP_DAYS - 1);
   const kept = list.filter(w => isWorkout(w) && w.day >= oldest).sort(byNewest);
+
+  const prevRaw = localStorage.getItem(KEY);
+  const prev: ManualWorkout[] = (() => { try { return prevRaw ? JSON.parse(prevRaw) : []; } catch { return []; } })();
+  const prevById = new Map(prev.map((w: ManualWorkout) => [w.id, w]));
+  const nextById = new Map(kept.map(w => [w.id, w]));
+  const tombstones = loadWorkoutTombstones();
+  let tombstonesChanged = false;
+  for (const [id, w] of prevById) {
+    if (!nextById.has(id) && w.day >= oldest) {
+      tombstones[id] = { day: w.day, deletedAt: Date.now() };
+      tombstonesChanged = true;
+      noteKeyedChange('workouts', id);
+    }
+  }
+  for (const [id, w] of nextById) {
+    const before = prevById.get(id);
+    if (!before || JSON.stringify(before) !== JSON.stringify(w)) noteKeyedChange('workouts', id);
+    if (tombstones[id]) { delete tombstones[id]; tombstonesChanged = true; }
+  }
+  if (tombstonesChanged) saveWorkoutTombstones(tombstones);
+
   localStorage.setItem(KEY, JSON.stringify(kept));
   return kept;
 }

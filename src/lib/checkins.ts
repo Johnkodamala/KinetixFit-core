@@ -4,6 +4,8 @@
 // (src/lib/points.ts: 5 points, a small amount on purpose because it's self-reported). It never counts for quests.
 // Kept for 400 days so a long streak can still be worked out from it.
 import { localDayKey, localDayKeyDaysAgo } from './dates';
+import { readJson, writeJson } from './storage';
+import { noteKeyedChange } from './sync';
 
 export interface CheckIn {
   /** hours slept, as answered (null when the watch already recorded sleep and the question was skipped) */
@@ -21,19 +23,16 @@ export const SLEEP_CHOICES = [4, 5, 6, 7, 8, 9];
 export const ENERGY_LABELS = ['Drained', 'Low', 'Okay', 'Good', 'Full of energy'];
 
 export function loadCheckIns(): Record<string, CheckIn> {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return saved && typeof saved === 'object' ? saved : {};
-  } catch {
-    return {};
-  }
+  const saved = readJson<Record<string, CheckIn>>(KEY);
+  return saved && typeof saved === 'object' ? saved : {};
 }
 
 export function saveCheckIn(all: Record<string, CheckIn>, entry: CheckIn): Record<string, CheckIn> {
   const oldest = localDayKeyDaysAgo(KEEP_DAYS);
   const next: Record<string, CheckIn> = { [localDayKey(new Date(entry.at))]: entry };
   for (const [day, c] of Object.entries(all)) if (day >= oldest && !next[day]) next[day] = c;
-  localStorage.setItem(KEY, JSON.stringify(next));
+  writeJson(KEY, next);
+  noteKeyedChange('morning_checkins', localDayKey(new Date(entry.at)));
   return next;
 }
 

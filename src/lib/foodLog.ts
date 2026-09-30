@@ -8,6 +8,8 @@
 import { localDayKey } from './dates';
 import { FOOD_TABLE, type TableFood } from './foodTable';
 import type { DietCheck } from './diet';
+import { readJson, writeJson } from './storage';
+import { noteKeyedChange } from './sync';
 
 export interface Nutrients {
   kcal: number; carbs: number; protein: number; fat: number; fiber: number;
@@ -240,13 +242,6 @@ export const newId = () => `${Date.now().toString(36)}${Math.random().toString(3
 /* Storage                                                                                          */
 /* ----------------------------------------------------------------------------------------------- */
 
-const readJson = <T,>(key: string): T | null => {
-  try { return JSON.parse(localStorage.getItem(key) || 'null') as T | null; } catch { return null; }
-};
-const writeJson = (key: string, value: unknown) => {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked: keep going in memory */ }
-};
-
 export type FoodDays = Record<string, LogEntry[]>;
 
 const earlierEntry = (v: { calories: number; carbs: number; protein: number; fiber: number }): LogEntry => ({
@@ -275,7 +270,54 @@ export function loadFoodDays(): FoodDays {
   return pruneDays(days);
 }
 
-export const saveFoodDays = (days: FoodDays) => writeJson(DAYS_KEY, pruneDays(days));
+// A removed entry moves here (id -> its day + when) instead of disappearing outright, so sync can
+// propagate the delete rather than an offline device resurrecting it (foodLogSync.ts, sync.ts). The
+// 90-day history cap in pruneDays is NOT a delete: it never touches this map, since the server keeps
+// complete history indefinitely regardless of the local cache's cap.
+const DELETED_ENTRIES_KEY = 'kx_food_log_deleted';
+export function loadFoodEntryTombstones(): Record<string, { day: string; deletedAt: number }> {
+  const saved = readJson<Record<string, { day: string; deletedAt: number }>>(DELETED_ENTRIES_KEY);
+  return saved && typeof saved === 'object' ? saved : {};
+}
+function saveFoodEntryTombstones(map: Record<string, { day: string; deletedAt: number }>) {
+  writeJson(DELETED_ENTRIES_KEY, map);
+}
+function flattenDays(days: FoodDays): Record<string, { day: string; entry: LogEntry }> {
+  const flat: Record<string, { day: string; entry: LogEntry }> = {};
+  for (const [day, entries] of Object.entries(days)) for (const entry of entries) flat[entry.id] = { day, entry };
+  return flat;
+}
+
+// The oldest day still inside the history cap "today" — the same cutoff pruneDays uses. An id whose
+// day falls before this is aging out of the local cache, not being deleted, so it's never tombstoned
+// even if the caller's (already-pruned) `days` no longer has it while the raw stored copy still does.
+function oldestKeptDay(today = localDayKey()): string {
+  const cutoff = new Date(`${today}T12:00:00`);
+  cutoff.setDate(cutoff.getDate() - (HISTORY_DAYS - 1));
+  return localDayKey(cutoff);
+}
+
+export const saveFoodDays = (days: FoodDays) => {
+  const prevFlat = flattenDays(readJson<FoodDays>(DAYS_KEY) ?? {});
+  const nextFlat = flattenDays(days);
+  const oldest = oldestKeptDay();
+  const tombstones = loadFoodEntryTombstones();
+  let tombstonesChanged = false;
+  for (const [id, prev] of Object.entries(prevFlat)) {
+    if (!(id in nextFlat) && prev.day >= oldest) {
+      tombstones[id] = { day: prev.day, deletedAt: Date.now() };
+      tombstonesChanged = true;
+      noteKeyedChange('food_log_entries', id);
+    }
+  }
+  for (const [id, next] of Object.entries(nextFlat)) {
+    const prev = prevFlat[id];
+    if (!prev || JSON.stringify(prev.entry) !== JSON.stringify(next.entry)) noteKeyedChange('food_log_entries', id);
+    if (tombstones[id]) { delete tombstones[id]; tombstonesChanged = true; }
+  }
+  if (tombstonesChanged) saveFoodEntryTombstones(tombstones);
+  writeJson(DAYS_KEY, pruneDays(days));
+};
 
 export function loadFoods(): Record<string, SavedFood> {
   const saved = readJson<Record<string, SavedFood>>(FOODS_KEY);
@@ -317,6 +359,12 @@ export function saveFoods(foods: Record<string, SavedFood>) {
     // keep the most recently used
     list.sort((a, b) => b.lastUsed - a.lastUsed);
     foods = Object.fromEntries(list.slice(0, MAX_FOODS).map(f => [f.key, f]));
+  }
+  // No delete affordance for saved foods today — only new/changed ones get marked dirty; the 200-cap
+  // eviction above is cache hygiene, like the day/history caps elsewhere, not a user delete.
+  const prev = readJson<Record<string, SavedFood>>(FOODS_KEY) ?? {};
+  for (const [key, food] of Object.entries(foods)) {
+    if (!prev[key] || JSON.stringify(prev[key]) !== JSON.stringify(food)) noteKeyedChange('saved_foods', key);
   }
   writeJson(FOODS_KEY, foods);
   return foods;
