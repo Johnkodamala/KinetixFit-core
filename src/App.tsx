@@ -7,7 +7,7 @@ import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
-import { syncAllOnLogin, syncKeepingThisPhone, flushOutbox, clearAllDomainData, unsyncedDomains } from './lib/sync';
+import { syncAllOnLogin, syncKeepingThisPhone, flushOutbox, clearAllDomainData, unsyncedDomains, pullIfDue, onAccountDataChanged } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
@@ -52,6 +52,7 @@ import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, 
 import { healthSourceName, ownHealthSource } from './lib/healthSources';
 import { supportEmailBody } from './lib/support';
 import { rememberPlus } from './lib/plusBadge';
+import { setPref } from './lib/preferencesSync';
 import PlusBadge from './components/PlusBadge';
 import PlusCelebration from './components/PlusCelebration';
 import { handleBack, useBackHandler } from './lib/backButton';
@@ -702,13 +703,19 @@ export default function App() {
   // so the next login cycle (same app session) can sync again.
   const loginSyncInFlightRef = useRef(false);
   const [foregroundTick, setForegroundTick] = useState(0);
+  // The account had news (from another phone) after the screens were drawn: offer a refresh instead of redrawing under the person
+  const [accountUpdated, setAccountUpdated] = useState(false);
+  useEffect(() => onAccountDataChanged(() => setAccountUpdated(true)), []);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       appActiveRef.current = isActive;
       if (isActive) {
         setForegroundTick(t => t + 1);
-        flushOutbox().catch(() => { /* offline: the outbox stays queued for the next foreground/reconnect */ });
+        // send what is waiting, then read what the account has (another phone may have added to it)
+        flushOutbox().catch(() => { /* offline: the outbox stays queued for the next foreground/reconnect */ })
+          .then(() => pullIfDue())
+          .then(result => { if (result?.changed) setAccountUpdated(true); });
       }
     });
     return () => { listener.then(l => l.remove()); };
@@ -1096,8 +1103,10 @@ export default function App() {
   // One switch for water reminders, used by the Today card and Account → Reminders.
   const setWaterReminders = async (on: boolean) => {
     setHydrationRemindersEnabled(on);
-    localStorage.setItem('kinetix_hydration_enabled', on.toString());
-    if (!on || !Capacitor.isNativePlatform()) return;
+    // Synced with the account (setPref), but only once it is true: a "no" because THIS phone refused notifications must
+    // not switch the reminders off on the account's other phone.
+    if (!on || !Capacitor.isNativePlatform()) { setPref('kinetix_hydration_enabled', on.toString()); return; }
+    localStorage.setItem('kinetix_hydration_enabled', 'true');
     // turning reminders on is an explicit yes — ask now if we haven't been allowed yet
     localStorage.removeItem(NOTIFICATIONS_SKIPPED_KEY);
     if (!(await ensureNotificationPermission())) {
@@ -1106,7 +1115,9 @@ export default function App() {
       notify('warn', Capacitor.getPlatform() === 'ios'
         ? 'Notifications are off for Kinetix Fit. Turn them on in Settings → Notifications → Kinetix Fit.'
         : 'Notifications are off for Kinetix Fit. Turn them on in your phone’s Settings → Notifications.');
+      return;
     }
+    setPref('kinetix_hydration_enabled', 'true');
   };
 
 
@@ -1304,7 +1315,7 @@ export default function App() {
       ? `Movement breaks on — we’ll nudge you after ${moveMinutes} min on your phone without moving.`
       : `Movement breaks on — a reminder every ${moveMinutes} min in your active hours.`);
   };
-  const changeMoveMinutes = (minutes: number) => { setMoveMinutes(minutes); localStorage.setItem('kinetix_move_minutes', String(minutes)); };
+  const changeMoveMinutes = (minutes: number) => { setMoveMinutes(minutes); setPref('kinetix_move_minutes', String(minutes)); };
 
   // --- 7. CORE HEALTH TELEMETRY ARRAY ---
   const [biometrics] = useState<TelemetryStream[]>([
@@ -1749,14 +1760,17 @@ export default function App() {
     localStorage.getItem('kx_gut_reminder') !== 'off' && !localStorage.getItem(NOTIFICATIONS_SKIPPED_KEY));
   const setGutReminder = async (on: boolean) => {
     setGutReminderOn(on);
-    localStorage.setItem('kx_gut_reminder', on ? 'on' : 'off');
-    if (!on || !Capacitor.isNativePlatform()) return;
+    // synced once it is settled: a refusal on this phone must not switch it off on the account's other phone
+    if (!on || !Capacitor.isNativePlatform()) { setPref('kx_gut_reminder', on ? 'on' : 'off'); return; }
+    localStorage.setItem('kx_gut_reminder', 'on');
     localStorage.removeItem(NOTIFICATIONS_SKIPPED_KEY); // turning it on is an explicit yes
     if (!(await ensureNotificationPermission())) {
       setGutReminderOn(false);
       localStorage.setItem('kx_gut_reminder', 'off');
       notify('warn', 'Notifications are off for Kinetix Fit — turn them on in your phone’s Settings.');
+      return;
     }
+    setPref('kx_gut_reminder', 'on');
   };
   useEffect(() => {
     if (!isLoggedIn || onboardingStep < DASHBOARD_STEP || !Capacitor.isNativePlatform()) return;
@@ -1776,14 +1790,16 @@ export default function App() {
     localStorage.getItem('kx_streak_reminder') !== 'off' && !localStorage.getItem(NOTIFICATIONS_SKIPPED_KEY));
   const setStreakReminder = async (on: boolean) => {
     setStreakReminderOn(on);
-    localStorage.setItem('kx_streak_reminder', on ? 'on' : 'off');
-    if (!on || !Capacitor.isNativePlatform()) return;
+    if (!on || !Capacitor.isNativePlatform()) { setPref('kx_streak_reminder', on ? 'on' : 'off'); return; }
+    localStorage.setItem('kx_streak_reminder', 'on');
     localStorage.removeItem(NOTIFICATIONS_SKIPPED_KEY);
     if (!(await ensureNotificationPermission())) {
       setStreakReminderOn(false);
       localStorage.setItem('kx_streak_reminder', 'off');
       notify('warn', 'Notifications are off for Kinetix Fit — turn them on in your phone’s Settings.');
+      return;
     }
+    setPref('kx_streak_reminder', 'on');
   };
   const streakNow = streak.current;
   useEffect(() => {
@@ -5458,19 +5474,19 @@ export default function App() {
                     <SheetRow label="Active from" value={formatHour(shiftStartHour)}>
                       {close => (
                         <ChoiceCards label="Active from" hideLabel columns={4} options={HOUR_OPTIONS} value={shiftStartHour}
-                          onChange={v => { setShiftStartHour(v); localStorage.setItem('kinetix_shift_start', v.toString()); window.setTimeout(close, 180); }} />
+                          onChange={v => { setShiftStartHour(v); setPref('kinetix_shift_start', v.toString()); window.setTimeout(close, 180); }} />
                       )}
                     </SheetRow>
                     <SheetRow label="Until" value={formatHour(shiftEndHour)}>
                       {close => (
                         <ChoiceCards label="Until" hideLabel columns={4} options={HOUR_OPTIONS} value={shiftEndHour}
-                          onChange={v => { setShiftEndHour(v); localStorage.setItem('kinetix_shift_end', v.toString()); window.setTimeout(close, 180); }} />
+                          onChange={v => { setShiftEndHour(v); setPref('kinetix_shift_end', v.toString()); window.setTimeout(close, 180); }} />
                       )}
                     </SheetRow>
                   </div>
                   <Segmented label="Remind me every" value={hydrationIntervalHours}
                     options={[1, 2, 3, 4].map(h => ({ value: h, label: `${h} h` }))}
-                    onChange={v => { setHydrationIntervalHours(v); localStorage.setItem('kinetix_hydration_interval', v.toString()); }} />
+                    onChange={v => { setHydrationIntervalHours(v); setPref('kinetix_hydration_interval', v.toString()); }} />
                   <p style={{ fontSize: '13px', color: 'var(--ink-3)', margin: '10px 0 0 0', lineHeight: '1.6' }}>
                     Nutrition-target alerts are always on (native app only) and fire at most once per target per day.
                   </p>
@@ -5870,6 +5886,15 @@ export default function App() {
               <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* The account has news from another phone */}
+      {accountUpdated && isLoggedIn && onboardingStep >= DASHBOARD_STEP && (
+        <div className="kx-refresh-pill" role="status">
+          <span>Updated from your account</span>
+          <button type="button" className="kx-refresh-go" onClick={() => window.location.reload()}>Refresh</button>
+          <button type="button" className="kx-refresh-x" aria-label="Dismiss" onClick={() => setAccountUpdated(false)}>×</button>
         </div>
       )}
 
