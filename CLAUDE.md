@@ -14,12 +14,45 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-10-01, ~01:30) — read this first in a new conversation
+## Current status (2026-10-01, ~02:45) — read this first in a new conversation
+
+### 1 Oct ~02:45 — points work + entitlement fix are LIVE; 1.8 on the S21 FE and iPhone; Plus not showing after a promo (fix proposed, waiting on "go")
+- **PR #5 (server-authoritative points, coffee = 1,000) and PR #6 (entitlement fix) are merged and deployed.** Server before app: done.
+- **RevenueCat entitlement identifier is `kinetixfit_pro`** (display name "KinetixFit Pro"; 3 products attached; created 23 Aug). The code used
+  the display name in `src/lib/plus.ts` and `api/_lib/plus.js`, so promo grants and the server Plus check could never match — fixed in PR #6
+  (+ `api/__tests__/redeem-promo.test.js`, 5 tests; 1,214 tests pass). The `default` offering has **no packages** (`packages: []`, checked via the
+  public key) — real purchases need the Play subscription product attached to it (still open).
+- **`REVENUECAT_API_KEY` in Vercel was invalid** (RevenueCat code 7225 "Invalid API Key") — replaced by the user on 1 Oct; promo grants work now.
+  Secrets are write-only in Vercel (dashboard, CLI, `env pull`): nobody can read `PROMO_CODES_JSON` / `REVENUECAT_API_KEY` back, and `vercel env ls`'s
+  "age" column does not change when a value is edited — probe the live endpoint instead: a fake code → `400 Invalid promo code` = config parses;
+  `500 Promo code configuration is invalid` = the JSON is malformed (curly quotes, a `KEY=` prefix, a trailing comma); `502 … Invalid API Key` = bad RevenueCat key.
+- **Promo codes** (`api/redeem-promo.js`): hand-written in the `PROMO_CODES_JSON` env var (`{"CODE": "30day" | "lifetime"}`), **not auto-generated**;
+  each code works **once in total** (Redis `promo_used:<CODE>`, written only after RevenueCat accepts the grant; `keys promo_used:*` in the Upstash
+  CLI — empty until one is redeemed). Nothing limits one *person* to one code. `KXFIT-TEST-30` was redeemed on the S21 FE (Plus until 1 Nov 2026).
+  A batch of 10 fresh `KX-XXXX-XXXX` 30day codes was generated for the user to paste into `PROMO_CODES_JSON` (replaces the old value — keep a private copy);
+  **the user has to set it + redeploy** (Claude can't touch secrets). Redeem is unauthenticated (trusts `appUserId`) — add session verification if wanted.
+  Play Console promo codes (store-generated, compliant with Apple 3.1.1 / Google) are the long-term route, once the subscription product exists.
+- **2 Oct — Step 1 of the store-readiness plan is coded, tested, NOT committed or deployed** (plan: `~/.claude/plans/go-ahead-with-step-sequential-truffle.md`;
+  steps 2 account deletion, 3 privacy policy + iOS privacy manifest, 4 store-policy app fixes, 5 store answer sheet follow, one per "go"). New
+  `api/plus-status.js` (verified session → `plusStatus()` in `api/_lib/plus.js`, 502 `PLAN_UNKNOWN` when RevenueCat is down); the app asks on
+  open/resume and after a promo (`src/lib/plusStatus.ts`; `plusFromServer` is now `boolean | null`, null = unknown); `redeem-promo` uses the session's
+  email and refuses a body naming someone else (no session = old behaviour, for builds ≤1.8); `api/verify-license.js` deleted; logout calls
+  `Purchases.logOut()`. 1,242 tests pass. **Deploy the server before any app build.** RevenueCat has **no iOS app yet** (needs the paid Apple account).
+- **(Fixed in code 2 Oct, see above) Open bug — Plus doesn't show right after a promo:** the grant lands in RevenueCat, but the app only reads it through the RevenueCat SDK. The
+  **iPhone has no `VITE_REVENUECAT_IOS_PUBLIC_KEY`**, so `Purchases` isn't configured and `refreshRevenueCatStatus()` returns early; the Android SDK's
+  cached customer info showed "Free plan" until an app restart. Proposed fix (user hasn't said "go"): new authenticated `api/plus-status` (session → `isPlusUser`
+  fresh + expiry), called after a promo, after sign-in and on resume, feeding `plusFromServer`. Also: `api/verify-license.js` has **no auth** and returns any
+  user's full RevenueCat subscriber record (unused by the app) — remove it or require a session.
+- **Builds:** `android/app/build.gradle` is `versionCode 9` / `"1.8"` on the **local branch `chore/v1.8`, uncommitted**. `KinetixFit-builds/Kinetix-Fit-1.8.apk`
+  (debug, 1 Oct 02:02) is on the **S21 FE** (data kept; Plus via the test code; points 12, server restore of points/XP/claims confirmed after a restart).
+  **iPhone 13 mini** got a fresh build at ~02:30 (profile valid until ~8 Oct); iOS marketing version is still 1.0. A55 still 1.6.
+- **Still to do on the S21 FE:** morning check-in (+5/+10 XP → `points_ledger`), first food check of the day (+2), a quest claim, logout → sign-in, voucher/donation
+  refusal below 1,000 points (the account has 12). Then release signing (no keystore yet) → `bundleRelease` AAB → Play internal testing.
 
 ### Next steps to publish to Google Play (in order — the user's plan, 1 Oct)
 
-Everything below is **committed on `initial-changes` (4 commits, `4e6a53d`…`a7c2ebb`) but NOT pushed, merged or deployed**; tests 1,209 pass.
-1. **Push `initial-changes`, open a PR into `main`, merge it.** Vercel deploys the server from `main` — wait for the preview to be
+Everything below was **merged (PR #5) and deployed on 1 Oct**; step 1 is done.
+1. ~~**Push `initial-changes`, open a PR into `main`, merge it.**~~ Vercel deploys the server from `main` — wait for the preview to be
    green first. **Server before app**: the new endpoints (`claim-checkins`, the ledger-backed `redeem-voucher` / `donate-charity`,
    quest table) must be live before any app build that calls them ships, or a phone's local points can be absorbed by the
    higher server total (see Deploy order below). No Supabase migration is needed (the 13 tables from `0001` are already live).
@@ -1401,7 +1434,7 @@ api/                        # Vercel serverless functions (NOT bundled into the 
   __tests__/                #   Vitest (npm test): scan-meal end to end (Redis etc. mocked, fixtures/usda/ = USDA search answers
                             #   built from the CSVs), identify, nutrition, density, mealTotals, foodTable. "_" → Vercel skips it
   lookup-barcode.js         #   Open Food Facts: per100g, g/ml serving, pack size, liquid, allergens; default portion
-  verify-license.js         #   RevenueCat subscription check
+  plus-status.js            #   the signed-in account's Plus plan (+ expiry) from RevenueCat; src/lib/plusStatus.ts calls it
   redeem-promo.js           #   promo codes, redemption tracked in Upstash Redis
   redeem-voucher.js, sync-health-data.js, complete-quest.js, donate-charity.js
   early-access.js           #   the website's early access list (Upstash Redis; honeypot, rate limit per hashed IP)

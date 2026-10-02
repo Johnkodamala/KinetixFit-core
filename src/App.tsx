@@ -11,6 +11,7 @@ import { syncAllOnLogin, flushOutbox, clearAllDomainData } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
+import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
 import './lib/preferencesSync';
@@ -2157,9 +2158,30 @@ export default function App() {
   // null until RevenueCat reports a real status (native only) — the card never guesses one
   const [revenueCatStatus, setRevenueCatStatus] = useState<string | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  // What the server last said (scan responses carry it) — the website has no RevenueCat SDK to ask.
-  const [plusFromServer, setPlusFromServer] = useState(false);
-  const isPlus = !!customerInfo?.entitlements.active[PLUS_ENTITLEMENT] || plusFromServer;
+  // What the server last said (scan responses and api/plus-status carry it) — the website has no RevenueCat SDK to ask,
+  // an iPhone build without its RevenueCat key never configures the SDK, and Android's cached info lags a promo code.
+  // null = the server hasn't said yet, which is not the same as "Free".
+  const [plusFromServer, setPlusFromServer] = useState<boolean | null>(null);
+  const [serverPlan, setServerPlan] = useState<PlusStatus | null>(null);
+  const isPlus = !!customerInfo?.entitlements.active[PLUS_ENTITLEMENT] || plusFromServer === true;
+  // Account's plan line: the server's answer wins when it has one, else what the RevenueCat SDK reported.
+  const planStatusText = serverPlan
+    ? planLabel(serverPlan, d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
+    : revenueCatStatus;
+  const applyPlusStatus = (status: PlusStatus) => { setPlusFromServer(status.plus); setServerPlan(status); };
+  const refreshPlusFromServer = async () => {
+    const status = await fetchPlusStatus();
+    if (status) applyPlusStatus(status);
+  };
+  // On opening the app and each time it returns to the screen (sign-in reloads the app, so it lands here too).
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let current = true;
+    void fetchPlusStatus().then(status => {
+      if (current && status) { setPlusFromServer(status.plus); setServerPlan(status); }
+    });
+    return () => { current = false; };
+  }, [isLoggedIn, foregroundTick]);
   // The store package for Plus (its localised price), once RevenueCat has offerings set up.
   const [plusPackage, setPlusPackage] = useState<PurchasesPackage | null>(null);
   const [isBuyingPlus, setIsBuyingPlus] = useState(false);
@@ -2182,7 +2204,7 @@ export default function App() {
   const recentCheckInDays = checkInDayKeys.filter(d => d >= localDayKeyDaysAgo(13)).join(',');
   // Plus as far as it's known: RevenueCat has answered, or the server said so (scans). Unknown → the widgets keep
   // whatever they were last told, so the Plus ones don't flash "locked" on every start.
-  const planKnown = customerInfo !== null || plusFromServer;
+  const planKnown = customerInfo !== null || plusFromServer !== null;
   const widgetPlus = planKnown ? isPlus : undefined;
   const widgetPrefsFlat = JSON.stringify(flattenPrefs(widgetPrefs));
   useEffect(() => {
@@ -2285,12 +2307,10 @@ export default function App() {
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
       const entitlement = info.entitlements.active[PLUS_ENTITLEMENT];
-      if (entitlement) {
-        const expiry = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
-        setRevenueCatStatus(`Kinetix Fit Plus${expiry ? ` · ${entitlement.willRenew ? 'renews' : 'ends'} ${fmtDate(expiry, { day: 'numeric', month: 'short', year: 'numeric' })}` : ' · lifetime'}`);
-      } else {
-        setRevenueCatStatus('Free plan');
-      }
+      setRevenueCatStatus(planLabel(
+        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew },
+        d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }),
+      ));
     } catch (err) {
       console.warn('RevenueCat getCustomerInfo unavailable:', err);
     }
@@ -2592,6 +2612,10 @@ export default function App() {
       await supabase.auth.signOut();
     }
     clearAllDomainData();
+    // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
+    try {
+      if (Capacitor.isNativePlatform() && (await Purchases.isConfigured()).isConfigured) await Purchases.logOut();
+    } catch { /* already anonymous, or the SDK isn't there: nothing to undo */ }
     setProfile(DEFAULT_PROFILE);
     setActiveCountry(countryOf(DEFAULT_PROFILE));
     loginSyncInFlightRef.current = false;
@@ -3332,9 +3356,10 @@ export default function App() {
 
     setIsRedeemingPromo(true);
     try {
+      // The session tells the server whose account the code is for (older servers ignore the header).
       const response = await fetch(serverUrl('/api/redeem-promo'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ code, appUserId: profile.email })
       });
       const data = await response.json();
@@ -3347,7 +3372,8 @@ export default function App() {
       setPromoMessage({ tone: 'success', text: data.tier === 'lifetime'
         ? 'Lifetime access is now active.'
         : '30 days of Kinetix Fit Plus are now active.' });
-      await refreshRevenueCatStatus();
+      // Ask the server too: the phone's RevenueCat SDK may not exist (iPhone without its key) or may still hold the old plan.
+      await Promise.all([refreshRevenueCatStatus(), refreshPlusFromServer()]);
     } catch {
       setPromoMessage({ tone: 'error', text: 'Could not reach the server to check your code. Try again.' });
     } finally {
@@ -3869,7 +3895,7 @@ export default function App() {
       { page: 'reminders', value: hydrationRemindersEnabled ? `Every ${hydrationIntervalHours} h` : 'Off' }
     ] },
     { title: 'Subscription', rows: [
-      { page: 'subscription', value: revenueCatStatus ?? undefined },
+      { page: 'subscription', value: planStatusText ?? undefined },
       { page: 'promo' }
     ] },
     { title: 'Help & legal', rows: [{ page: 'about' }, { page: 'privacy' }, { page: 'help' }] }
@@ -5393,7 +5419,7 @@ export default function App() {
               {accountPage === 'subscription' && (
                 <div className="hub-billing-card">
                   <span className="vitals-label">Your plan</span>
-                  <p className="billing-status-title">{revenueCatStatus ?? (isPlus ? 'Kinetix Fit Plus' : 'Free plan')}</p>
+                  <p className="billing-status-title">{planStatusText ?? (isPlus ? 'Kinetix Fit Plus' : 'Free plan')}</p>
 
                   <div className="kx-plan-grid">
                     <div className={`kx-plan${isPlus ? '' : ' is-current'}`}>
