@@ -1333,6 +1333,9 @@
 /* Confirmation pop-up (Log out): Cancel on the left, the destructive action on the right */
 .kx-confirm-actions { display: flex; gap: 10px; margin-top: 18px; }
 .kx-confirm-actions .modal-close-btn { margin-top: 0; }
+/* three choices (log out with unsaved changes): stacked, so none is squeezed into a narrow pill */
+.kx-confirm-actions--stack { flex-direction: column; }
+.kx-confirm-actions--stack > button { width: 100%; }
 .kx-danger-btn {
   flex: 1;
   border: none;

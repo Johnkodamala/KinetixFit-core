@@ -48,7 +48,9 @@ registerKeyed<WaterRecord>({
   toRemote: (id, value, userId) => ({
     user_id: userId,
     id,
-    at: Number(id),
+    // a whole number: the column is a bigint, and a drink from an iPhone widget used to carry a fraction (which the
+    // server refused, so none of the water log uploaded). The id keeps the stored time, so it is still the same drink.
+    at: Math.floor(Number(id)),
     ml: value.ml,
     day: value.day,
     deleted_at: value.deletedAt ? new Date(value.deletedAt).toISOString() : null,

@@ -55,7 +55,8 @@ export function saveWaterLog(log: WaterLog) {
 /** Drinks added (from the app or a home-screen widget), each filed under its own day. */
 export function withDrinks(log: WaterLog, drinks: [number, number][]): WaterLog {
   const next = { ...log };
-  for (const [t, ml] of drinks) {
+  for (const [time, ml] of drinks) {
+    const t = Math.floor(time); // whole milliseconds: the iPhone widget reports a fraction, which the server's column refuses
     const day = localDayKey(new Date(t));
     next[day] = [...(next[day] ?? []), [t, ml] as [number, number]].sort((a, b) => entryTime(a) - entryTime(b));
     noteKeyedChange('water_logs', String(t));

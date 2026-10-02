@@ -108,6 +108,21 @@ describe('water_logs domain adapter', () => {
     expect(row.deleted_at).not.toBeNull();
   });
 
+  it('a drink whose time has a fraction (an iPhone widget reports one) still has a whole-number `at`: the server column is a bigint', () => {
+    const fractional = 1790528200246.793;
+    const d = domain('water_logs');
+    const row = d.toRemote(String(fractional), { ml: 250, day: today(), deletedAt: null }, 'uid-1');
+    expect(Number.isInteger(row.at)).toBe(true);
+    expect(row.at).toBe(1790528200246);
+    expect(row.id).toBe(String(fractional)); // the key stays as stored, so the drink is still the same one everywhere
+  });
+
+  it('new drinks are filed at a whole millisecond, whatever time they arrive with', () => {
+    const log = withDrinks({}, [[1790528200246.793, 250]]);
+    const times = Object.values(log).flat().map(e => (Array.isArray(e) ? e[0] : e));
+    expect(times).toEqual([1790528200246]);
+  });
+
   it("save() applies a remote delete for a drink this device hasn't touched", () => {
     saveWaterLog(withDrinks({}, [[t3, 300]]));
     const d = domain('water_logs');

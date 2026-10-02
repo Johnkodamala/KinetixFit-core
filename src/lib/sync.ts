@@ -149,6 +149,10 @@ export async function syncAllOnLogin(): Promise<void> {
       await pushSingleton(domain);
     }
   }
+  await syncKeyedOnLogin();
+}
+
+async function syncKeyedOnLogin(): Promise<void> {
   for (const domain of keyedDomains.values()) {
     if (!isBackfilled(domain.name)) {
       // First sync for this domain: push everything local first (existing local-only data is never
@@ -165,6 +169,35 @@ export async function syncAllOnLogin(): Promise<void> {
   }
 }
 
+/**
+ * For a phone that held data the account never received (it was logged in with no account session): this phone's
+ * profile and settings go up and replace the account's copy, instead of the usual newest-wins, which would have let a
+ * newer profile from another phone overwrite the one this phone's data was built on. Logs, check-ins and the rest are
+ * merged as usual: this phone's records go up first, then the account's come down.
+ */
+export async function syncKeepingThisPhone(): Promise<void> {
+  for (const domain of singletonDomains.values()) await pushSingleton(domain);
+  await syncKeyedOnLogin();
+}
+
+/**
+ * Domains that still hold edits the server hasn't received. Logging out wipes this phone's copy, so anything listed
+ * here would be lost with it: the caller checks this after flushOutbox() and asks before wiping. A domain with nothing
+ * in it doesn't count (a blank row is never pushed, so it would otherwise look unsynced for ever).
+ */
+export function unsyncedDomains(): string[] {
+  const names = new Set([...outboxSet()].filter(name => {
+    const singleton = singletonDomains.get(name);
+    if (singleton) return !singleton.isEmpty(singleton.load());
+    return keyedDomains.has(name);
+  }));
+  // a domain whose first full upload never finished may hold records the account doesn't have, dirty-marked or not
+  for (const domain of keyedDomains.values()) {
+    if (!isBackfilled(domain.name) && Object.keys(domain.load() as object).length > 0) names.add(domain.name);
+  }
+  return [...names];
+}
+
 /** Pushes every domain with unflushed local edits. Call on reconnect / app foreground. */
 export async function flushOutbox(): Promise<void> {
   if (!isSupabaseConfigured) return;
@@ -173,6 +206,13 @@ export async function flushOutbox(): Promise<void> {
     if (singleton) { await pushSingleton(singleton); continue; }
     const keyed = keyedDomains.get(name);
     if (keyed) await pushKeyed(keyed);
+  }
+  // A first upload that only half worked (some records refused) left the domain not backfilled, and the records that
+  // failed were never marked dirty, so nothing else would retry them: send everything again, until it all goes up.
+  for (const domain of keyedDomains.values()) {
+    if (!isBackfilled(domain.name) && Object.keys(domain.load() as object).length > 0) {
+      if (await pushAllKeyed(domain)) setBackfilled(domain.name);
+    }
   }
 }
 

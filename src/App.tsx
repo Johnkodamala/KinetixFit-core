@@ -7,7 +7,7 @@ import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
-import { syncAllOnLogin, flushOutbox, clearAllDomainData } from './lib/sync';
+import { syncAllOnLogin, syncKeepingThisPhone, flushOutbox, clearAllDomainData, unsyncedDomains } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
@@ -25,7 +25,7 @@ import './lib/foodLogSync';
 import './lib/workoutsSync';
 import './lib/vitalsHistorySync';
 import { recordVitalReading, recordDailyVitalTotal } from './lib/vitalsHistory';
-import { alreadyRegistered, authErrorText, EMAIL_CONFIRMED_URL, PASSWORD_RESET_URL, RESEND_WAIT_S } from './lib/auth';
+import { alreadyRegistered, authErrorText, EMAIL_CONFIRMED_URL, PASSWORD_RESET_URL, RESEND_WAIT_S, needsAccountSignIn, sameAccount, signOutThisPhone } from './lib/auth';
 import { serverUrl } from './lib/server';
 import { localDayKey, localDayKeyDaysAgo } from './lib/dates';
 import { bmiOf } from './lib/bmi';
@@ -466,6 +466,14 @@ export default function App() {
   }, [canResend]);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [session, setSession] = useState<Session | null>(null);
+  // Whether the stored session has been looked for yet (a phone can say "logged in" with no account session behind it)
+  const [sessionChecked, setSessionChecked] = useState<boolean>(false);
+  // "Save your data to your account": for such a phone, signing in again without logging out first (that would wipe it)
+  const [resyncOpen, setResyncOpen] = useState<boolean>(false);
+  const [resyncDismissed, setResyncDismissed] = useState<boolean>(false);
+  const [resyncPassword, setResyncPassword] = useState<string>('');
+  const [resyncError, setResyncError] = useState<string | null>(null);
+  const [isResyncing, setIsResyncing] = useState<boolean>(false);
 
   // --- 2. ACTIVE NAVIGATION TAB (Sync with URL Hash to support Browser Back Button) ---
   const [activeTab, setActiveTab] = useState<string>(() => parseRoute(window.location.hash)?.tab ?? 'vitals');
@@ -571,6 +579,8 @@ export default function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  // Shown instead of logging out when changes haven't reached the account yet (offline): logging out would lose them
+  const [logoutUnsynced, setLogoutUnsynced] = useState<boolean>(false);
   // Account → Your data & privacy → Delete account or data: the choice sheet, then the confirmation for the chosen mode
   const [showDeleteSheet, setShowDeleteSheet] = useState<boolean>(false);
   const [deleteMode, setDeleteMode] = useState<DeleteMode | null>(null);
@@ -631,7 +641,14 @@ export default function App() {
   // --- 5. DYNAMIC MOTIVATION POPUPS & REVENUE DEFENSE CONTROLS ---
   // One message at a time in the pill at the top of the app. It clears itself after a few seconds
   // (a little longer for long text), a tap dismisses it early, and a newer message restarts the timer.
-  const [motivationMessage, setMotivationMessage] = useState<AppMessage | null>(null);
+  const [motivationMessage, setMotivationMessage] = useState<AppMessage | null>(() => {
+    // a message left by something that reloads the app (signing in to save a phone's data)
+    try {
+      const text = sessionStorage.getItem('kx_flash');
+      if (text) { sessionStorage.removeItem('kx_flash'); return { tone: 'success', text }; }
+    } catch { /* storage blocked: no message */ }
+    return null;
+  });
   const notify = (tone: MessageTone, text: string) => setMotivationMessage({ tone, text });
   const messageMs = motivationMessage ? Math.min(6000, Math.max(2500, motivationMessage.text.length * 40)) : 0;
   const messageTouchY = useRef<number | null>(null);
@@ -2637,7 +2654,7 @@ export default function App() {
     if (isSupabaseConfigured) {
       if (flush) await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
       // 'local': a deleted account has no session left on the server to end, and there is nothing to wait for
-      await (forgetAccount ? supabase.auth.signOut({ scope: 'local' }) : supabase.auth.signOut()).catch(() => { /* wiped below anyway */ });
+      await signOutThisPhone(supabase.auth).catch(() => { /* wiped below anyway */ });
     }
     if (forgetAccount) await clearDeviceReminders();
     clearAllDomainData();
@@ -2665,7 +2682,51 @@ export default function App() {
     window.location.reload();
   };
 
-  const handleLogout = () => endSession({ flush: true, forgetAccount: false });
+  const needsSignIn = needsAccountSignIn({ loggedIn: isLoggedIn, configured: isSupabaseConfigured, sessionChecked, hasSession: !!session });
+  const showResync = needsSignIn && onboardingStep >= DASHBOARD_STEP && (resyncOpen || !resyncDismissed);
+  const closeResync = () => { setResyncOpen(false); setResyncDismissed(true); setResyncError(null); setResyncPassword(''); };
+  const handleResync = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = profile.email;
+    if (!email || !resyncPassword || isResyncing) return;
+    setIsResyncing(true);
+    setResyncError(null);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: resyncPassword });
+    if (error) { setIsResyncing(false); setResyncError(authErrorText(error).text); return; }
+    // never send this phone's data to some other account
+    if (!sameAccount(data.user?.email, email)) {
+      await signOutThisPhone(supabase.auth).catch(() => { /* nothing to undo */ });
+      setIsResyncing(false);
+      setResyncError('That signed in a different account. Use the one this phone is set up with.');
+      return;
+    }
+    try { await syncKeepingThisPhone(); } catch { /* what is left is checked below */ }
+    setIsResyncing(false);
+    setResyncPassword('');
+    if (unsyncedDomains().length) {
+      setResyncOpen(false);
+      notify('warn', 'Signed in, but some of your data is still waiting to upload. Keep the app open with a connection.');
+      return;
+    }
+    // what the account sent down is read from storage once, when the app starts: reload so it is all there
+    try { sessionStorage.setItem('kx_flash', 'Signed in. Your data is saved to your account.'); } catch { /* storage blocked: no message */ }
+    window.location.reload();
+  };
+
+  // Logging out wipes this phone's copy, so first make sure the account has everything. If something couldn't be sent
+  // (offline), ask before throwing it away rather than losing it silently.
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      if (unsyncedDomains().length) notify('info', 'Saving your changes before logging out…');
+      await flushOutbox().catch(() => { /* offline: unsyncedDomains() below says what is left */ });
+      if (unsyncedDomains().length) {
+        // no account session: trying again can't help, the phone has to sign in first
+        if (needsSignIn) setResyncOpen(true); else setLogoutUnsynced(true);
+        return;
+      }
+    }
+    await endSession({ flush: false, forgetAccount: false });
+  };
 
   // Deleting: the server goes first. Only when it has deleted everything is the phone wiped, so a failure loses nothing.
   const performDeletion = async (mode: DeleteMode) => {
@@ -2699,7 +2760,12 @@ export default function App() {
   });
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    supabase.auth.getSession().then(({ data }) => onSessionChange(data.session));
+    supabase.auth.getSession().then(({ data }) => {
+      onSessionChange(data.session);
+      setSessionChecked(true);
+      // anything still waiting from last time goes up now, not only after the app has been to the background and back
+      if (data.session) flushOutbox().catch(() => { /* offline: stays queued for the next foreground/reconnect */ });
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       onSessionChange(newSession, event);
     });
@@ -3593,6 +3659,7 @@ export default function App() {
   useBackHandler(showCameraModal, () => setShowCameraModal(false));
   useBackHandler(showDeviceSyncModal, () => setShowDeviceSyncModal(false));
   useBackHandler(showLogoutConfirm, () => setShowLogoutConfirm(false));
+  useBackHandler(logoutUnsynced, () => setLogoutUnsynced(false));
   useBackHandler(showAiIdeasConsent, () => setShowAiIdeasConsent(false));
   useBackHandler(deleteMode !== null, () => { if (!isDeleting) setDeleteMode(null); });
   useBackHandler(showNoStressNotice, () => dismissNoStressNotice());
@@ -3704,7 +3771,7 @@ export default function App() {
 
               <p className="ob-footnote">
                 {authMode === 'reset' ? (
-                  <button type="button" onClick={() => { supabase.auth.signOut(); setAuthMode('login'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Back to log in</button>
+                  <button type="button" onClick={() => { void signOutThisPhone(supabase.auth); setAuthMode('login'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Back to log in</button>
                 ) : authMode === 'forgot' ? (
                   <button type="button" onClick={() => { setAuthMode('login'); setAuthError(null); setAuthMessage(null); }} className="ob-link">Back to log in</button>
                 ) : authMode === 'login' ? (
@@ -5290,6 +5357,12 @@ export default function App() {
 
               <section className="kx-account-section">
                 <div className="kx-rows kx-rows-menu">
+                  {needsSignIn && (
+                    <button type="button" onClick={() => setResyncOpen(true)} className="kx-row">
+                      <span className="kx-row-label">Sign in to save your data</span>
+                      <ChevronIcon className="kx-row-chevron" />
+                    </button>
+                  )}
                   <button type="button" onClick={() => setShowLogoutConfirm(true)} className="kx-row kx-row-danger">
                     <span className="kx-row-label">Log out</span>
                   </button>
@@ -5781,10 +5854,50 @@ export default function App() {
         <div className="portal-overlay-modal" onClick={() => setShowLogoutConfirm(false)}>
           <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-logout-title" aria-describedby="kx-logout-desc" onClick={e => e.stopPropagation()}>
             <h3 id="kx-logout-title" className="modal-title">Log out of Kinetix Fit?</h3>
-            <p id="kx-logout-desc" className="modal-desc">You’ll need your email and password to log back in.</p>
+            <p id="kx-logout-desc" className="modal-desc">Your logs, progress and points stay safe in your account and come back when you log in again. Reminder settings start again from the defaults. You’ll need your email and password to log back in.</p>
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setShowLogoutConfirm(false)} autoFocus>Cancel</button>
               <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* A phone logged in with no account session: sign in to save its data, without logging out first */}
+      {showResync && (
+        <div className="portal-overlay-modal" onClick={isResyncing ? undefined : closeResync}>
+          <form className="modal-content-card kx-confirm" role="dialog" aria-modal="true" aria-labelledby="kx-resync-title" aria-describedby="kx-resync-desc"
+            onClick={e => e.stopPropagation()} onSubmit={handleResync}>
+            <h3 id="kx-resync-title" className="modal-title">Save your data to your account</h3>
+            <p id="kx-resync-desc" className="modal-desc">
+              This phone isn’t signed in to your account, so what you’ve logged here hasn’t been saved to it and can’t reach your other phones.
+              Sign in as <strong>{profile.email}</strong> to save it. Your logs are added to your account; this phone’s profile and settings replace the account’s.
+              Don’t log out first: that would erase this phone’s data.
+            </p>
+            <div className="ob-password" style={{ marginTop: '12px' }}>
+              <input type={showPassword ? 'text' : 'password'} required placeholder="Your password" value={resyncPassword} onChange={e => setResyncPassword(e.target.value)}
+                className="ob-input" aria-label="Password" autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="go" />
+              <button type="button" className="ob-password-toggle" onClick={() => setShowPassword(v => !v)} aria-pressed={showPassword}>{showPassword ? 'Hide' : 'Show'}</button>
+            </div>
+            {resyncError && <p className="ob-error" role="alert">{resyncError}</p>}
+            <div className="kx-confirm-actions kx-confirm-actions--stack">
+              <button type="submit" className="primary-btn" disabled={isResyncing || !resyncPassword}>{isResyncing ? 'Saving…' : 'Sign in and save'}</button>
+              <button type="button" className="modal-close-btn" onClick={closeResync} disabled={isResyncing}>Not now</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Log out found changes that haven't reached the account */}
+      {logoutUnsynced && (
+        <div className="portal-overlay-modal" onClick={() => setLogoutUnsynced(false)}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-unsynced-title" aria-describedby="kx-unsynced-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-unsynced-title" className="modal-title">Some changes haven’t saved yet</h3>
+            <p id="kx-unsynced-desc" className="modal-desc">Your latest changes haven’t reached your account, maybe because you’re offline. If you log out now, they’ll be lost. Connect to the internet and try again to keep them.</p>
+            <div className="kx-confirm-actions kx-confirm-actions--stack">
+              <button type="button" className="modal-close-btn" onClick={() => setLogoutUnsynced(false)} autoFocus>Stay signed in</button>
+              <button type="button" className="modal-close-btn" onClick={() => { setLogoutUnsynced(false); void handleLogout(); }}>Try again</button>
+              <button type="button" className="kx-danger-btn" onClick={() => { setLogoutUnsynced(false); void endSession({ flush: false, forgetAccount: false }); }}>Log out anyway</button>
             </div>
           </div>
         </div>

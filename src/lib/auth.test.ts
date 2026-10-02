@@ -1,6 +1,6 @@
 // Sign-up and log-in messages (src/lib/auth.ts): the cases Supabase is quiet about, and its errors in plain words.
 import { describe, expect, it } from 'vitest';
-import { alreadyRegistered, authErrorText, isRecoveryLink, linkErrorText } from './auth';
+import { alreadyRegistered, authErrorText, isRecoveryLink, linkErrorText, needsAccountSignIn, sameAccount, signOutThisPhone } from './auth';
 
 describe('sign-up', () => {
   it('knows when the email already had an account (Supabase sends nothing then)', () => {
@@ -48,5 +48,38 @@ describe('auth errors in plain words', () => {
     expect(authErrorText({ name: 'AuthSessionMissingError', message: 'Auth session missing!' }).text).toMatch(/reset link has expired/);
     expect(authErrorText({ message: 'Something odd' }).text).toBe('Something odd');
     expect(authErrorText({}).text).toMatch(/Something went wrong/);
+  });
+});
+
+describe('signOutThisPhone', () => {
+  it('ends only this phone’s session: supabase signOut() with no scope signs the account out of every phone', async () => {
+    const calls: unknown[] = [];
+    await signOutThisPhone({ signOut: async (options) => { calls.push(options); return { error: null }; } });
+    expect(calls).toEqual([{ scope: 'local' }]);
+  });
+});
+
+describe('needsAccountSignIn: logged in on the phone, but with no account session', () => {
+  const base = { loggedIn: true, configured: true, sessionChecked: true, hasSession: false };
+  it('is true when the phone says logged in and has no session: nothing it holds reaches the account', () => {
+    expect(needsAccountSignIn(base)).toBe(true);
+  });
+  it('is false with a session, before the session has been looked for, when logged out, or with no account service', () => {
+    expect(needsAccountSignIn({ ...base, hasSession: true })).toBe(false);
+    expect(needsAccountSignIn({ ...base, sessionChecked: false })).toBe(false);
+    expect(needsAccountSignIn({ ...base, loggedIn: false })).toBe(false);
+    expect(needsAccountSignIn({ ...base, configured: false })).toBe(false);
+  });
+});
+
+describe('sameAccount', () => {
+  it('compares emails ignoring case and spaces', () => {
+    expect(sameAccount('Siva@Test.dev', ' siva@test.dev ')).toBe(true);
+    expect(sameAccount('a@test.dev', 'b@test.dev')).toBe(false);
+  });
+  it('is false when either is missing', () => {
+    expect(sameAccount(null, 'a@test.dev')).toBe(false);
+    expect(sameAccount('a@test.dev', undefined)).toBe(false);
+    expect(sameAccount('', '')).toBe(false);
   });
 });

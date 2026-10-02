@@ -78,3 +78,28 @@ export function authErrorText(error: AuthErrorLike): { text: string; resend?: bo
   }
   return { text: error.message || 'Something went wrong. Please try again.' };
 }
+
+/**
+ * Ends this phone's session only. supabase.auth.signOut() with no scope is 'global': it also ends the account's
+ * sessions on every other phone, which then stop syncing without saying why. Logging out of one phone must not do that.
+ * (After a password change, signing out everywhere is still right, so that one keeps the plain call.)
+ */
+export function signOutThisPhone(auth: { signOut: (options: { scope: 'local' }) => Promise<unknown> }) {
+  return auth.signOut({ scope: 'local' });
+}
+
+/**
+ * The phone says it is logged in, but there is no account session behind that (an older build, or the session was lost).
+ * Everything it holds then stays on the phone: nothing is sent to the account, and logging out would wipe it. Such a
+ * phone must sign in again *without* logging out first.
+ */
+export function needsAccountSignIn(state: { loggedIn: boolean; configured: boolean; sessionChecked: boolean; hasSession: boolean }): boolean {
+  return state.loggedIn && state.configured && state.sessionChecked && !state.hasSession;
+}
+
+/** The same account, going by email (case and spaces ignored). False if either is missing. */
+export function sameAccount(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = a?.trim().toLowerCase();
+  const y = b?.trim().toLowerCase();
+  return !!x && x === y;
+}
