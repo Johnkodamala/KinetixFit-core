@@ -38,6 +38,17 @@ done once, in shared code.
   open/resume and after a promo (`src/lib/plusStatus.ts`; `plusFromServer` is now `boolean | null`, null = unknown); `redeem-promo` uses the session's
   email and refuses a body naming someone else (no session = old behaviour, for builds ≤1.8); `api/verify-license.js` deleted; logout calls
   `Purchases.logOut()`. 1,242 tests pass. **Deploy the server before any app build.** RevenueCat has **no iOS app yet** (needs the paid Apple account).
+- **2 Oct — Step 2 (account deletion) coded + committed, NOT deployed:** Account → Your data & privacy → **Delete account or data** (sheet: *delete my data,
+  keep my account* / *delete my account and all my data*, then a confirm dialog that says a store subscription is not cancelled). `api/delete-account.js`
+  (verified session only; `{mode:'account'|'data', confirm:true}`): Redis personal keys by email (`api/_lib/accountData.js`), RevenueCat subscriber DELETE
+  (account mode), then Postgres (13 tables by `user_id` in data mode; `auth.admin.deleteUser` cascade in account mode, last and only if nothing failed → retry-safe).
+  **Deliberately kept:** the short-lived anti-abuse counters (`scans:`, `voucher_count:`, `redemption_total:`, `donation_count:`, `earn_event_count:`,
+  `quest_award:`, `meal_scan_points_awarded:` — numbers only, ≤35 days) so delete + re-signup can't give a second voucher / fresh scans; `promo_used:<CODE>` stays
+  but the email is blanked. The phone is wiped only after the server says OK (`endSession` in App.tsx, shared with logout; also cancels reminders, clears widgets,
+  forgets `kinetix_onboarded_email`, `signOut({scope:'local'})`). `public/delete-account.html` at `/delete-account` is the web URL for Play's data-safety form.
+  Tested: 1,261 tests, browser check of the sheet/confirm/no-session path (mocked server). **Not tested:** the success path on a real phone with a throwaway
+  account (needs the server deployed) — check Supabase rows, `keys *<email>*` in Upstash, RevenueCat, then sign-in again after "keep my account".
+  The page's "backups overwritten within 30 days" line is an assumption — confirm against Supabase's plan.
 - **(Fixed in code 2 Oct, see above) Open bug — Plus doesn't show right after a promo:** the grant lands in RevenueCat, but the app only reads it through the RevenueCat SDK. The
   **iPhone has no `VITE_REVENUECAT_IOS_PUBLIC_KEY`**, so `Purchases` isn't configured and `refreshRevenueCatStatus()` returns early; the Android SDK's
   cached customer info showed "Free plan" until an app restart. Proposed fix (user hasn't said "go"): new authenticated `api/plus-status` (session → `isPlusUser`
@@ -1435,6 +1446,7 @@ api/                        # Vercel serverless functions (NOT bundled into the 
                             #   built from the CSVs), identify, nutrition, density, mealTotals, foodTable. "_" → Vercel skips it
   lookup-barcode.js         #   Open Food Facts: per100g, g/ml serving, pack size, liquid, allergens; default portion
   plus-status.js            #   the signed-in account's Plus plan (+ expiry) from RevenueCat; src/lib/plusStatus.ts calls it
+  delete-account.js         #   erases the signed-in person's data (mode account|data); helpers in _lib/accountData.js
   redeem-promo.js           #   promo codes, redemption tracked in Upstash Redis
   redeem-voucher.js, sync-health-data.js, complete-quest.js, donate-charity.js
   early-access.js           #   the website's early access list (Upstash Redis; honeypot, rate limit per hashed IP)

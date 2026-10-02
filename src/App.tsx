@@ -12,6 +12,7 @@ import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questCla
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
 import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
+import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
 import './lib/preferencesSync';
@@ -61,7 +62,7 @@ import {
 import MealResultCard, { type MealCard } from './components/MealResultCard';
 import { setupNotifications, styled, scheduleNotifications, nutritionAlert, reminderHours, hydrationNotifications, hydrationSnoozeNotification, cancelHydration, ACTION_SNOOZE, ACTION_ADD_GLASS, ACTION_CHECK_IN, NUTRITION_BASE_ID, gutReminderNotifications, cancelGutReminders, GUT_REMINDER_HOUR, streakReminderNotifications, cancelStreakReminders, STREAK_REMINDER_TIME } from './lib/notifications';
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
-import { updateWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
+import { updateWidgets, clearWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
 import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
 import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, avoidedThere, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
@@ -565,6 +566,11 @@ export default function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  // Account → Your data & privacy → Delete account or data: the choice sheet, then the confirmation for the chosen mode
+  const [showDeleteSheet, setShowDeleteSheet] = useState<boolean>(false);
+  const [deleteMode, setDeleteMode] = useState<DeleteMode | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isConnectingHealth, setIsConnectingHealth] = useState<boolean>(false);
   // Connect found no Health Connect on this Android phone: HealthConnectSheet explains and links to the Play Store
   const [healthConnectIssue, setHealthConnectIssue] = useState<HealthConnectProblem | null>(null);
@@ -2606,12 +2612,17 @@ export default function App() {
       });
   });
 
-  const handleLogout = async () => {
+  // Ends the session on this phone. Logging out syncs what is waiting first; deleting data does not (it would put the
+  // data back on the server) and also forgets the account here: reminders, widgets and "this account is onboarded".
+  const endSession = async ({ flush, forgetAccount }: { flush: boolean; forgetAccount: boolean }) => {
     if (isSupabaseConfigured) {
-      await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
-      await supabase.auth.signOut();
+      if (flush) await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
+      // 'local': a deleted account has no session left on the server to end, and there is nothing to wait for
+      await (forgetAccount ? supabase.auth.signOut({ scope: 'local' }) : supabase.auth.signOut()).catch(() => { /* wiped below anyway */ });
     }
+    if (forgetAccount) await clearDeviceReminders();
     clearAllDomainData();
+    if (forgetAccount) { localStorage.removeItem(ONBOARDED_EMAIL_KEY); clearWidgets(); }
     // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
     try {
       if (Capacitor.isNativePlatform() && (await Purchases.isConfigured()).isConfigured) await Purchases.logOut();
@@ -2633,6 +2644,21 @@ export default function App() {
     // here and would show the next account the last one's numbers until the app restarted. A reload starts from the
     // wiped storage, so nothing can carry over.
     window.location.reload();
+  };
+
+  const handleLogout = () => endSession({ flush: true, forgetAccount: false });
+
+  // Deleting: the server goes first. Only when it has deleted everything is the phone wiped, so a failure loses nothing.
+  const performDeletion = async (mode: DeleteMode) => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    const result = await requestDeletion(mode);
+    if (!result.ok) {
+      setDeleteError(result.message);
+      setIsDeleting(false);
+      return;
+    }
+    await endSession({ flush: false, forgetAccount: true });
   };
 
   // Restore/track the real Supabase session. If a session already exists (e.g. the app was
@@ -3534,6 +3560,7 @@ export default function App() {
   useBackHandler(showCameraModal, () => setShowCameraModal(false));
   useBackHandler(showDeviceSyncModal, () => setShowDeviceSyncModal(false));
   useBackHandler(showLogoutConfirm, () => setShowLogoutConfirm(false));
+  useBackHandler(deleteMode !== null, () => { if (!isDeleting) setDeleteMode(null); });
   useBackHandler(showNoStressNotice, () => dismissNoStressNotice());
   useBackHandler(showLevelUpModal, () => {});
 
@@ -5528,6 +5555,12 @@ export default function App() {
                       <ChevronIcon className="kx-row-chevron" />
                     </a>
                   </div>
+                  <div className="kx-rows kx-rows-menu">
+                    <button type="button" className="kx-row kx-row-danger" onClick={() => { setDeleteError(null); setShowDeleteSheet(true); }} aria-haspopup="dialog">
+                      <span className="kx-row-label">Delete account or data</span>
+                      <ChevronIcon className="kx-row-chevron" />
+                    </button>
+                  </div>
                 </>
               )}
 
@@ -5711,6 +5744,42 @@ export default function App() {
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setShowLogoutConfirm(false)} autoFocus>Cancel</button>
               <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account or data: choose, then confirm */}
+      <Sheet open={showDeleteSheet} title="Delete account or data" onClose={() => setShowDeleteSheet(false)}>
+        <p className="legal-card-text">Choose what to delete. This can’t be undone, and we can’t recover it afterwards.</p>
+        <div className="kx-rows kx-rows-menu">
+          <button type="button" className="kx-row" onClick={() => { setShowDeleteSheet(false); setDeleteError(null); setDeleteMode('data'); }}>
+            <span className="kx-row-label">Delete my data, keep my account</span>
+            <ChevronIcon className="kx-row-chevron" />
+          </button>
+          <button type="button" className="kx-row kx-row-danger" onClick={() => { setShowDeleteSheet(false); setDeleteError(null); setDeleteMode('account'); }}>
+            <span className="kx-row-label">Delete my account and all my data</span>
+            <ChevronIcon className="kx-row-chevron" />
+          </button>
+        </div>
+        <p className="legal-card-text">Keeping your account means you can log in again with the same email and start fresh. Deleting it means you’d need to sign up again.</p>
+      </Sheet>
+      {deleteMode && (
+        <div className="portal-overlay-modal" onClick={() => { if (!isDeleting) setDeleteMode(null); }}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-delete-title" aria-describedby="kx-delete-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-delete-title" className="modal-title">{deleteMode === 'account' ? 'Delete your account and all your data?' : 'Delete all your data?'}</h3>
+            <p id="kx-delete-desc" className="modal-desc">
+              {deleteMode === 'account'
+                ? 'Your account, profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. You’ll need to sign up again to use Kinetix Fit.'
+                : 'Your profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. Your account stays, so you can log in again and start fresh.'}
+              {' '}If you pay for Kinetix Fit Plus, this doesn’t cancel it: cancel in your App Store or Google Play subscriptions.
+            </p>
+            {deleteError && <p className="promo-response-msg response-error" role="alert">{deleteError}</p>}
+            <div className="kx-confirm-actions">
+              <button type="button" className="modal-close-btn" onClick={() => setDeleteMode(null)} disabled={isDeleting} autoFocus>Cancel</button>
+              <button type="button" className="kx-danger-btn" onClick={() => void performDeletion(deleteMode)} disabled={isDeleting}>
+                {isDeleting ? 'Deleting…' : deleteMode === 'account' ? 'Delete account' : 'Delete data'}
+              </button>
             </div>
           </div>
         </div>
