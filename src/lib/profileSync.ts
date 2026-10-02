@@ -39,14 +39,22 @@ registerSingleton<UserProfile | null>({
       diet: p.diet,
     };
   },
-  fromRemote: (row) => ({
+  fromRemote: (row) => profileFromRemote(row) as UserProfile,
+});
+
+/**
+ * The account's profile row as the phone's profile. Which health app is connected (`smart_device_connected`) is left
+ * out on purpose: it describes one phone (Health Connect on Android, Apple Health on iPhone), so pulling it would make
+ * a second phone claim a connection it never made. The column is still written, so nothing else about the row changes.
+ */
+export function profileFromRemote(row: Record<string, unknown>): Omit<UserProfile, 'email' | 'smartDeviceConnected'> {
+  return {
     name: row.name as string,
     height: row.height as number,
     weight: row.weight as number,
     target: row.target as UserProfile['target'],
     personalAllergens: (row.personal_allergens as string[]) ?? [],
     workoutsLogged: (row.workouts_logged as string[]) ?? [],
-    smartDeviceConnected: row.smart_device_connected as string | null,
     wearable: row.wearable as UserProfile['wearable'],
     sex: row.sex as UserProfile['sex'],
     age: row.age as number,
@@ -56,8 +64,8 @@ registerSingleton<UserProfile | null>({
     region: row.region as string | null,
     country: row.country as UserProfile['country'],
     diet: row.diet as UserProfile['diet'],
-  } as UserProfile),
-});
+  };
+}
 
 /** Call right after `kinetix_profile` is written (saveProfileToStorage / patchProfile). */
 export function noteProfileChanged() {

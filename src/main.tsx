@@ -15,6 +15,7 @@ import './styles/widgets.css' // Account → Widgets / App icon, the streak card
 import './styles/responsive.css' // last: adapts everything above to small, short, landscape and tablet screens
 import App from './App.tsx'
 import LaunchIntro from './components/LaunchIntro.tsx'
+import ErrorBoundary from './components/ErrorBoundary.tsx'
 import { applyTheme, followSystemTheme } from './lib/theme'
 import { setupKeyboard } from './lib/keyboard'
 
@@ -40,7 +41,9 @@ if (Capacitor.isNativePlatform()) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
     <LaunchIntro />
   </StrictMode>,
 )

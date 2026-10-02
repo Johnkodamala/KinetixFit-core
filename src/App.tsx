@@ -48,7 +48,9 @@ import FoodEntrySheet, { ExtrasPicker } from './components/FoodEntrySheet';
 import FoodHistorySheet from './components/FoodHistorySheet';
 import ScanProgress, { type ScanKind } from './components/ScanProgress';
 import NutritionMeters from './components/NutritionMeters';
-import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, savedOnboardingStep, saveOnboardingStep, clearOnboardingStep } from './lib/onboarding';
+import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, profileShowsOnboarded, savedOnboardingStep, saveOnboardingStep, clearOnboardingStep } from './lib/onboarding';
+import { healthSourceName, ownHealthSource } from './lib/healthSources';
+import { supportEmailBody } from './lib/support';
 import { handleBack, useBackHandler } from './lib/backButton';
 import { DIET_OPTIONS, dietLabel, checkFood, checkProduct, dietNote, isVegetarian, type Diet } from './lib/diet';
 import { GUT_FEELS, SYMPTOMS, PLANTS_GOAL, feelLabel, symptomLabel, loadGutChecks, saveGutCheck, gutReportStatus, reportProgressText, reportDays, buildGutReport, type GutChecks, type GutFeel, type SymptomId } from './lib/gut';
@@ -553,6 +555,8 @@ export default function App() {
     if (saved) {
       try {
         const loaded: UserProfile = { ...DEFAULT_PROFILE, ...JSON.parse(saved) };
+        // "Connected to Health Connect" can have come from an Android phone signed in to the same account: not this phone's
+        loaded.smartDeviceConnected = ownHealthSource(loaded.smartDeviceConnected, Capacitor.getPlatform());
         setActiveCountry(countryOf(loaded));
         return loaded;
       } catch (e) {
@@ -2081,7 +2085,7 @@ export default function App() {
   // Optional description typed in the scan window: sent with a photo (helps the AI), kept as the logged food's note.
   const [scanNote, setScanNote] = useState('');
   // Saved foods matching what's being typed, and the most recent ones — logged again without a lookup.
-  const typoVocab = useMemo(() => typoVocabulary(savedFoods.map(f => f.name)), [savedFoods]);
+  const typoVocab = useMemo(() => typoVocabulary(Object.values(savedFoods).map(f => f.name)), [savedFoods]);
   const typedMatches = useMemo(() => searchFoods(savedFoods, parseTypedPortion(mealInput).name), [savedFoods, mealInput]);
   const recent = useMemo(() => recentFoods(savedFoods), [savedFoods]);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
@@ -2600,6 +2604,9 @@ export default function App() {
         const pulled = readLocalProfile();
         const withEmail = { ...profile, ...pulled, email, name: (pulled?.name || profile.name) || email.split('@')[0] };
         saveProfileToStorage(withEmail);
+        // An account that finished onboarding on another phone has its answers in the profile it just pulled: this phone
+        // goes straight to Today (Health and reminders are asked there, in context) instead of asking everything again.
+        if (!hasOnboarded(email) && profileShowsOnboarded(pulled)) markOnboarded(email);
         const onboarded = hasOnboarded(email);
         continueAfterSignIn(onboarded, email);
         // quests this account already claimed today, from a phone or a session this one knows nothing about
@@ -3377,7 +3384,7 @@ export default function App() {
         return;
       }
 
-      const sourceName = Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect';
+      const sourceName = healthSourceName(Capacitor.getPlatform());
       saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
       setShowDeviceSyncModal(false);
       notify('success', `Connected to ${sourceName}. Your data can take a moment to appear.`);
@@ -3507,7 +3514,7 @@ export default function App() {
 
   // Nothing is sent from the app itself: this opens the person's own email app with the message ready, so what was
   // written, and who it came from, is theirs to see and send.
-  const handleSendContact = (e: React.FormEvent) => {
+  const handleSendContact = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = contactName.trim();
     const message = contactMsg.trim();
@@ -3516,7 +3523,11 @@ export default function App() {
       return;
     }
     const subject = encodeURIComponent(`Kinetix Fit support: ${name}`);
-    const body = encodeURIComponent(`${message}\n\n${name}`);
+    // which app version and phone, so a report says what it came from (the person sees and sends the email themselves)
+    let app: string | undefined;
+    try { if (Capacitor.isNativePlatform()) { const info = await CapacitorApp.getInfo(); app = `${info.version} (${info.build})`; } } catch { /* no version: the email just leaves it out */ }
+    const model = (navigator.userAgent.match(/\b(SM-[A-Z0-9]+|Pixel [0-9A-Za-z ]+?)(?=[;)])/) ?? [])[1];
+    const body = encodeURIComponent(supportEmailBody(message, name, { app, platform: Capacitor.getPlatform(), model }));
     window.location.href = `mailto:info@kinetixfit.co.uk?subject=${subject}&body=${body}`;
     setContactSuccess(true);
     setContactName('');
@@ -4163,7 +4174,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <p className="kx-card-sub">Two taps. It stays on your phone.</p>
+                    <p className="kx-card-sub">Two taps. Saved to your account when you sign in.</p>
                     {watchSleepHours !== null ? (
                       <p className="kx-checkin-watch">Your watch recorded <strong>{watchSleepHours} h</strong> of sleep.</p>
                     ) : (
@@ -4242,7 +4253,7 @@ export default function App() {
                         ? <>For yesterday, all day. <button type="button" className="ob-link kx-gut-yesterday" onClick={() => { setGutDraft(null); setGutForYesterday(false); }}>Back to today</button></>
                         : new Date().getHours() < 17
                           ? `Best in the evening — it’s about your whole day.${gutReminderOn && Capacitor.isNativePlatform() ? ` We’ll remind you at ${formatHour(GUT_REMINDER_HOUR)}.` : ''}`
-                          : 'One tap for today. It stays on your phone.'}
+                          : 'One tap for today. Saved to your account when you sign in.'}
                     </p>
                     {!todayGut && !gutDraft && !gutForYesterday && canLogYesterdaysGut && (
                       <button type="button" className="ob-link kx-gut-yesterday" onClick={() => setGutForYesterday(true)}>Missed last night? Add yesterday’s</button>
@@ -4609,7 +4620,7 @@ export default function App() {
                   {gutReport.seeDoctor ? 'Your gut has troubled you on most days this week. ' : ''}
                   See a doctor if changes in your gut last 3 weeks or more, or if you notice blood in your poo, weight loss you can’t explain or severe pain.
                 </p>
-                <p className="kx-gut-note">General food ideas, not medical advice. Your gut check-ins stay on your phone.</p>
+                <p className="kx-gut-note">General food ideas, not medical advice. Your gut check-ins are saved to your account when you sign in.</p>
               </div>
             )}
           </Sheet>
@@ -5498,7 +5509,7 @@ export default function App() {
                       <strong className="kx-plan-price">
                         {plusPackage
                           ? <>{plusPackage.product.priceString}{plusPackage.packageType === 'MONTHLY' && <small> / month</small>}{plusPackage.packageType === 'ANNUAL' && <small> / year</small>}</>
-                          : country.code === 'GB' ? <>£14.99<small> / month</small></> : <small>Price shown in the store</small>}
+                          : <small>Price shown in the store</small>}
                       </strong>
                       <ul>
                         {PLUS_BENEFITS.map(b => <li key={b}>{b}</li>)}

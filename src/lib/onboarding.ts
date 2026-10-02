@@ -46,6 +46,16 @@ export function markOnboarded(email: string) {
   write(PROGRESS_KEY, null);
 }
 
+/**
+ * Whether a synced profile shows the account already finished onboarding, on this phone or another. The marker above
+ * only lives on the phone that finished, so a second phone signing in to the same account used to walk through About
+ * you and Your food again. Finish is disabled until "what do you eat" is answered, and that answer syncs with the
+ * profile, so a name plus a diet means the whole of onboarding was completed somewhere.
+ */
+export function profileShowsOnboarded(profile: { name?: unknown; diet?: unknown } | null | undefined): boolean {
+  return !!profile && typeof profile.name === 'string' && profile.name.trim() !== '' && !!profile.diet;
+}
+
 /** The step this account had reached, or null (none saved, another account's, or out of range). */
 export function savedOnboardingStep(email: string | null | undefined): number | null {
   if (!email) return null;

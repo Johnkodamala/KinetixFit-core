@@ -33,3 +33,14 @@ export function primarySourceLabel(samples: { sourceId?: string }[]): string | n
 export function isSamsungDevice(): boolean {
   return /\bSM-[A-Z0-9]+|samsung/i.test(navigator.userAgent);
 }
+
+/** What this kind of phone reads health data from: the name stored in the profile's "connected" field. */
+export function healthSourceName(platform: string): string {
+  return platform === 'ios' ? 'Apple Health' : 'Health Connect';
+}
+
+/** A stored "connected to …" only counts on the phone it was made on: Apple Health means nothing on Android, and the reverse. */
+export function ownHealthSource(stored: string | null, platform: string): string | null {
+  if (!stored || (platform !== 'ios' && platform !== 'android')) return stored;
+  return stored === healthSourceName(platform) ? stored : null;
+}
