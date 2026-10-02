@@ -59,6 +59,7 @@ import {
   foodFromScanItem, extrasFromNoteExcept, mealCount, newId, splitTypedMeal, GRAMS, ML,
   ZERO, foodTitle, extrasText, withExtra, extrasFromNote, type FoodDays, type LogEntry, type SavedFood, type ScanPayload, type ScanItem, type FoodSource, type TypedPortion, type Nutrients, type Portion,
 } from './lib/foodLog';
+import { suggestionFor, typoVocabulary } from './lib/foodSuggest';
 import MealResultCard, { type MealCard } from './components/MealResultCard';
 import { setupNotifications, styled, scheduleNotifications, nutritionAlert, reminderHours, hydrationNotifications, hydrationSnoozeNotification, cancelHydration, ACTION_SNOOZE, ACTION_ADD_GLASS, ACTION_CHECK_IN, NUTRITION_BASE_ID, gutReminderNotifications, cancelGutReminders, GUT_REMINDER_HOUR, streakReminderNotifications, cancelStreakReminders, STREAK_REMINDER_TIME } from './lib/notifications';
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
@@ -2074,10 +2075,13 @@ export default function App() {
 
   // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
+  // "Did you mean avocado?" — asked instead of searching when a typed food looks like a typo of one we know
+  const [typoAsk, setTypoAsk] = useState<{ typed: string; name: string; corrected: string } | null>(null);
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
   // Optional description typed in the scan window: sent with a photo (helps the AI), kept as the logged food's note.
   const [scanNote, setScanNote] = useState('');
   // Saved foods matching what's being typed, and the most recent ones — logged again without a lookup.
+  const typoVocab = useMemo(() => typoVocabulary(savedFoods.map(f => f.name)), [savedFoods]);
   const typedMatches = useMemo(() => searchFoods(savedFoods, parseTypedPortion(mealInput).name), [savedFoods, mealInput]);
   const recent = useMemo(() => recentFoods(savedFoods), [savedFoods]);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
@@ -2995,10 +2999,11 @@ export default function App() {
     notify('success', `+${amount} points for today's first scan`);
   };
 
-  const handleMealScan = async (inputStr?: string) => {
+  const handleMealScan = async (inputStr?: string, asTyped = false) => {
     const activeInput = inputStr || mealInput;
     const userInput = activeInput.trim();
     if (!userInput) return;
+    setTypoAsk(null);
 
     // "2 slices of bread": the amount stays on the phone, only the food's name is looked up
     const typed = parseTypedPortion(userInput);
@@ -3015,6 +3020,9 @@ export default function App() {
     // "muesli with milk and banana", "2 roti and dal": several foods, split on the phone and logged as one meal
     const parts = splitTypedMeal(userInput, savedFoods);
     if (parts) { await logTypedMeal(userInput, parts); return; }
+    // Looks like a typo of a food we know: ask first. A database search can match a misspelling to a branded product.
+    const maybe = asTyped ? null : suggestionFor(userInput, typoVocab);
+    if (maybe) { setTypoAsk({ typed: userInput, ...maybe }); return; }
 
     setIsScanLoading(true);
     startScanFx('text');
@@ -4835,7 +4843,7 @@ export default function App() {
                     placeholder="Search a food"
                     aria-label="Food to check"
                     value={mealInput}
-                    onChange={(e) => setMealInput(e.target.value)}
+                    onChange={(e) => { setMealInput(e.target.value); setTypoAsk(null); }}
                     className="kx-search-input"
                     enterKeyHint="search"
                     autoCapitalize="none"
@@ -4847,6 +4855,14 @@ export default function App() {
                     </button>
                   )}
                 </form>
+
+                {typoAsk && (
+                  <div className="kx-did-you-mean" role="status">
+                    <span>Did you mean <strong>{typoAsk.name}</strong>?</span>
+                    <button type="button" className="kx-chip kx-chip-sm" onClick={() => { setMealInput(typoAsk.corrected); handleMealScan(typoAsk.corrected); }}>Yes</button>
+                    <button type="button" className="kx-chip kx-chip-sm" onClick={() => handleMealScan(typoAsk.typed, true)}>No, search “{typoAsk.typed}”</button>
+                  </div>
+                )}
 
                 {typedMatches.length > 0 && (
                   <div className="kx-food-matches" aria-label="Your foods">
