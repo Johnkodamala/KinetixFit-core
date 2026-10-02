@@ -51,6 +51,9 @@ import NutritionMeters from './components/NutritionMeters';
 import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, profileShowsOnboarded, savedOnboardingStep, saveOnboardingStep, clearOnboardingStep } from './lib/onboarding';
 import { healthSourceName, ownHealthSource } from './lib/healthSources';
 import { supportEmailBody } from './lib/support';
+import { rememberPlus } from './lib/plusBadge';
+import PlusBadge from './components/PlusBadge';
+import PlusCelebration from './components/PlusCelebration';
 import { handleBack, useBackHandler } from './lib/backButton';
 import { DIET_OPTIONS, dietLabel, checkFood, checkProduct, dietNote, isVegetarian, type Diet } from './lib/diet';
 import { GUT_FEELS, SYMPTOMS, PLANTS_GOAL, feelLabel, symptomLabel, loadGutChecks, saveGutCheck, gutReportStatus, reportProgressText, reportDays, buildGutReport, type GutChecks, type GutFeel, type SymptomId } from './lib/gut';
@@ -2246,6 +2249,10 @@ export default function App() {
   // whatever they were last told, so the Plus ones don't flash "locked" on every start.
   const planKnown = customerInfo !== null || plusFromServer !== null;
   const widgetPlus = planKnown ? isPlus : undefined;
+  // so the opening screen can say PLUS next time, before the plan has been asked for again
+  useEffect(() => { if (planKnown) rememberPlus(isPlus); }, [planKnown, isPlus]);
+  // the celebration after Plus starts (a purchase or a promo code); restoring an old purchase is not new, so it gets none
+  const [showPlusCelebration, setShowPlusCelebration] = useState<boolean>(false);
   const widgetPrefsFlat = JSON.stringify(flattenPrefs(widgetPrefs));
   useEffect(() => {
     if (!isLoggedIn || onboardingStep < DASHBOARD_STEP) return;
@@ -2396,7 +2403,7 @@ export default function App() {
       const { customerInfo: info } = await Purchases.purchasePackage({ aPackage: plusPackage });
       setCustomerInfo(info);
       await refreshRevenueCatStatus();
-      if (info.entitlements.active[PLUS_ENTITLEMENT]) notify('success', 'Welcome to Kinetix Fit Plus.');
+      if (info.entitlements.active[PLUS_ENTITLEMENT]) setShowPlusCelebration(true);
     } catch (err) {
       if ((err as { userCancelled?: boolean | null })?.userCancelled) return;
       notify('error', 'The purchase didn’t go through. You haven’t been charged — try again.');
@@ -3469,6 +3476,7 @@ export default function App() {
     const code = promoCodeInput.trim();
     if (!code || !profile.email) return;
 
+    const wasPlus = isPlus; // a code on top of Plus you already have is not a first start: no celebration
     setIsRedeemingPromo(true);
     try {
       // The session tells the server whose account the code is for (older servers ignore the header).
@@ -3489,6 +3497,7 @@ export default function App() {
         : '30 days of Kinetix Fit Plus are now active.' });
       // Ask the server too: the phone's RevenueCat SDK may not exist (iPhone without its key) or may still hold the old plan.
       await Promise.all([refreshRevenueCatStatus(), refreshPlusFromServer()]);
+      if (!wasPlus) setShowPlusCelebration(true);
     } catch {
       setPromoMessage({ tone: 'error', text: 'Could not reach the server to check your code. Try again.' });
     } finally {
@@ -3612,7 +3621,7 @@ export default function App() {
     return (
       <>
         <div>
-          <p className="kx-hero-eyebrow">{today}</p>
+          <p className="kx-hero-eyebrow">{today}{isPlus && <PlusBadge />}</p>
           <h2 className="kx-hero-greeting">
             {timeGreeting},<br /><em>{profile.name.trim().split(/\s+/)[0] || 'there'}</em>
           </h2>
@@ -3660,6 +3669,7 @@ export default function App() {
   useBackHandler(showDeviceSyncModal, () => setShowDeviceSyncModal(false));
   useBackHandler(showLogoutConfirm, () => setShowLogoutConfirm(false));
   useBackHandler(logoutUnsynced, () => setLogoutUnsynced(false));
+  useBackHandler(showPlusCelebration, () => setShowPlusCelebration(false));
   useBackHandler(showAiIdeasConsent, () => setShowAiIdeasConsent(false));
   useBackHandler(deleteMode !== null, () => { if (!isDeleting) setDeleteMode(null); });
   useBackHandler(showNoStressNotice, () => dismissNoStressNotice());
@@ -5300,9 +5310,9 @@ export default function App() {
           {activeTab === 'account' && accountPage === null && (
             <div className="tab-fade-in kx-account">
               <div className="kx-account-head">
-                <span className="kx-avatar" aria-hidden="true">{(profile.name || accountEmail || 'K').trim().charAt(0).toUpperCase()}</span>
+                <span className={`kx-avatar${isPlus ? ' is-plus' : ''}`} aria-hidden="true">{(profile.name || accountEmail || 'K').trim().charAt(0).toUpperCase()}</span>
                 <div className="kx-account-id">
-                  <h2 className="kx-account-name">{profile.name || 'Your account'}</h2>
+                  <h2 className="kx-account-name">{profile.name || 'Your account'}{isPlus && <PlusBadge />}</h2>
                   {accountEmail && <p className="kx-account-email">{accountEmail}</p>}
                 </div>
               </div>
@@ -5862,6 +5872,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Plus has just started */}
+      {showPlusCelebration && <PlusCelebration onClose={() => setShowPlusCelebration(false)} />}
 
       {/* A phone logged in with no account session: sign in to save its data, without logging out first */}
       {showResync && (

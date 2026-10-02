@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { applyTheme } from '../lib/theme';
+import { readPlusKnown } from '../lib/plusBadge';
 
 // The ~2s opening sequence, played once per session (every cold start in the native apps, once per
 // visit on the website). The screen is five running lanes: their lines draw in, the infinity mark
@@ -29,6 +30,8 @@ function setBarIcons(style: SystemBarsStyle) {
 }
 
 export default function LaunchIntro() {
+  // an account that was on Plus last time opens with PLUS under the wordmark (the plan itself is only asked for later)
+  const [plus] = useState<boolean>(readPlusKnown);
   const [phase, setPhase] = useState<Phase>(() =>
     document.documentElement.dataset.intro === 'run' ? 'run' : 'done'
   );
@@ -70,6 +73,7 @@ export default function LaunchIntro() {
           <path className="kx-intro-runner" d={MARK_PATH} pathLength={1} />
         </svg>
         <span className="kx-intro-word">KINETIX FIT</span>
+        {plus && <span className="kx-intro-plus">PLUS</span>}
       </div>
     </div>
   );

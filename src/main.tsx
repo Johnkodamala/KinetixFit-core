@@ -11,6 +11,7 @@ import './styles/about-you.css'
 import './styles/intro.css'
 import './styles/today.css'
 import './styles/glass.css' // the liquid-glass layer restyles surfaces defined above
+import './styles/plus.css' // the gold PLUS label, the opening screen's PLUS and the celebration
 import './styles/widgets.css' // Account → Widgets / App icon, the streak card, the workout sheet's extras
 import './styles/responsive.css' // last: adapts everything above to small, short, landscape and tablet screens
 import App from './App.tsx'
