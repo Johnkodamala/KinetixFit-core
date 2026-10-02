@@ -1,0 +1,190 @@
+/* Plus: the gold PLUS label, the Plus avatar ring, PLUS on the opening screen, and the celebration after Plus starts. */
+:root {
+  --plus-gold: #E9A63B;
+  --plus-gold-hi: #F8D582;
+  --plus-gold-ink: #3A2606; /* text on the gold */
+}
+
+/* --- the label --- */
+.kx-plus-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px 2px 9px;
+  border-radius: var(--r-pill, 999px);
+  background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
+  color: var(--plus-gold-ink);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  vertical-align: middle;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 2px 8px rgba(233, 166, 59, 0.35);
+}
+/* beside the date at the top of Today */
+.kx-hero-eyebrow .kx-plus-badge { margin-left: 10px; }
+/* beside the name in Account */
+.kx-account-name .kx-plus-badge { margin-left: 8px; font-size: 9px; }
+.kx-account-name { overflow: visible; }
+.kx-avatar.is-plus {
+  background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
+  color: var(--plus-gold-ink);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--plus-gold), 0 4px 14px rgba(233, 166, 59, 0.35);
+}
+
+/* --- the opening screen --- */
+.kx-intro-plus {
+  margin-top: -12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(11px, 3vw, 14px);
+  letter-spacing: 0.5em;
+  margin-right: -0.5em;
+  color: var(--plus-gold);
+  animation: kx-intro-plus 600ms var(--ease-out) 1000ms both;
+}
+@keyframes kx-intro-plus {
+  from { opacity: 0; transform: translateY(6px); letter-spacing: 0.9em; }
+  to   { opacity: 1; transform: none; letter-spacing: 0.5em; }
+}
+
+/* --- the celebration --- */
+.kx-plus-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, #0B0C10 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: kx-fade var(--dur) var(--ease-out) both;
+  overflow: hidden;
+}
+.kx-plus-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 30px 24px 24px;
+  border-radius: 30px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--plus-gold) 55%, transparent), 0 0 60px rgba(233, 166, 59, 0.25);
+  text-align: center;
+  animation: kx-plus-pop 620ms var(--ease-spring, cubic-bezier(0.2, 1.3, 0.4, 1)) 120ms both;
+}
+.kx-plus-mark {
+  width: 124px;
+  height: auto;
+  overflow: visible;
+  margin: 0 auto 6px;
+  display: block;
+  filter: drop-shadow(0 0 14px rgba(233, 166, 59, 0.55));
+}
+.kx-plus-mark path {
+  stroke: var(--plus-gold);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1 1;
+  animation: kx-intro-trace 1100ms cubic-bezier(0.65, 0, 0.35, 1) 250ms both;
+}
+.kx-plus-kicker {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 3px 12px 3px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
+  color: var(--plus-gold-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+}
+.kx-plus-title {
+  margin: 14px 0 6px;
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.kx-plus-sub { margin: 0 0 14px; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+.kx-plus-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.kx-plus-list li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.kx-plus-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
+}
+.kx-plus-list li::after {
+  content: '';
+  position: absolute;
+  left: 6.5px;
+  top: 6px;
+  width: 4px;
+  height: 7px;
+  border: solid var(--plus-gold-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.kx-plus-cta { width: 100%; }
+
+/* confetti: bursts from the middle of the screen, each piece at its own angle (set inline) */
+/* in front of the card, so the pieces fly across it and out past its edges */
+.kx-plus-confetti { position: absolute; left: 50%; top: 42%; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.kx-plus-piece {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: kx-plus-burst 1500ms cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay, 0ms) both;
+}
+.kx-plus-piece-0 { background: var(--plus-gold); }
+.kx-plus-piece-1 { background: var(--plus-gold-hi); }
+.kx-plus-piece-2 { background: var(--accent); }
+.kx-plus-piece-3 { background: #F4F3EE; width: 8px; height: 8px; border-radius: 50%; }
+
+@keyframes kx-plus-pop {
+  from { transform: scale(0.82) translateY(24px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+@keyframes kx-plus-burst {
+  0%   { opacity: 0; transform: rotate(var(--angle)) translateX(0) rotate(0deg); }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--angle)) translateX(var(--distance)) translateY(120px) rotate(var(--spin)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kx-plus-confetti { display: none; }
+  .kx-plus-card, .kx-plus-mark path, .kx-intro-plus { animation: none; }
+}
