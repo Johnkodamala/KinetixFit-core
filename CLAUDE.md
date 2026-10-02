@@ -14,17 +14,14 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-10-03, ~01:00) — READ THIS FIRST in a new conversation
+## Current status (2026-10-03, ~02:45) — READ THIS FIRST in a new conversation
 
 **Where we are.** The Android app is a few steps from Play internal testing; the user is working through the Play Console in parallel. A store-readiness plan
-(`~/.claude/plans/go-ahead-with-step-sequential-truffle.md`) was agreed and **steps 1-4 are done, committed and NOT pushed or deployed; step 5 (answer sheet) is next**.
+(`~/.claude/plans/go-ahead-with-step-sequential-truffle.md`) was agreed and **steps 1-4 are done, merged (PR #7) and deployed (3 Oct); step 5 (answer sheet) is next**.
 The user works one reviewable step per "go": tests pin old behaviour first, then the change, then a report of files / behaviour changes / limits, then wait. Plain-text
 questions, not the AskUserQuestion widget. Only commit / push when asked; the user merges PRs on GitHub (`gh pr merge` is blocked); production deploys and secrets are the user's.
 
-**Git:** branch `chore/v1.8`, 11 commits on top of `main` (`208d4a8`) — **pushed to origin on 3 Oct, no PR yet**: `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
-`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9, `b9045a6` £2.50 voucher (E2) + ICO number removed (E9) + CycleCard copy, `195ae1d` CLAUDE.md, `ed703f1` typed-food "Did you mean…?" (E8 light), `f7dc1f0` CLAUDE.md, `18fdfec` pre-submission fixes (below), and the CLAUDE.md commit after it. To ship: push → PR into `main` → wait for the Vercel preview →
-the user merges → production deploys the server (`api/plus-status`, `api/delete-account`, `redeem-promo` changes, `/delete-account` page, the new policy/terms). **Server before app**
-(an app build that calls `plus-status` / `delete-account` before they exist just gets 404 and keeps working, but deletion would say "not available yet").
+**Git:** PR #7 (`chore/v1.8`: store-readiness steps 1-4, E2, E9, E8-light, the pre-submission pass) was **merged into `main` and deployed on 3 Oct** (checked live: `/api/plus-status` and `/api/delete-account` answer 401 instead of 404, the policy/terms/delete pages are 200, the ICO number is gone, the site says £2.50). Work after that is on branch **`fix/sync-safety`** (PR raised 3 Oct, the user merges): multi-device sync safety, see the next block. Branch from `main` for anything new; `chore/v1.8` is finished.
 
 **3 Oct additions (commit `18fdfec`, pre-submission pass).**
 - **`tsc --noEmit -p .` checks nothing here (solution-style tsconfig); use `npx tsc -b` (what `npm run build` runs).** The typo-prompt commit `ed703f1` had a type error (`savedFoods` is a `Record`, not an array) that only `18fdfec` fixes — never build from `ed703f1` alone.
@@ -37,11 +34,21 @@ the user merges → production deploys the server (`api/plus-status`, `api/delet
 - Get help email now ends with app version / platform / model (`src/lib/support.ts`); the "Did you mean" buttons are on one row.
 - Ideas deferred until after the first release: an offline banner, an in-app "Rate us" prompt (needs a plugin), privacy-safe usage counts (typo-prompt acceptance etc. — needs a policy change), R8 minification (`minifyEnabled false` today; needs full device testing + keep rules).
 
+**3 Oct night: multi-device sync safety (branch `fix/sync-safety`).** Found while the user used one account on an iPhone and the S21 FE and worried about losing data on logout.
+- **The app pulls from the account only at login** (`syncAllOnLogin`, reached from `syncThenContinue`). Opening / foreground / reconnect only *push* (`flushOutbox`). So a second phone doesn't see the first one's new entries until it logs out and in. **Next: pull on app open** (merge rules already exist: `pullKeyed` / `pullSingleton`).
+- **`supabase.auth.signOut()` is global by default** (ends the account's session on every phone). Logout and "Back to log in" now use `signOutThisPhone()` (`src/lib/auth.ts`, scope `local`); the password-change sign-out stays global on purpose.
+- **Logout guard.** `handleLogout` flushes, then asks `unsyncedDomains()` (`src/lib/sync.ts`); anything left shows "Some changes haven't saved yet" (Stay signed in / Try again / Log out anyway, stacked buttons, `kx-confirm-actions--stack`). `unsyncedDomains()` counts dirty domains that hold something **and** keyed domains never fully backfilled; `flushOutbox()` now also retries those (`pushAllKeyed`, then marks them backfilled). A flush also runs at launch when a session exists. The normal confirm text says logs / progress / points are safe in the account and reminder settings reset.
+- **A phone can be "logged in" with no account session** (the iPhone, from an older build: ~6 days of food / water / check-ins / vitals / profile never uploaded, Plus never checked). `needsAccountSignIn()` shows a "Save your data to your account" sheet (and an Account row "Sign in to save your data"); `handleResync` signs in as the profile's email (refuses a different account), runs `syncKeepingThisPhone()` (this phone's profile + preferences **replace** the account's; logs and check-ins are merged, this phone's records first), then reloads and shows a message left in `sessionStorage` `kx_flash`. Logging out in that state opens this sheet instead of the dead-end dialog. **Never log such a phone out first: it wipes the only copy.**
+- **Bug fixed: the iPhone widget's drink times carry a fraction** (`1790528200246.793`) and `water_logs.at` is a `bigint`, so the server refused the whole water log (43 of 65 entries) and logout stayed blocked. `withDrinks` now floors times and `waterSync.toRemote` sends `at: Math.floor(...)` (ids keep the stored string, so drinks stay the same everywhere).
+- **Checked on the iPhone after the fix:** session present, outbox empty, all 8 keyed domains marked backfilled. Not checked: the account's tables directly; the S21 FE pulling the iPhone's data (it needs a log out / in until pull-on-open exists).
+- **How the iPhone's data was inspected (reuse this):** `xcrun devicectl device copy from --device <udid> --domain-type appDataContainer --domain-identifier com.jnglobalventures.kinetixfit --source Library/WebKit/WebsiteData/Default/<hash>/<hash>/LocalStorage/localstorage.sqlite3[-wal|-shm] --destination <dir>`; `ItemTable` values are UTF-16LE blobs (`decode('utf-16-le')`); keys of interest: `kx_sync_outbox`, `kx_sync_dirtykeys_*`, `kx_sync_backfilled_*`, `sb-*-auth-token` (the session). A backup of the iPhone's data from before the fix is in `~/KinetixFit-backups/iphone-localstorage-2026-10-03/` (personal health data: delete when no longer needed). A simulator can be seeded by replacing its `localstorage.sqlite3` after one launch (the first seeded launch showed a blank screen once, the next was fine).
+- **Still open from this:** pull on app open; sync reminder settings (hydration / move / gut / streak toggles and hours are in `ACCOUNT_DATA_KEYS` but not in `PREF_KEYS`, so they reset on logout; likewise `kinetix_stress_history`, `kx_streak_best`, `kx_meals_hidden`); the iOS simulator asked for notification permission on the very first screen (sign-up) — check whether the app asks before login; confirm Plus shows on the iPhone now that `plus-status` is live and the phone has a session.
+
 **Builds:** `android/app/build.gradle` = versionCode **10** / "**1.9**". `KinetixFit-builds/Kinetix-Fit-1.9.aab` is the signed release bundle (1.8.aab is superseded). Signing: the
 upload keystore + passwords live in `~/KinetixFit-keys/` (`kinetixfit-upload.jks`, `keystore.properties`), **outside the repo and backed up by the user**; `build.gradle` reads that file
 if it exists (no file = unsigned release). Upload-key SHA256 `DD:7A:A9:C8:C6:EE:39:41:EF:7D:CA:31:45:E6:42:9B:F2:1A:75:11:54:17:65:FF:40:D8:FE:68:B8:DE:14:AD`. Build:
 `npm run build && npx cap sync android && cd android && ./gradlew bundleRelease` (JDK 21 from `~/.zshrc`; if Gradle says "Cannot lock execution history", `./gradlew --stop` and delete
-`android/.gradle/8.14.3/executionHistory`; the disk got full once — keep ≥10 GB free). S21 FE has the debug APK of 3 Oct (1.9 code + `18fdfec`); A55 still 1.6; iPhone 13 mini was rebuilt and reinstalled on 3 Oct (free profile lasts 7 days, so rebuild before ~10 Oct).
+`android/.gradle/8.14.3/executionHistory`; the disk got full once — keep ≥10 GB free). S21 FE and iPhone 13 mini both have the 3 Oct ~02:30 debug build (1.9 code + `fix/sync-safety`); A55 still 1.6; the iPhone's free profile lasts 7 days, so rebuild before ~10 Oct.
 The user will get a **paid Apple Developer account soon** (needed for TestFlight / App Store, RevenueCat's iOS app + `VITE_REVENUECAT_IOS_PUBLIC_KEY`, Apple offer codes).
 
 **Store-readiness plan, status**
@@ -59,7 +66,7 @@ The user will get a **paid Apple Developer account soon** (needed for TestFlight
 
 **Open items that are the user's** (Claude can't do these): Play Console health declaration + data-safety form + listing + the subscription product (and RevenueCat attaching it to the
 `default` offering, which is empty); **Supabase custom SMTP** (Resend walkthrough was given: verified subdomain DNS + API key + Supabase SMTP settings — postponed, the user has a dependency);
-set `PROMO_CODES_JSON` in Vercel + redeploy; read the new policy; confirm Supabase's backup retention (the policy says "overwritten within 30 days", an assumption); a paid Apple account;
+read the new policy (`PROMO_CODES_JSON` and the RevenueCat secret key are set in Vercel — done 2 Oct); confirm Supabase's backup retention (the policy says "overwritten within 30 days", an assumption); a paid Apple account;
 the S21 FE device checks (check-in +5/+10 reaching `points_ledger`, first food check +2, a quest claim, logout → sign-in restore, voucher/donation refusal below 1,000 points, **water/gut/streak
 reminders still firing after the exact-alarm removal**, a delete-account run on a throwaway account in both modes, a promo redeem showing Plus without a restart). Promo codes in future:
 Play Console → Monetize → Promo codes (store-generated; needs the subscription product), Apple → subscription → Offer codes; our server `PROMO_CODES_JSON` codes are for Android/web/testers only.
