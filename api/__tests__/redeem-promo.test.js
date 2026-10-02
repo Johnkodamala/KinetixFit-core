@@ -7,6 +7,9 @@ vi.mock('@upstash/redis', () => ({
   Redis: { fromEnv: () => ({ get: async k => store.get(k) ?? null, set: async (k, v) => { store.set(k, v); }, del: async k => { store.delete(k); } }) },
 }));
 
+let mockUser = null;
+vi.mock('../_lib/supabaseAuth.js', () => ({ verifiedUser: async () => mockUser }));
+
 const { default: handler } = await import('../redeem-promo.js');
 
 function call(body) {
@@ -17,6 +20,7 @@ function call(body) {
 let fetchCalls;
 let rcOk;
 beforeEach(() => {
+  mockUser = null;
   store.clear();
   fetchCalls = [];
   rcOk = true;
@@ -58,5 +62,35 @@ describe('redeem-promo', () => {
     expect((await call({ code: 'MONTH-1', appUserId: 'user-1' })).statusCode).toBe(502);
     rcOk = true;
     expect((await call({ code: 'MONTH-1', appUserId: 'user-1' })).statusCode).toBe(200);
+  });
+
+  // A signed-in app (1.9+) sends its session; the grant then goes to that account, whatever the body says.
+  it('grants the verified account, and accepts a body that names the same account in another case', async () => {
+    mockUser = { id: 'uid-1', email: 'Real@Example.com' };
+    expect((await call({ code: 'MONTH-1', appUserId: 'real@example.com' })).statusCode).toBe(200);
+    expect(fetchCalls[0].url).toBe('https://api.revenuecat.com/v1/subscribers/Real%40Example.com/entitlements/kinetixfit_pro/promotional');
+  });
+
+  it('grants the verified account when the body names no one', async () => {
+    mockUser = { id: 'uid-1', email: 'real@example.com' };
+    expect((await call({ code: 'MONTH-1' })).statusCode).toBe(200);
+    expect(fetchCalls[0].url).toContain('/subscribers/real%40example.com/');
+  });
+
+  it('refuses a session whose account differs from the one in the body, before using up the code', async () => {
+    mockUser = { id: 'uid-1', email: 'real@example.com' };
+    expect((await call({ code: 'MONTH-1', appUserId: 'victim@example.com' })).statusCode).toBe(403);
+    expect(fetchCalls).toHaveLength(0);
+    expect(store.size).toBe(0);
+  });
+
+  it('still takes the body account when there is no session (apps up to 1.8 send none)', async () => {
+    expect((await call({ code: 'MONTH-1', appUserId: 'old-app@example.com' })).statusCode).toBe(200);
+    expect(fetchCalls[0].url).toContain('/subscribers/old-app%40example.com/');
+  });
+
+  it('needs a code, and an account from the session or the body', async () => {
+    expect((await call({ appUserId: 'u@example.com' })).statusCode).toBe(400);
+    expect((await call({ code: 'MONTH-1' })).statusCode).toBe(400);
   });
 });

@@ -100,7 +100,7 @@ export default function CycleCard({ periods, typicalLength, periodLength = 5, co
             <button type="button" className={c.phase === 'due' || c.phase === 'late' ? 'primary-btn' : 'edit-bio-btn'} onClick={() => log(today)}>My period started today</button>
             <button type="button" className="edit-bio-btn" onClick={() => setOpen(true)}>Log or edit periods</button>
           </div>
-          <p className="kx-cycle-fine">Estimates from your own dates — not a way to prevent pregnancy. Everything stays on your phone.</p>
+          <p className="kx-cycle-fine">Estimates from your own dates — not a way to prevent pregnancy. Your dates are saved to your account when you sign in.</p>
         </>
       )}
 

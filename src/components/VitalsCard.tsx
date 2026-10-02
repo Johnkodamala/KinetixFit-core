@@ -26,7 +26,7 @@ export default function VitalsCard({ tiles, needsAccess, source, phoneOnly, plat
       </h3>
       {tiles.length > 0 && (
         <>
-          <p className="kx-card-sub">The latest from {from}. It stays on your phone.</p>
+          <p className="kx-card-sub">The latest from {from}. Saved to your account when you sign in.</p>
           <div className="kx-vitals-grid">
             {tiles.map(t => (
               <div key={t.id} className="kx-vital">

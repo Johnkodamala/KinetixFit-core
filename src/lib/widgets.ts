@@ -83,6 +83,19 @@ export function updateWidgets(data: WidgetSnapshot) {
   WidgetBridge.update(data).catch(err => console.warn('Widget update failed:', err));
 }
 
+/** After the account's data is deleted: tells the home-screen widgets there is nothing, so they stop showing the old
+ * numbers. Call it after the saved widget settings are wiped, so they come back as the defaults. */
+export function clearWidgets() {
+  updateWidgets({
+    day: '', hydrationEnabled: false, startHour: 8, endHour: 20, intervalHours: 2, snoozedUntil: null,
+    waterGlasses: 0, waterGoal: 0, waterMl: 0, waterGoalMl: 0, glassMl: 250,
+    steps: null, stepsGoal: 0, kcalLeft: 0, kcalEaten: 0, kcalTarget: 0, waterWeek: [0, 0, 0, 0, 0, 0, 0],
+    questsDone: 0, questsTotal: 0, protein: 0, proteinTarget: 0, points: 0, workoutsWeek: 0,
+    streakRun: 0, streakLastDay: '', streakBest: 0, checkinDays: [], energyToday: 0, plus: false,
+    ...flattenPrefs(loadWidgetPrefs()),
+  });
+}
+
 /**
  * Drinks added with a water widget's + since the app last asked: their time (ms) and, from Android widgets, their
  * amount (ml; iOS widgets send times only = one glass of the current size). The widget keeps them until the app takes

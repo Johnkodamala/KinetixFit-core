@@ -6,7 +6,7 @@ import { Redis } from '@upstash/redis';
 const redis = Redis.fromEnv();
 
 const DEFAULT_CONFIG = {
-  voucherValueGBP: 5.00,
+  voucherValueGBP: 2.50,
   // 1,000 since 1 Oct 2026 (was 1,500, and 2,500 before 28 Sep): about a month of doing everything, the same as a charity
   // donation. Same as src/lib/points.ts VOUCHER_POINTS.
   voucherPointsCost: 1000,
@@ -16,7 +16,7 @@ const DEFAULT_CONFIG = {
   // 1,000 points (src/lib/points.ts). NB a `config:rewards` value in Redis overrides this default.
   mealScanPointsAward: 2,
   // £ cap for charity donations. Vouchers aren't counted against it — they have their own limit below
-  // (the £5 voucher could never fit under a £3 cap, so vouchers were impossible to redeem).
+  // (the old £5 voucher could never fit under a £3 cap, so vouchers were impossible to redeem).
   monthlyRedemptionCapGBP: 3.00,
   voucherMonthlyLimit: 1 // one coffee voucher per person per calendar month
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ONBOARDED_EMAIL_KEY, clearOnboardingStep, hasOnboarded, markLoggedInAccount, markOnboarded, normaliseEmail, saveOnboardingStep, savedOnboardingStep } from './onboarding';
+import { ONBOARDED_EMAIL_KEY, clearOnboardingStep, hasOnboarded, markLoggedInAccount, markOnboarded, normaliseEmail, profileShowsOnboarded, saveOnboardingStep, savedOnboardingStep } from './onboarding';
 
 describe('hasOnboarded', () => {
   it('is false with no email or nothing saved', () => {
@@ -76,5 +76,25 @@ describe('onboarding step progress', () => {
 
   it('normalises emails', () => {
     expect(normaliseEmail('  A@B.Dev ')).toBe('a@b.dev');
+  });
+});
+
+describe('profileShowsOnboarded (an account that finished onboarding on another phone)', () => {
+  const shows = (profile: Record<string, unknown>) => profileShowsOnboarded(profile);
+  it('counts a synced profile with a name and the last answer, what they eat', () => {
+    expect(shows({ name: 'Siva', diet: 'everything' })).toBe(true);
+    expect(shows({ name: 'Siva', diet: 'vegetarian', country: 'GB' })).toBe(true);
+  });
+
+  it('does not count a profile that has not reached the last step (Finish needs a diet)', () => {
+    expect(shows({ name: 'Siva', diet: null })).toBe(false);
+    expect(shows({ name: 'Siva', country: 'GB', region: 'england' })).toBe(false);
+  });
+
+  it('does not count a missing, empty or nameless profile', () => {
+    expect(profileShowsOnboarded(null)).toBe(false);
+    expect(profileShowsOnboarded(undefined)).toBe(false);
+    expect(shows({})).toBe(false);
+    expect(shows({ name: '  ', diet: 'everything' })).toBe(false);
   });
 });

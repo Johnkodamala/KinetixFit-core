@@ -15,13 +15,34 @@ export function entitlementIsActive(entitlement, now = new Date()) {
   return new Date(entitlement.expires_date) > now;
 }
 
-async function fetchPlusFromRevenueCat(appUserId) {
+// The subscriber's entitlement plus the subscription behind it, as RevenueCat reports them.
+async function fetchSubscriber(appUserId) {
   const response = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`, {
     headers: { Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}` }
   });
   if (!response.ok) throw new Error(`RevenueCat subscriber lookup failed: ${response.status}`);
   const data = await response.json();
-  return entitlementIsActive(data.subscriber?.entitlements?.[ENTITLEMENT_ID]);
+  const entitlement = data.subscriber?.entitlements?.[ENTITLEMENT_ID];
+  return { entitlement, subscription: entitlement ? data.subscriber?.subscriptions?.[entitlement.product_identifier] : undefined };
+}
+
+async function fetchPlusFromRevenueCat(appUserId) {
+  return entitlementIsActive((await fetchSubscriber(appUserId)).entitlement);
+}
+
+// Plus for the Account page: whether it's active, when it ends and whether a store subscription will renew. Always asks
+// RevenueCat (a promo grant or a purchase must show straight away), then refreshes the cache the other endpoints read.
+// Throws if RevenueCat can't be reached, so the caller can tell "unknown" from "Free".
+export async function plusStatus(appUserId) {
+  const { entitlement, subscription } = await fetchSubscriber(appUserId);
+  const plus = entitlementIsActive(entitlement);
+  try { await redis.set(`plus:${appUserId}`, plus ? 1 : 0, { ex: CACHE_SECONDS }); } catch { /* cache is optional */ }
+  if (!plus) return { plus: false, lifetime: false, expiresAt: null, willRenew: false };
+  const lifetime = entitlement.expires_date === null;
+  // A store subscription renews unless the user cancelled it or the payment failed; a promo grant never does.
+  const willRenew = !lifetime && !!subscription && subscription.store !== 'promotional'
+    && !subscription.unsubscribe_detected_at && !subscription.billing_issues_detected_at;
+  return { plus: true, lifetime, expiresAt: lifetime ? null : entitlement.expires_date, willRenew };
 }
 
 // Returns true/false. When RevenueCat can't be reached, returns `whenUnknown` — callers choose: generous for

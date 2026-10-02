@@ -4,6 +4,7 @@
 import { Redis } from '@upstash/redis';
 import { handleCors } from './_lib/cors.js';
 import { ENTITLEMENT_ID, clearPlusCache } from './_lib/plus.js';
+import { verifiedUser } from './_lib/supabaseAuth.js';
 
 const redis = Redis.fromEnv();
 
@@ -19,7 +20,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { code, appUserId } = req.body;
+  const { code, appUserId: bodyAppUserId } = req.body ?? {};
+
+  // Signed-in apps send their session: the grant goes to that account (RevenueCat knows people by email), and a body
+  // naming someone else is refused. Apps up to 1.8 send no session and still name the account in the body.
+  const user = await verifiedUser(req);
+  if (user?.email && bodyAppUserId && bodyAppUserId.trim().toLowerCase() !== user.email.toLowerCase()) {
+    return res.status(403).json({ error: 'This code can only be used on the account you are signed in to.' });
+  }
+  const appUserId = user?.email || bodyAppUserId;
   if (!code || !appUserId) {
     return res.status(400).json({ error: 'Both "code" and "appUserId" are required.' });
   }

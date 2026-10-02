@@ -1346,6 +1346,19 @@
   transition: transform var(--dur-fast) var(--ease-out);
 }
 .kx-danger-btn:active { transform: scale(0.97); }
+.kx-confirm-btn {
+  flex: 1;
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 13px 18px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.kx-confirm-btn:active { transform: scale(0.97); }
 /* an icon chip at the top of an information pop-up */
 .kx-modal-icon { width: 40px; height: 40px; border-radius: 12px; margin-bottom: 14px; }
 

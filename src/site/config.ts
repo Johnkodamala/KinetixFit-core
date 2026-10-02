@@ -13,7 +13,7 @@ export const LOGGED_IN_KEY = 'kinetix_logged_in';
 export const REWARDS = {
   /** a coffee voucher (Plus, one a month): VOUCHER_POINTS / voucherPointsCost */
   voucherPoints: 1000,
-  voucherValueGBP: 5,
+  voucherValueGBP: 2.5,
   /** a charity donation (free): donationPointsCost / donationValueGBP */
   donationPoints: 1000,
   donationValueGBP: 2.5,

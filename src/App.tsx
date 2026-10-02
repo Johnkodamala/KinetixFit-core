@@ -11,6 +11,8 @@ import { syncAllOnLogin, flushOutbox, clearAllDomainData } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
+import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
+import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
 import './lib/preferencesSync';
@@ -46,7 +48,9 @@ import FoodEntrySheet, { ExtrasPicker } from './components/FoodEntrySheet';
 import FoodHistorySheet from './components/FoodHistorySheet';
 import ScanProgress, { type ScanKind } from './components/ScanProgress';
 import NutritionMeters from './components/NutritionMeters';
-import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, savedOnboardingStep, saveOnboardingStep, clearOnboardingStep } from './lib/onboarding';
+import { ONBOARDED_EMAIL_KEY, hasOnboarded, markOnboarded, markLoggedInAccount, profileShowsOnboarded, savedOnboardingStep, saveOnboardingStep, clearOnboardingStep } from './lib/onboarding';
+import { healthSourceName, ownHealthSource } from './lib/healthSources';
+import { supportEmailBody } from './lib/support';
 import { handleBack, useBackHandler } from './lib/backButton';
 import { DIET_OPTIONS, dietLabel, checkFood, checkProduct, dietNote, isVegetarian, type Diet } from './lib/diet';
 import { GUT_FEELS, SYMPTOMS, PLANTS_GOAL, feelLabel, symptomLabel, loadGutChecks, saveGutCheck, gutReportStatus, reportProgressText, reportDays, buildGutReport, type GutChecks, type GutFeel, type SymptomId } from './lib/gut';
@@ -57,10 +61,11 @@ import {
   foodFromScanItem, extrasFromNoteExcept, mealCount, newId, splitTypedMeal, GRAMS, ML,
   ZERO, foodTitle, extrasText, withExtra, extrasFromNote, type FoodDays, type LogEntry, type SavedFood, type ScanPayload, type ScanItem, type FoodSource, type TypedPortion, type Nutrients, type Portion,
 } from './lib/foodLog';
+import { suggestionFor, typoVocabulary } from './lib/foodSuggest';
 import MealResultCard, { type MealCard } from './components/MealResultCard';
 import { setupNotifications, styled, scheduleNotifications, nutritionAlert, reminderHours, hydrationNotifications, hydrationSnoozeNotification, cancelHydration, ACTION_SNOOZE, ACTION_ADD_GLASS, ACTION_CHECK_IN, NUTRITION_BASE_ID, gutReminderNotifications, cancelGutReminders, GUT_REMINDER_HOUR, streakReminderNotifications, cancelStreakReminders, STREAK_REMINDER_TIME } from './lib/notifications';
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
-import { updateWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
+import { updateWidgets, clearWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
 import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
 import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, avoidedThere, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
@@ -550,6 +555,8 @@ export default function App() {
     if (saved) {
       try {
         const loaded: UserProfile = { ...DEFAULT_PROFILE, ...JSON.parse(saved) };
+        // "Connected to Health Connect" can have come from an Android phone signed in to the same account: not this phone's
+        loaded.smartDeviceConnected = ownHealthSource(loaded.smartDeviceConnected, Capacitor.getPlatform());
         setActiveCountry(countryOf(loaded));
         return loaded;
       } catch (e) {
@@ -564,6 +571,11 @@ export default function App() {
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [showDeviceSyncModal, setShowDeviceSyncModal] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  // Account → Your data & privacy → Delete account or data: the choice sheet, then the confirmation for the chosen mode
+  const [showDeleteSheet, setShowDeleteSheet] = useState<boolean>(false);
+  const [deleteMode, setDeleteMode] = useState<DeleteMode | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isConnectingHealth, setIsConnectingHealth] = useState<boolean>(false);
   // Connect found no Health Connect on this Android phone: HealthConnectSheet explains and links to the Play Store
   const [healthConnectIssue, setHealthConnectIssue] = useState<HealthConnectProblem | null>(null);
@@ -1860,7 +1872,16 @@ export default function App() {
     return 'evening snack';
   };
 
-  const requestMealIdeas = async () => {
+  const AI_IDEAS_CONSENT_KEY = 'kx_ai_ideas_consent';
+  const [showAiIdeasConsent, setShowAiIdeasConsent] = useState<boolean>(false);
+  // Meal ideas send the day's food, steps, sleep and workouts (and body details) to our AI provider, so the first time
+  // each account is asked. The answer is stored per account (it's wiped on logout and when data is deleted).
+  const requestMealIdeas = () => {
+    if (!profile.email) return;
+    if (localStorage.getItem(AI_IDEAS_CONSENT_KEY) !== '1') { setShowAiIdeasConsent(true); return; }
+    void fetchMealIdeas();
+  };
+  const fetchMealIdeas = async () => {
     if (!profile.email) return;
     setIsLoadingMealIdeas(true);
     setMealIdeasError(null);
@@ -2058,10 +2079,13 @@ export default function App() {
 
   // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
+  // "Did you mean avocado?" — asked instead of searching when a typed food looks like a typo of one we know
+  const [typoAsk, setTypoAsk] = useState<{ typed: string; name: string; corrected: string } | null>(null);
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
   // Optional description typed in the scan window: sent with a photo (helps the AI), kept as the logged food's note.
   const [scanNote, setScanNote] = useState('');
   // Saved foods matching what's being typed, and the most recent ones — logged again without a lookup.
+  const typoVocab = useMemo(() => typoVocabulary(Object.values(savedFoods).map(f => f.name)), [savedFoods]);
   const typedMatches = useMemo(() => searchFoods(savedFoods, parseTypedPortion(mealInput).name), [savedFoods, mealInput]);
   const recent = useMemo(() => recentFoods(savedFoods), [savedFoods]);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
@@ -2157,9 +2181,30 @@ export default function App() {
   // null until RevenueCat reports a real status (native only) — the card never guesses one
   const [revenueCatStatus, setRevenueCatStatus] = useState<string | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
-  // What the server last said (scan responses carry it) — the website has no RevenueCat SDK to ask.
-  const [plusFromServer, setPlusFromServer] = useState(false);
-  const isPlus = !!customerInfo?.entitlements.active[PLUS_ENTITLEMENT] || plusFromServer;
+  // What the server last said (scan responses and api/plus-status carry it) — the website has no RevenueCat SDK to ask,
+  // an iPhone build without its RevenueCat key never configures the SDK, and Android's cached info lags a promo code.
+  // null = the server hasn't said yet, which is not the same as "Free".
+  const [plusFromServer, setPlusFromServer] = useState<boolean | null>(null);
+  const [serverPlan, setServerPlan] = useState<PlusStatus | null>(null);
+  const isPlus = !!customerInfo?.entitlements.active[PLUS_ENTITLEMENT] || plusFromServer === true;
+  // Account's plan line: the server's answer wins when it has one, else what the RevenueCat SDK reported.
+  const planStatusText = serverPlan
+    ? planLabel(serverPlan, d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
+    : revenueCatStatus;
+  const applyPlusStatus = (status: PlusStatus) => { setPlusFromServer(status.plus); setServerPlan(status); };
+  const refreshPlusFromServer = async () => {
+    const status = await fetchPlusStatus();
+    if (status) applyPlusStatus(status);
+  };
+  // On opening the app and each time it returns to the screen (sign-in reloads the app, so it lands here too).
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let current = true;
+    void fetchPlusStatus().then(status => {
+      if (current && status) { setPlusFromServer(status.plus); setServerPlan(status); }
+    });
+    return () => { current = false; };
+  }, [isLoggedIn, foregroundTick]);
   // The store package for Plus (its localised price), once RevenueCat has offerings set up.
   const [plusPackage, setPlusPackage] = useState<PurchasesPackage | null>(null);
   const [isBuyingPlus, setIsBuyingPlus] = useState(false);
@@ -2182,7 +2227,7 @@ export default function App() {
   const recentCheckInDays = checkInDayKeys.filter(d => d >= localDayKeyDaysAgo(13)).join(',');
   // Plus as far as it's known: RevenueCat has answered, or the server said so (scans). Unknown → the widgets keep
   // whatever they were last told, so the Plus ones don't flash "locked" on every start.
-  const planKnown = customerInfo !== null || plusFromServer;
+  const planKnown = customerInfo !== null || plusFromServer !== null;
   const widgetPlus = planKnown ? isPlus : undefined;
   const widgetPrefsFlat = JSON.stringify(flattenPrefs(widgetPrefs));
   useEffect(() => {
@@ -2285,12 +2330,10 @@ export default function App() {
       const { customerInfo: info } = await Purchases.getCustomerInfo();
       setCustomerInfo(info);
       const entitlement = info.entitlements.active[PLUS_ENTITLEMENT];
-      if (entitlement) {
-        const expiry = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
-        setRevenueCatStatus(`Kinetix Fit Plus${expiry ? ` · ${entitlement.willRenew ? 'renews' : 'ends'} ${fmtDate(expiry, { day: 'numeric', month: 'short', year: 'numeric' })}` : ' · lifetime'}`);
-      } else {
-        setRevenueCatStatus('Free plan');
-      }
+      setRevenueCatStatus(planLabel(
+        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew },
+        d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }),
+      ));
     } catch (err) {
       console.warn('RevenueCat getCustomerInfo unavailable:', err);
     }
@@ -2383,7 +2426,6 @@ export default function App() {
 
   // --- CONTACT FORM STATE ---
   const [contactName, setContactName] = useState<string>('');
-  const [contactEmail, setContactEmail] = useState<string>('');
   const [contactMsg, setContactMsg] = useState<string>('');
   const [contactSuccess, setContactSuccess] = useState<boolean>(false);
 
@@ -2562,6 +2604,9 @@ export default function App() {
         const pulled = readLocalProfile();
         const withEmail = { ...profile, ...pulled, email, name: (pulled?.name || profile.name) || email.split('@')[0] };
         saveProfileToStorage(withEmail);
+        // An account that finished onboarding on another phone has its answers in the profile it just pulled: this phone
+        // goes straight to Today (Health and reminders are asked there, in context) instead of asking everything again.
+        if (!hasOnboarded(email) && profileShowsOnboarded(pulled)) markOnboarded(email);
         const onboarded = hasOnboarded(email);
         continueAfterSignIn(onboarded, email);
         // quests this account already claimed today, from a phone or a session this one knows nothing about
@@ -2586,12 +2631,21 @@ export default function App() {
       });
   });
 
-  const handleLogout = async () => {
+  // Ends the session on this phone. Logging out syncs what is waiting first; deleting data does not (it would put the
+  // data back on the server) and also forgets the account here: reminders, widgets and "this account is onboarded".
+  const endSession = async ({ flush, forgetAccount }: { flush: boolean; forgetAccount: boolean }) => {
     if (isSupabaseConfigured) {
-      await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
-      await supabase.auth.signOut();
+      if (flush) await flushOutbox().catch(() => { /* best-effort: local data is wiped regardless below */ });
+      // 'local': a deleted account has no session left on the server to end, and there is nothing to wait for
+      await (forgetAccount ? supabase.auth.signOut({ scope: 'local' }) : supabase.auth.signOut()).catch(() => { /* wiped below anyway */ });
     }
+    if (forgetAccount) await clearDeviceReminders();
     clearAllDomainData();
+    if (forgetAccount) { localStorage.removeItem(ONBOARDED_EMAIL_KEY); clearWidgets(); }
+    // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
+    try {
+      if (Capacitor.isNativePlatform() && (await Purchases.isConfigured()).isConfigured) await Purchases.logOut();
+    } catch { /* already anonymous, or the SDK isn't there: nothing to undo */ }
     setProfile(DEFAULT_PROFILE);
     setActiveCountry(countryOf(DEFAULT_PROFILE));
     loginSyncInFlightRef.current = false;
@@ -2609,6 +2663,21 @@ export default function App() {
     // here and would show the next account the last one's numbers until the app restarted. A reload starts from the
     // wiped storage, so nothing can carry over.
     window.location.reload();
+  };
+
+  const handleLogout = () => endSession({ flush: true, forgetAccount: false });
+
+  // Deleting: the server goes first. Only when it has deleted everything is the phone wiped, so a failure loses nothing.
+  const performDeletion = async (mode: DeleteMode) => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    const result = await requestDeletion(mode);
+    if (!result.ok) {
+      setDeleteError(result.message);
+      setIsDeleting(false);
+      return;
+    }
+    await endSession({ flush: false, forgetAccount: true });
   };
 
   // Restore/track the real Supabase session. If a session already exists (e.g. the app was
@@ -2937,10 +3006,11 @@ export default function App() {
     notify('success', `+${amount} points for today's first scan`);
   };
 
-  const handleMealScan = async (inputStr?: string) => {
+  const handleMealScan = async (inputStr?: string, asTyped = false) => {
     const activeInput = inputStr || mealInput;
     const userInput = activeInput.trim();
     if (!userInput) return;
+    setTypoAsk(null);
 
     // "2 slices of bread": the amount stays on the phone, only the food's name is looked up
     const typed = parseTypedPortion(userInput);
@@ -2957,6 +3027,9 @@ export default function App() {
     // "muesli with milk and banana", "2 roti and dal": several foods, split on the phone and logged as one meal
     const parts = splitTypedMeal(userInput, savedFoods);
     if (parts) { await logTypedMeal(userInput, parts); return; }
+    // Looks like a typo of a food we know: ask first. A database search can match a misspelling to a branded product.
+    const maybe = asTyped ? null : suggestionFor(userInput, typoVocab);
+    if (maybe) { setTypoAsk({ typed: userInput, ...maybe }); return; }
 
     setIsScanLoading(true);
     startScanFx('text');
@@ -3311,7 +3384,7 @@ export default function App() {
         return;
       }
 
-      const sourceName = Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Health Connect';
+      const sourceName = healthSourceName(Capacitor.getPlatform());
       saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
       setShowDeviceSyncModal(false);
       notify('success', `Connected to ${sourceName}. Your data can take a moment to appear.`);
@@ -3332,9 +3405,10 @@ export default function App() {
 
     setIsRedeemingPromo(true);
     try {
+      // The session tells the server whose account the code is for (older servers ignore the header).
       const response = await fetch(serverUrl('/api/redeem-promo'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ code, appUserId: profile.email })
       });
       const data = await response.json();
@@ -3347,7 +3421,8 @@ export default function App() {
       setPromoMessage({ tone: 'success', text: data.tier === 'lifetime'
         ? 'Lifetime access is now active.'
         : '30 days of Kinetix Fit Plus are now active.' });
-      await refreshRevenueCatStatus();
+      // Ask the server too: the phone's RevenueCat SDK may not exist (iPhone without its key) or may still hold the old plan.
+      await Promise.all([refreshRevenueCatStatus(), refreshPlusFromServer()]);
     } catch {
       setPromoMessage({ tone: 'error', text: 'Could not reach the server to check your code. Try again.' });
     } finally {
@@ -3437,17 +3512,27 @@ export default function App() {
     }
   };
 
-  const handleSendContact = (e: React.FormEvent) => {
+  // Nothing is sent from the app itself: this opens the person's own email app with the message ready, so what was
+  // written, and who it came from, is theirs to see and send.
+  const handleSendContact = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName || !contactEmail || !contactMsg) {
-      notify('error', 'Fill in your name, email and message to send it.');
+    const name = contactName.trim();
+    const message = contactMsg.trim();
+    if (!name || !message) {
+      notify('error', 'Add your name and a message to send it.');
       return;
     }
+    const subject = encodeURIComponent(`Kinetix Fit support: ${name}`);
+    // which app version and phone, so a report says what it came from (the person sees and sends the email themselves)
+    let app: string | undefined;
+    try { if (Capacitor.isNativePlatform()) { const info = await CapacitorApp.getInfo(); app = `${info.version} (${info.build})`; } } catch { /* no version: the email just leaves it out */ }
+    const model = (navigator.userAgent.match(/\b(SM-[A-Z0-9]+|Pixel [0-9A-Za-z ]+?)(?=[;)])/) ?? [])[1];
+    const body = encodeURIComponent(supportEmailBody(message, name, { app, platform: Capacitor.getPlatform(), model }));
+    window.location.href = `mailto:info@kinetixfit.co.uk?subject=${subject}&body=${body}`;
     setContactSuccess(true);
     setContactName('');
-    setContactEmail('');
     setContactMsg('');
-    setTimeout(() => setContactSuccess(false), 5000);
+    setTimeout(() => setContactSuccess(false), 8000);
   };
 
   const getPersonalizedWelcome = () => {
@@ -3508,6 +3593,8 @@ export default function App() {
   useBackHandler(showCameraModal, () => setShowCameraModal(false));
   useBackHandler(showDeviceSyncModal, () => setShowDeviceSyncModal(false));
   useBackHandler(showLogoutConfirm, () => setShowLogoutConfirm(false));
+  useBackHandler(showAiIdeasConsent, () => setShowAiIdeasConsent(false));
+  useBackHandler(deleteMode !== null, () => { if (!isDeleting) setDeleteMode(null); });
   useBackHandler(showNoStressNotice, () => dismissNoStressNotice());
   useBackHandler(showLevelUpModal, () => {});
 
@@ -3859,6 +3946,8 @@ export default function App() {
 
   // Account menu: grouped rows, each opening its own page; the value is a short summary of what's inside.
   const accountEmail = session?.user?.email || profile.email;
+  // The App Store only lets us unlock paid features with its own offer codes, so our promo codes are for Android and the web
+  const promoCodesAllowed = Capacitor.getPlatform() !== 'ios';
   const accountSections: { title: string; rows: { page: AccountPage; value?: string }[] }[] = [
     { title: 'Profile', rows: [
       { page: 'details' },
@@ -3869,8 +3958,8 @@ export default function App() {
       { page: 'reminders', value: hydrationRemindersEnabled ? `Every ${hydrationIntervalHours} h` : 'Off' }
     ] },
     { title: 'Subscription', rows: [
-      { page: 'subscription', value: revenueCatStatus ?? undefined },
-      { page: 'promo' }
+      { page: 'subscription', value: planStatusText ?? undefined },
+      ...(promoCodesAllowed ? [{ page: 'promo' as const }] : [])
     ] },
     { title: 'Help & legal', rows: [{ page: 'about' }, { page: 'privacy' }, { page: 'help' }] }
   ];
@@ -4085,7 +4174,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <p className="kx-card-sub">Two taps. It stays on your phone.</p>
+                    <p className="kx-card-sub">Two taps. Saved to your account when you sign in.</p>
                     {watchSleepHours !== null ? (
                       <p className="kx-checkin-watch">Your watch recorded <strong>{watchSleepHours} h</strong> of sleep.</p>
                     ) : (
@@ -4164,7 +4253,7 @@ export default function App() {
                         ? <>For yesterday, all day. <button type="button" className="ob-link kx-gut-yesterday" onClick={() => { setGutDraft(null); setGutForYesterday(false); }}>Back to today</button></>
                         : new Date().getHours() < 17
                           ? `Best in the evening — it’s about your whole day.${gutReminderOn && Capacitor.isNativePlatform() ? ` We’ll remind you at ${formatHour(GUT_REMINDER_HOUR)}.` : ''}`
-                          : 'One tap for today. It stays on your phone.'}
+                          : 'One tap for today. Saved to your account when you sign in.'}
                     </p>
                     {!todayGut && !gutDraft && !gutForYesterday && canLogYesterdaysGut && (
                       <button type="button" className="ob-link kx-gut-yesterday" onClick={() => setGutForYesterday(true)}>Missed last night? Add yesterday’s</button>
@@ -4531,7 +4620,7 @@ export default function App() {
                   {gutReport.seeDoctor ? 'Your gut has troubled you on most days this week. ' : ''}
                   See a doctor if changes in your gut last 3 weeks or more, or if you notice blood in your poo, weight loss you can’t explain or severe pain.
                 </p>
-                <p className="kx-gut-note">General food ideas, not medical advice. Your gut check-ins stay on your phone.</p>
+                <p className="kx-gut-note">General food ideas, not medical advice. Your gut check-ins are saved to your account when you sign in.</p>
               </div>
             )}
           </Sheet>
@@ -4765,7 +4854,7 @@ export default function App() {
                     placeholder="Search a food"
                     aria-label="Food to check"
                     value={mealInput}
-                    onChange={(e) => setMealInput(e.target.value)}
+                    onChange={(e) => { setMealInput(e.target.value); setTypoAsk(null); }}
                     className="kx-search-input"
                     enterKeyHint="search"
                     autoCapitalize="none"
@@ -4777,6 +4866,14 @@ export default function App() {
                     </button>
                   )}
                 </form>
+
+                {typoAsk && (
+                  <div className="kx-did-you-mean" role="status">
+                    <span>Did you mean <strong>{typoAsk.name}</strong>?</span>
+                    <button type="button" className="kx-chip kx-chip-sm" onClick={() => { setMealInput(typoAsk.corrected); handleMealScan(typoAsk.corrected); }}>Yes</button>
+                    <button type="button" className="kx-chip kx-chip-sm" onClick={() => handleMealScan(typoAsk.typed, true)}>No, search “{typoAsk.typed}”</button>
+                  </div>
+                )}
 
                 {typedMatches.length > 0 && (
                   <div className="kx-food-matches" aria-label="Your foods">
@@ -5393,7 +5490,7 @@ export default function App() {
               {accountPage === 'subscription' && (
                 <div className="hub-billing-card">
                   <span className="vitals-label">Your plan</span>
-                  <p className="billing-status-title">{revenueCatStatus ?? (isPlus ? 'Kinetix Fit Plus' : 'Free plan')}</p>
+                  <p className="billing-status-title">{planStatusText ?? (isPlus ? 'Kinetix Fit Plus' : 'Free plan')}</p>
 
                   <div className="kx-plan-grid">
                     <div className={`kx-plan${isPlus ? '' : ' is-current'}`}>
@@ -5412,7 +5509,7 @@ export default function App() {
                       <strong className="kx-plan-price">
                         {plusPackage
                           ? <>{plusPackage.product.priceString}{plusPackage.packageType === 'MONTHLY' && <small> / month</small>}{plusPackage.packageType === 'ANNUAL' && <small> / year</small>}</>
-                          : country.code === 'GB' ? <>£14.99<small> / month</small></> : <small>Price shown in the store</small>}
+                          : <small>Price shown in the store</small>}
                       </strong>
                       <ul>
                         {PLUS_BENEFITS.map(b => <li key={b}>{b}</li>)}
@@ -5440,7 +5537,7 @@ export default function App() {
                 </div>
               )}
 
-              {accountPage === 'promo' && (
+              {accountPage === 'promo' && promoCodesAllowed && (
                 <div className="hub-support-card">
                   <p className="card-header-desc">Have a promo code? Enter it here to unlock your pass.</p>
                   <div className="promo-input-row">
@@ -5502,6 +5599,12 @@ export default function App() {
                       <ChevronIcon className="kx-row-chevron" />
                     </a>
                   </div>
+                  <div className="kx-rows kx-rows-menu">
+                    <button type="button" className="kx-row kx-row-danger" onClick={() => { setDeleteError(null); setShowDeleteSheet(true); }} aria-haspopup="dialog">
+                      <span className="kx-row-label">Delete account or data</span>
+                      <ChevronIcon className="kx-row-chevron" />
+                    </button>
+                  </div>
                 </>
               )}
 
@@ -5509,21 +5612,18 @@ export default function App() {
                 <div className="hub-support-card">
                   {contactSuccess ? (
                     <div className="support-success-banner">
-                      Message sent. We reply within 12 hours.
+                      Your email app should open with your message ready to send. If it doesn’t, email info@kinetixfit.co.uk.
                     </div>
                   ) : (
                     <form onSubmit={handleSendContact} className="support-form-stack">
                       <label className="support-field-label">Your name
                         <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} className="support-input" />
                       </label>
-                      <label className="support-field-label">Email
-                        <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="support-input" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-                      </label>
                       <label className="support-field-label">Message
                         <textarea rows={3} required value={contactMsg} onChange={(e) => setContactMsg(e.target.value)} className="support-textarea" />
                       </label>
                       <button type="submit" className="primary-btn">
-                        Send message
+                        Write to us
                       </button>
                     </form>
                   )}
@@ -5685,6 +5785,58 @@ export default function App() {
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setShowLogoutConfirm(false)} autoFocus>Cancel</button>
               <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI meal ideas: asked once, before anything is sent */}
+      {showAiIdeasConsent && (
+        <div className="portal-overlay-modal" onClick={() => setShowAiIdeasConsent(false)}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-ai-title" aria-describedby="kx-ai-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-ai-title" className="modal-title">Use your day for meal ideas?</h3>
+            <p id="kx-ai-desc" className="modal-desc">
+              To suggest meals that fit your day, Kinetix Fit sends your goal, age, height, weight, diet and allergies, what you’ve eaten today, and your steps, sleep and workouts to our AI provider, Anthropic. It doesn’t get your name or email, and it isn’t used for advertising. You can read more in the Privacy policy.
+            </p>
+            <div className="kx-confirm-actions">
+              <button type="button" className="modal-close-btn" onClick={() => setShowAiIdeasConsent(false)} autoFocus>Not now</button>
+              <button type="button" className="kx-confirm-btn" onClick={() => { localStorage.setItem(AI_IDEAS_CONSENT_KEY, '1'); setShowAiIdeasConsent(false); void fetchMealIdeas(); }}>Continue</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account or data: choose, then confirm */}
+      <Sheet open={showDeleteSheet} title="Delete account or data" onClose={() => setShowDeleteSheet(false)}>
+        <p className="legal-card-text">Choose what to delete. This can’t be undone, and we can’t recover it afterwards.</p>
+        <div className="kx-rows kx-rows-menu">
+          <button type="button" className="kx-row" onClick={() => { setShowDeleteSheet(false); setDeleteError(null); setDeleteMode('data'); }}>
+            <span className="kx-row-label">Delete my data, keep my account</span>
+            <ChevronIcon className="kx-row-chevron" />
+          </button>
+          <button type="button" className="kx-row kx-row-danger" onClick={() => { setShowDeleteSheet(false); setDeleteError(null); setDeleteMode('account'); }}>
+            <span className="kx-row-label">Delete my account and all my data</span>
+            <ChevronIcon className="kx-row-chevron" />
+          </button>
+        </div>
+        <p className="legal-card-text">Keeping your account means you can log in again with the same email and start fresh. Deleting it means you’d need to sign up again.</p>
+      </Sheet>
+      {deleteMode && (
+        <div className="portal-overlay-modal" onClick={() => { if (!isDeleting) setDeleteMode(null); }}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-delete-title" aria-describedby="kx-delete-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-delete-title" className="modal-title">{deleteMode === 'account' ? 'Delete your account and all your data?' : 'Delete all your data?'}</h3>
+            <p id="kx-delete-desc" className="modal-desc">
+              {deleteMode === 'account'
+                ? 'Your account, profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. You’ll need to sign up again to use Kinetix Fit.'
+                : 'Your profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. Your account stays, so you can log in again and start fresh.'}
+              {' '}If you pay for Kinetix Fit Plus, this doesn’t cancel it: cancel in your App Store or Google Play subscriptions.
+            </p>
+            {deleteError && <p className="promo-response-msg response-error" role="alert">{deleteError}</p>}
+            <div className="kx-confirm-actions">
+              <button type="button" className="modal-close-btn" onClick={() => setDeleteMode(null)} disabled={isDeleting} autoFocus>Cancel</button>
+              <button type="button" className="kx-danger-btn" onClick={() => void performDeletion(deleteMode)} disabled={isDeleting}>
+                {isDeleting ? 'Deleting…' : deleteMode === 'account' ? 'Delete account' : 'Delete data'}
+              </button>
             </div>
           </div>
         </div>

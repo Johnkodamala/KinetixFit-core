@@ -82,8 +82,12 @@ export function styled(kind: Kind, n: LocalNotificationSchema & { header?: strin
  * Schedules them; if iOS refuses the badge thumbnails (attachments must be files it can copy), schedules them again
  * without — a reminder without its picture beats no reminder.
  */
-export async function scheduleNotifications(list: LocalNotificationSchema[]) {
-  if (!list.length) return;
+export async function scheduleNotifications(input: LocalNotificationSchema[]) {
+  if (!input.length) return;
+  // Reminders don't need the exact-alarm permission (Google Play limits it to alarm and calendar apps): Android may
+  // deliver one a few minutes late instead. Without this the plugin opens Android's "Alarms & reminders" screen first.
+  // iOS ignores the flag.
+  const list = input.map(n => ({ ...n, isExactNotification: false }));
   try {
     await LocalNotifications.schedule({ notifications: list });
   } catch (err) {
@@ -220,7 +224,7 @@ const GUT_LINES: { title: string; body: string; more: string }[] = [
   { title: 'How’s your gut today?', body: 'One tap to note it — it builds your weekly gut report.',
     more: 'One tap to note how your gut felt today. After a week you get food ideas matched to how you felt and what you ate.' },
   { title: 'Gut check-in', body: 'How did your gut feel today? It takes a second.',
-    more: 'How did your gut feel today? It takes a second, and it stays on your phone.' },
+    more: 'How did your gut feel today? It takes a second.' },
   { title: 'A quick one before bed', body: 'Note how your gut felt today.',
     more: 'Note how your gut felt today — the more days you check in, the better your weekly report can spot patterns.' },
 ];

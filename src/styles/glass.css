@@ -410,6 +410,8 @@
 .kx-fe-extras, .kx-fe-note { display: flex; flex-direction: column; gap: 8px; }
 
 /* saved foods matching what's typed: add again without a lookup */
+.kx-did-you-mean > span { flex: 1 0 100%; }
+.kx-did-you-mean { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: -6px; font-size: 0.9rem; }
 .kx-food-matches { display: flex; flex-direction: column; gap: 6px; margin-top: -6px; }
 .kx-food-match {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
