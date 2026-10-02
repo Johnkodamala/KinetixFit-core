@@ -177,6 +177,10 @@ Other permissions the manifest declares, for the "permissions" section or review
 No exact-alarm, location, SMS, contacts, microphone or ad-ID permissions. `allowBackup` is off.
 
 ### 2.10 Account deletion (Data safety → Data deletion)
+**"Which methods of account creation does your app support?"** → tick **Username and password** only (the Play form counts an email address as a username). Leave **OAuth** unticked: "Continue with Google" exists only on the website (`!Capacitor.isNativePlatform()` in `src/App.tsx`); the Android and iOS apps offer email + password and nothing else. Leave "My app does not allow users to create an account" unticked.
+
+**"Delete account URL"** → `https://www.kinetixfit.co.uk/delete-account`. Google requires this page to name the app or developer, show the steps to request deletion prominently, and say what data is deleted or kept and for how long; `public/delete-account.html` does all three (app name in the title, in-app steps and the email route first, then "What is deleted" and "What is not deleted, and for how long").
+
 - In-app path: **Account → Your data & privacy → Delete account or data** (two modes: delete data and keep the account, or delete the account and all data).
 - Web resource: https://www.kinetixfit.co.uk/delete-account
 - What is deleted: account, profile, logs, health readings, gut checks, period data, points and rewards history, and the RevenueCat record.
