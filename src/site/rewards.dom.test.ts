@@ -110,7 +110,7 @@ describe('numbers filled in from the config', () => {
     document.querySelectorAll<HTMLElement>('[data-reward]').forEach(el => { el.textContent = '?'; });
     fillRewardNumbers();
     expect(document.querySelector('[data-reward="voucherPoints"]')!.textContent).toBe('1,000');
-    expect(document.querySelector('[data-reward="voucherValue"]')!.textContent).toBe('£5');
+    expect(document.querySelector('[data-reward="voucherValue"]')!.textContent).toBe('£2.50');
     expect(document.querySelector('[data-reward="donationValue"]')!.textContent).toBe('£2.50');
     expect(document.querySelectorAll('[data-reward]')).toHaveLength(10);
     document.querySelectorAll('[data-reward]').forEach(el => expect(el.textContent).not.toBe('?'));

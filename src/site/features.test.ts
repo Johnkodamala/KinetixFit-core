@@ -411,7 +411,7 @@ describe('04 Cycle: her card through the month', () => {
 
   it('uses the card’s own wording', () => {
     for (const words of ['Your cycle', 'Fertile window (estimate)', 'Next period', 'My period started today', 'Log or edit periods',
-      'Estimates from your own dates — not a way to prevent pregnancy. Everything stays on your phone.']) {
+      'Estimates from your own dates — not a way to prevent pregnancy. Your dates are saved to your account when you sign in.']) {
       expect(cycleCardSource, words).toContain(words);
     }
   });

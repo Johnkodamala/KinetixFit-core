@@ -49,7 +49,7 @@ let slotAllowed = true;
 const released = [];
 const slotsFor = [];
 vi.mock('../_lib/rewardConfig.js', () => ({
-  getRewardConfig: async () => ({ voucherPointsCost: 1000, voucherValueGBP: 5 }),
+  getRewardConfig: async () => ({ voucherPointsCost: 1000, voucherValueGBP: 2.5 }),
   reserveVoucherSlot: async email => { slotsFor.push(email); return slotAllowed ? { allowed: true } : { allowed: false, message: 'One a month.' }; },
   releaseVoucherSlot: async slot => { released.push(slot); },
 }));

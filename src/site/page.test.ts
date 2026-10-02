@@ -264,7 +264,7 @@ describe('copy that only says what is true', () => {
   it('names the company exactly as the legal pages do', () => {
     expect(words).toContain('JN Global Ventures LTD');
     expect(words).toContain('company number 17268312');
-    expect(words).toContain('ICO registration ZC236047');
+    expect(words).not.toContain('ZC236047');
   });
 
   it('never says you need a gym', () => {
