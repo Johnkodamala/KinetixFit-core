@@ -14,23 +14,34 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-10-02, ~23:45) — READ THIS FIRST in a new conversation
+## Current status (2026-10-03, ~01:00) — READ THIS FIRST in a new conversation
 
 **Where we are.** The Android app is a few steps from Play internal testing; the user is working through the Play Console in parallel. A store-readiness plan
 (`~/.claude/plans/go-ahead-with-step-sequential-truffle.md`) was agreed and **steps 1-4 are done, committed and NOT pushed or deployed; step 5 (answer sheet) is next**.
 The user works one reviewable step per "go": tests pin old behaviour first, then the change, then a report of files / behaviour changes / limits, then wait. Plain-text
 questions, not the AskUserQuestion widget. Only commit / push when asked; the user merges PRs on GitHub (`gh pr merge` is blocked); production deploys and secrets are the user's.
 
-**Git:** branch `chore/v1.8` (local only), 8 commits on top of `main` (`208d4a8`): `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
-`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9, `b9045a6` £2.50 voucher (E2) + ICO number removed (E9) + CycleCard copy, `195ae1d` CLAUDE.md, `ed703f1` typed-food "Did you mean…?" (E8 light). **Nothing pushed.** To ship: push → PR into `main` → wait for the Vercel preview →
+**Git:** branch `chore/v1.8`, 11 commits on top of `main` (`208d4a8`) — **pushed to origin on 3 Oct, no PR yet**: `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
+`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9, `b9045a6` £2.50 voucher (E2) + ICO number removed (E9) + CycleCard copy, `195ae1d` CLAUDE.md, `ed703f1` typed-food "Did you mean…?" (E8 light), `f7dc1f0` CLAUDE.md, `18fdfec` pre-submission fixes (below), and the CLAUDE.md commit after it. To ship: push → PR into `main` → wait for the Vercel preview →
 the user merges → production deploys the server (`api/plus-status`, `api/delete-account`, `redeem-promo` changes, `/delete-account` page, the new policy/terms). **Server before app**
 (an app build that calls `plus-status` / `delete-account` before they exist just gets 404 and keeps working, but deletion would say "not available yet").
+
+**3 Oct additions (commit `18fdfec`, pre-submission pass).**
+- **`tsc --noEmit -p .` checks nothing here (solution-style tsconfig); use `npx tsc -b` (what `npm run build` runs).** The typo-prompt commit `ed703f1` had a type error (`savedFoods` is a `Record`, not an array) that only `18fdfec` fixes — never build from `ed703f1` alone.
+- `src/components/ErrorBoundary.tsx` wraps `<App />` in `main.tsx` (a failed screen shows "Something went wrong" + Reload instead of a blank page; console only, nothing sent).
+- Edge-to-edge on Android 15/16 checked on the S21 FE (Android 16, WebView 154): fine, Capacitor's SystemBars handles insets, no code needed. The Play pre-launch report (16 KB page size, accessibility, crashes) is still the user's to read after the first internal-testing upload.
+- "Stays on your phone" claims removed everywhere (check-in, gut, vitals, gut reminder, website cycle bullet and FAQ): gut checks, periods, vitals, check-ins all sync to Supabase (the policy says so). Hard-coded GB "£14.99 / month" fallback removed ("Price shown in the store").
+- **Second-phone sign-in goes straight to Today.** The onboarded marker is per phone, so a second phone used to repeat all of onboarding. `profileShowsOnboarded()` (`src/lib/onboarding.ts`): a pulled profile with a name + diet (Finish needs a diet) counts as onboarded; `syncThenContinue` marks it and reloads onto Today. Health and reminder permissions are then asked on Today. Accounts that finished before diet existed still onboard once on a new phone. **Not tested on the iPhone by Claude (can't drive its screen) — the user should log out/in on it.**
+- `smart_device_connected` no longer comes down from the server (`profileFromRemote`, `src/lib/profileSync.ts`): it is per phone; `ownHealthSource()` also drops a stored value from the other platform at start-up. Before this, an iPhone could say "Connected to Health Connect".
+- **Plus not showing on the iPhone (3 Oct): cause = `/api/plus-status` returns 404 in production (server not deployed) and the iOS app has no RevenueCat key.** The S21 FE gets Plus from its Android RevenueCat key (promo `KXFIT-TEST-30`, granted to the account's email). Fix = deploy the server (push → PR → Vercel preview → the user merges); the iPhone build from 3 Oct already calls `plus-status`. A paid Apple account + `VITE_REVENUECAT_IOS_PUBLIC_KEY` is still needed for iOS purchases.
+- Get help email now ends with app version / platform / model (`src/lib/support.ts`); the "Did you mean" buttons are on one row.
+- Ideas deferred until after the first release: an offline banner, an in-app "Rate us" prompt (needs a plugin), privacy-safe usage counts (typo-prompt acceptance etc. — needs a policy change), R8 minification (`minifyEnabled false` today; needs full device testing + keep rules).
 
 **Builds:** `android/app/build.gradle` = versionCode **10** / "**1.9**". `KinetixFit-builds/Kinetix-Fit-1.9.aab` is the signed release bundle (1.8.aab is superseded). Signing: the
 upload keystore + passwords live in `~/KinetixFit-keys/` (`kinetixfit-upload.jks`, `keystore.properties`), **outside the repo and backed up by the user**; `build.gradle` reads that file
 if it exists (no file = unsigned release). Upload-key SHA256 `DD:7A:A9:C8:C6:EE:39:41:EF:7D:CA:31:45:E6:42:9B:F2:1A:75:11:54:17:65:FF:40:D8:FE:68:B8:DE:14:AD`. Build:
 `npm run build && npx cap sync android && cd android && ./gradlew bundleRelease` (JDK 21 from `~/.zshrc`; if Gradle says "Cannot lock execution history", `./gradlew --stop` and delete
-`android/.gradle/8.14.3/executionHistory`; the disk got full once — keep ≥10 GB free). S21 FE has debug APK 1.8; A55 still 1.6; iPhone 13 mini build is from 1 Oct (profile ~8 Oct).
+`android/.gradle/8.14.3/executionHistory`; the disk got full once — keep ≥10 GB free). S21 FE has the debug APK of 3 Oct (1.9 code + `18fdfec`); A55 still 1.6; iPhone 13 mini was rebuilt and reinstalled on 3 Oct (free profile lasts 7 days, so rebuild before ~10 Oct).
 The user will get a **paid Apple Developer account soon** (needed for TestFlight / App Store, RevenueCat's iOS app + `VITE_REVENUECAT_IOS_PUBLIC_KEY`, Apple offer codes).
 
 **Store-readiness plan, status**
@@ -54,10 +65,10 @@ reminders still firing after the exact-alarm removal**, a delete-account run on 
 Play Console → Monetize → Promo codes (store-generated; needs the subscription product), Apple → subscription → Offer codes; our server `PROMO_CODES_JSON` codes are for Android/web/testers only.
 
 **Known loose ends / bugs found on 2 Oct (not fixed yet)**
-- ~~CycleCard copy~~ fixed in `b9045a6`. **Still to check:** other "It stays on your phone" lines — `VitalsCard.tsx:29`, `App.tsx` ~4158 / ~4237 (gut check), `notifications.ts:227` — may be wrong if that data syncs.
+- ~~CycleCard copy~~ and the other "stays on your phone" lines: fixed (`b9045a6`, `18fdfec`).
 - `api/suggest-meals.js` and `api/scan-meal.js` still trust `appUserId` from the request body (not the verified session); `redeem-promo` still accepts a body-only account when no session is sent
   (builds ≤1.8). Tighten once old builds are gone.
-- Plus price: the app shows a hard-coded **"£14.99 / month"** for GB when the store package is missing (`src/App.tsx` ~5485); real prices come from the store package.
+- ~~Plus price fallback~~ fixed in `18fdfec` ("Price shown in the store"); E1 will rework the Plus price display anyway.
 - The 4 React Compiler lint diagnostics in `App.tsx` (known, deferred). 1,264 tests pass.
 - Vitals / HealthKit: AI meal ideas send steps, sleep and workouts (possibly Apple Health-derived) to Anthropic — disclosed in the policy and asked once (`kx_ai_ideas_consent`); Apple 5.1.3 may still
   raise it in review. Be ready to explain or to send fewer fields.
