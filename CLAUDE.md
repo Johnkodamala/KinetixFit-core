@@ -49,6 +49,16 @@ done once, in shared code.
   Tested: 1,261 tests, browser check of the sheet/confirm/no-session path (mocked server). **Not tested:** the success path on a real phone with a throwaway
   account (needs the server deployed) — check Supabase rows, `keys *<email>*` in Upstash, RevenueCat, then sign-in again after "keep my account".
   The page's "backups overwritten within 30 days" line is an assumption — confirm against Supabase's plan.
+- **2 Oct — Step 3 (privacy policy, terms, iOS privacy manifest) done, NOT deployed.** `public/privacy-policy.html` rewritten (last updated 2 Oct): adds Supabase,
+  period + gut-check + water/workout/check-in + vitals-history data, country/time zone (no GPS), exactly what Anthropic receives (meal photos; for AI meal ideas goal/sex/age/
+  height/weight/diet/allergies/targets/today's food/steps/workouts/sleep — never name, email, period or gut data), ML Kit diagnostics, retention table (incl. the ≤35-day
+  anti-abuse counters kept after deletion), in-app deletion + `/delete-account`, rights incl. EEA and US-state wording, "no sale / no advertising / no ad trackers"; Oura
+  removed (no code uses it). Terms: no fixed £14.99 (price is shown in the app), trial + 24-hour cancel wording, promo-code clause, voucher/donation wording (the old £3
+  cap line is gone), deletion ≠ cancelling a subscription. iOS: `PrivacyInfo.xcprivacy` for the app (collected: name, email, user id, health, fitness, purchase history,
+  other user content — linked, no tracking) and the widget extension (App Group UserDefaults, reason 1C8F.1), both added to `project.pbxproj` and checked in a simulator build;
+  `NSHealthUpdateUsageDescription` removed (the app only reads; the plugin gets an empty write list). Android Health Connect privacy URL now uses `www`.
+  **The user must read the policy before it deploys** (a legal text). Still to confirm: the "backups overwritten within 30 days" line (Supabase plan), and whether sending
+  Apple Health–derived steps/sleep/workouts to Anthropic for AI meal ideas is acceptable under Apple's HealthKit rules (5.1.3) — consider asking before the first send.
 - **(Fixed in code 2 Oct, see above) Open bug — Plus doesn't show right after a promo:** the grant lands in RevenueCat, but the app only reads it through the RevenueCat SDK. The
   **iPhone has no `VITE_REVENUECAT_IOS_PUBLIC_KEY`**, so `Purchases` isn't configured and `refreshRevenueCatStatus()` returns early; the Android SDK's
   cached customer info showed "Free plan" until an app restart. Proposed fix (user hasn't said "go"): new authenticated `api/plus-status` (session → `isPlusUser`

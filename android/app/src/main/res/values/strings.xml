@@ -6,7 +6,7 @@
     <string name="custom_url_scheme">com.jnglobalventures.kinetixfit</string>
     <!-- Shown when a user taps "Privacy policy" in the Health Connect permissions dialog
          (required by Health Connect — see @capgo/capacitor-health's README). -->
-    <string name="health_connect_privacy_policy_url">https://kinetixfit.co.uk/privacy-policy</string>
+    <string name="health_connect_privacy_policy_url">https://www.kinetixfit.co.uk/privacy-policy</string>
     <string name="widget_hydration_label">Water bottle</string>
     <string name="widget_hydration_description">A bottle that fills up with today’s water, with a button to add a glass</string>
     <string name="widget_water_level_label">Water level</string>

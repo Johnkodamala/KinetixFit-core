@@ -41,8 +41,6 @@
 	<string>Kinetix Fit uses your camera to scan food barcodes and photos for nutrition information.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Kinetix Fit reads your heart rate, HRV, sleep, steps, workouts, distance, calories burned, blood oxygen, breathing rate, blood pressure, VO2 max, weight and body fat to show them on Today, personalise your targets and verify your daily activity.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Kinetix Fit only reads from Apple Health and never adds or changes your health data.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Kinetix Fit does not add photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
