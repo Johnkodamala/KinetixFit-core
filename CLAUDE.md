@@ -21,8 +21,8 @@ done once, in shared code.
 The user works one reviewable step per "go": tests pin old behaviour first, then the change, then a report of files / behaviour changes / limits, then wait. Plain-text
 questions, not the AskUserQuestion widget. Only commit / push when asked; the user merges PRs on GitHub (`gh pr merge` is blocked); production deploys and secrets are the user's.
 
-**Git:** branch `chore/v1.8` (local only), 5 commits on top of `main` (`208d4a8`): `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
-`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9. **Nothing pushed.** To ship: push → PR into `main` → wait for the Vercel preview →
+**Git:** branch `chore/v1.8` (local only), 6 commits on top of `main` (`208d4a8`): `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
+`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9, `b9045a6` £2.50 voucher (E2) + ICO number removed (E9) + CycleCard copy. **Nothing pushed.** To ship: push → PR into `main` → wait for the Vercel preview →
 the user merges → production deploys the server (`api/plus-status`, `api/delete-account`, `redeem-promo` changes, `/delete-account` page, the new policy/terms). **Server before app**
 (an app build that calls `plus-status` / `delete-account` before they exist just gets 404 and keeps working, but deletion would say "not available yet").
 
@@ -54,7 +54,7 @@ reminders still firing after the exact-alarm removal**, a delete-account run on 
 Play Console → Monetize → Promo codes (store-generated; needs the subscription product), Apple → subscription → Offer codes; our server `PROMO_CODES_JSON` codes are for Android/web/testers only.
 
 **Known loose ends / bugs found on 2 Oct (not fixed yet)**
-- `src/components/CycleCard.tsx:103` still says "Everything stays on your phone" but period data syncs to the account (`periodsSync.ts`) and the new privacy policy says so. **Fix the copy.**
+- ~~CycleCard copy~~ fixed in `b9045a6`. **Still to check:** other "It stays on your phone" lines — `VitalsCard.tsx:29`, `App.tsx` ~4158 / ~4237 (gut check), `notifications.ts:227` — may be wrong if that data syncs.
 - `api/suggest-meals.js` and `api/scan-meal.js` still trust `appUserId` from the request body (not the verified session); `redeem-promo` still accepts a body-only account when no session is sent
   (builds ≤1.8). Tighten once old builds are gone.
 - Plus price: the app shows a hard-coded **"£14.99 / month"** for GB when the store package is missing (`src/App.tsx` ~5485); real prices come from the store package.
@@ -75,7 +75,7 @@ the Play data-safety / Health Connect declaration and the Apple privacy label in
 - The website deliberately shows no price (a decision from 30 Sep); the Terms now say "the price … is shown in the app". Keep them consistent. Possibly a limited-time "winter" campaign: the copy is seasonal, so make it
   config, not code, and set an end date.
 
-**E2. Coffee voucher worth £2.50, not £5.** Today the voucher is £5 (`voucherValueGBP: 5.00` in `api/_lib/rewardConfig.js`, sent to Tremendous as the order denomination in `api/redeem-voucher.js`; the website mirrors it
+**E2. DONE in `b9045a6` (not deployed) — Coffee voucher worth £2.50, not £5.** Remaining for the user: confirm Tremendous supports a £2.50 denomination; check production `config:rewards` is still nil (it overrides the default). Original brief: Today the voucher is £5 (`voucherValueGBP: 5.00` in `api/_lib/rewardConfig.js`, sent to Tremendous as the order denomination in `api/redeem-voucher.js`; the website mirrors it
 as `voucherValueGBP: 5` in `src/site/config.ts`, and tests assert the two agree: `src/site/rewards.test.ts`, `rewards.dom.test.ts` expects `'£5'`, `page.test.ts`). Change both to **2.5**, update the app and site copy
 ("£5 coffee"), the FAQ / rewards story numbers, and the error message in `redeem-voucher.js`. The points cost stays 1,000 (the same as a £2.50 charity donation — worth saying in the copy). A `config:rewards` value in
 production Redis overrides the default (`GET config:rewards`; last checked 1 Oct: nil). Vouchers don't count against the £3 monthly donation cap; one voucher per month stays. Check Tremendous supports a £2.50 denomination.
@@ -119,7 +119,7 @@ containing the same misspelling and logged 46 kcal/100 g (real avocado ≈ 160)*
 matches a misspelled query to words in a branded product *name*. Fix: fuzzy-match the query against our canonical food names + aliases first (edit distance / trigram), ask **"Did you mean avocado?"** before logging, don't let
 a typo'd generic query match branded names, and keep the plausibility check; add a golden test list of common typos (English + Indian food names). Do this with, or just before, E7.
 
-**E9. Remove the ICO registration reference from the website (keep the company details).** Decided with the user (2 Oct): **do not remove** the company name, company number or registered office — UK law
+**E9. DONE in `b9045a6` (not deployed; run `npm run build:web` before deploying) — Remove the ICO registration reference from the website (keep the company details).** Decided with the user (2 Oct): **do not remove** the company name, company number or registered office — UK law
 (the Companies (Trading Disclosures) Regulations 2008, as far as we know) requires them on a company's website, and the privacy policy must identify the controller. **Remove only the ICO registration
 reference `ZC236047`.** Where it is: `site/index.html:1478` (Trust list: "A UK company, registered with the ICO (ZC236047)" — reword to "A UK company" without the number) and `:1659` (footer: "ICO registration
 ZC236047."), and `public/privacy-policy.html` (the controller paragraph: "registered with the UK Information Commissioner's Office (ICO), registration reference ZC236047"). Keep: company number 17268312 and the Sheffield
