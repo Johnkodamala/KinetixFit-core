@@ -119,20 +119,23 @@ containing the same misspelling and logged 46 kcal/100 g (real avocado ≈ 160)*
 matches a misspelled query to words in a branded product *name*. Fix: fuzzy-match the query against our canonical food names + aliases first (edit distance / trigram), ask **"Did you mean avocado?"** before logging, don't let
 a typo'd generic query match branded names, and keep the plausibility check; add a golden test list of common typos (English + Indian food names). Do this with, or just before, E7.
 
-**E9. Remove the company number and ICO reference from the website.** Where they are: `site/index.html:1478` (Trust list: "registered with the ICO (ZC236047)") and `:1659` (footer: company number 17268312, registered
-office, ICO registration), `site/404.html:64` (footer, company number), and the legal pages `public/privacy-policy.html` (controller paragraph, ICO number) and `public/terms-of-service.html:28` (company number). Update any site
-tests that assert those strings. **Caution before removing (tell the user):** as far as we know, UK law (the Companies (Trading Disclosures) Regulations 2008) requires a company to show its **registered name, company number
-and registered office** on its website, and data-protection law requires the controller's identity and contact details in the privacy policy; the **ICO registration number** is not required on the page, so that part is safe
-to drop. Google Play and Apple also ask for a developer/company contact. Confirm with the user (or their accountant) which of the two they really want gone.
+**E9. Remove the ICO registration reference from the website (keep the company details).** Decided with the user (2 Oct): **do not remove** the company name, company number or registered office — UK law
+(the Companies (Trading Disclosures) Regulations 2008, as far as we know) requires them on a company's website, and the privacy policy must identify the controller. **Remove only the ICO registration
+reference `ZC236047`.** Where it is: `site/index.html:1478` (Trust list: "A UK company, registered with the ICO (ZC236047)" — reword to "A UK company" without the number) and `:1659` (footer: "ICO registration
+ZC236047."), and `public/privacy-policy.html` (the controller paragraph: "registered with the UK Information Commissioner's Office (ICO), registration reference ZC236047"). Keep: company number 17268312 and the Sheffield
+registered office (`site/index.html:1659`, `site/404.html:64`, both legal pages), and the policy's right to complain to the ICO (that names the regulator, not our number). Update any site test that asserts the ICO
+string, bump the policy's "Last updated" date, and rebuild (`npm run build:web`). Small; can be done any time and deployed with the next website change.
 
-**E10. Continuous glucose monitor (CGM) integration.** Support CGMs (Dexcom, FreeStyle Libre / Abbott, Medtronic): the cleanest route is **Apple Health** (`bloodGlucose`) and **Android Health Connect**
-(`READ_BLOOD_GLUCOSE` — currently *removed* in the manifest with `tools:node="remove"`, so it would have to be re-added and declared in Play), where the CGM's own app writes readings; direct vendor APIs
-(Dexcom Developer API needs OAuth + approval; Libre has no public consumer API) come later. Value: post-meal glucose response per food, spikes vs meals/sleep/exercise, insights in the weekly report (E6). Needs: a
-time-series store (readings every 1–5 min — don't put them in `vitals_history` as-is), sync, charts, **careful medical-device wording** (wellness only, no dosing or diagnosis advice, "talk to your clinician"), a
-privacy policy + Play Health Connect declaration + Apple label update, and the Android manifest change. Plan after E7 (needs per-food nutrient quality) and E6.
+**E10. Third-party continuous glucose monitors (CGMs).** The user's intent (2 Oct): let people who already **wear a third-party CGM** (Dexcom, FreeStyle Libre / Abbott, Medtronic and similar sensors worn on the
+body) bring those readings into Kinetix Fit, so the app can use them to calculate how foods, meals, sleep and exercise affect glucose — **no hardware of our own**. The cleanest route is **Apple Health** (`bloodGlucose`)
+and **Android Health Connect** (`READ_BLOOD_GLUCOSE` — currently *removed* in the manifest with `tools:node="remove"`, so it must be re-added and declared in Play), where the CGM's own app writes readings; direct vendor
+APIs (Dexcom Developer API needs OAuth + approval; Libre has no public consumer API) come later, per vendor. Value: post-meal glucose response per food, spikes vs meals/sleep/exercise, insights in the weekly report (E6),
+food suggestions tuned to the person's own response. Needs: a time-series store (readings every 1–5 min — don't put them in `vitals_history` as-is), sync, charts, **careful medical-device wording** (wellness only, no dosing or
+diagnosis advice, "talk to your clinician"; vendors' own apps stay the source for alerts), a privacy policy + Play Health Connect declaration + Apple label update (glucose is health data), and the Android manifest change.
+Plan after E7 (needs per-food nutrient quality) and E6.
 
 **Suggested order** (the user decides): Step 5 of the store plan and the Play Console work first → E2 and E1 (small, commercial) → E3 (scan confirmation) → E8 + E7 (food accuracy) → E4 / E5 (women's health, with
-clinical review and the privacy changes) → E6 (weekly insights) → E10 (CGM). E9 whenever the user decides.
+clinical review and the privacy changes) → E6 (weekly insights) → E10 (CGM). E9 (just the ICO reference) is small and can ride along with any website deploy.
 
 ## Earlier status (2026-10-01, ~02:45) — superseded by the two sections above, kept for history
 
