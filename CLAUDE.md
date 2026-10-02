@@ -14,7 +14,127 @@ done once, in shared code.
 - Location: `/Users/sivadurga/Claude Space/KinetixFit-core` (moved here from `~/KinetixFit-core` on 2026-09-25)
 - Git: `origin` = github.com/Johnkodamala/KinetixFit-core, working branch `initial-changes` → PR into `main`
 
-## Current status (2026-10-01, ~02:45) — read this first in a new conversation
+## Current status (2026-10-02, ~23:45) — READ THIS FIRST in a new conversation
+
+**Where we are.** The Android app is a few steps from Play internal testing; the user is working through the Play Console in parallel. A store-readiness plan
+(`~/.claude/plans/go-ahead-with-step-sequential-truffle.md`) was agreed and **steps 1-4 are done, committed and NOT pushed or deployed; step 5 (answer sheet) is next**.
+The user works one reviewable step per "go": tests pin old behaviour first, then the change, then a report of files / behaviour changes / limits, then wait. Plain-text
+questions, not the AskUserQuestion widget. Only commit / push when asked; the user merges PRs on GitHub (`gh pr merge` is blocked); production deploys and secrets are the user's.
+
+**Git:** branch `chore/v1.8` (local only), 5 commits on top of `main` (`208d4a8`): `aff4bb2` signing + 1.8, `70e13ca` server-side Plus status, `532d0e4` delete account/data,
+`000e91e` privacy policy / terms / iOS privacy manifests, `ec3869c` store-policy fixes + 1.9. **Nothing pushed.** To ship: push → PR into `main` → wait for the Vercel preview →
+the user merges → production deploys the server (`api/plus-status`, `api/delete-account`, `redeem-promo` changes, `/delete-account` page, the new policy/terms). **Server before app**
+(an app build that calls `plus-status` / `delete-account` before they exist just gets 404 and keeps working, but deletion would say "not available yet").
+
+**Builds:** `android/app/build.gradle` = versionCode **10** / "**1.9**". `KinetixFit-builds/Kinetix-Fit-1.9.aab` is the signed release bundle (1.8.aab is superseded). Signing: the
+upload keystore + passwords live in `~/KinetixFit-keys/` (`kinetixfit-upload.jks`, `keystore.properties`), **outside the repo and backed up by the user**; `build.gradle` reads that file
+if it exists (no file = unsigned release). Upload-key SHA256 `DD:7A:A9:C8:C6:EE:39:41:EF:7D:CA:31:45:E6:42:9B:F2:1A:75:11:54:17:65:FF:40:D8:FE:68:B8:DE:14:AD`. Build:
+`npm run build && npx cap sync android && cd android && ./gradlew bundleRelease` (JDK 21 from `~/.zshrc`; if Gradle says "Cannot lock execution history", `./gradlew --stop` and delete
+`android/.gradle/8.14.3/executionHistory`; the disk got full once — keep ≥10 GB free). S21 FE has debug APK 1.8; A55 still 1.6; iPhone 13 mini build is from 1 Oct (profile ~8 Oct).
+The user will get a **paid Apple Developer account soon** (needed for TestFlight / App Store, RevenueCat's iOS app + `VITE_REVENUECAT_IOS_PUBLIC_KEY`, Apple offer codes).
+
+**Store-readiness plan, status**
+1. **Plus from the server — done.** `api/plus-status.js` + `src/lib/plusStatus.ts`; the app asks on open/resume/after a promo; `redeem-promo` uses the session's email; `verify-license.js` deleted. Fixes "Plus doesn't show
+   after a promo" on iOS (no RevenueCat SDK key there) and Android's stale cache.
+2. **Account deletion — done** (details in the bullet further down: `api/delete-account.js`, "Delete account or data" in Account → Your data & privacy, `/delete-account` page). Two modes: delete data + keep
+   account, or delete account + data. Short-lived anti-abuse counters are kept ≤35 days on purpose.
+3. **Privacy policy / terms / iOS `PrivacyInfo.xcprivacy` — done** (details below). The user must read the policy before deploying.
+4. **Store-policy app fixes — done** (age 16+, no exact alarms, no backups, Help opens email, no promo box on iOS, AI-ideas consent; details below).
+5. **Next: `docs/store-submission.md`** — a section-by-section answer sheet for Play Console → App content (privacy policy URL `https://www.kinetixfit.co.uk/privacy-policy`, account-deletion URL
+   `https://www.kinetixfit.co.uk/delete-account`, app access = a reviewer test account with Plus via a promo code, ads = none, content rating (IARC), target audience 16+, health apps declaration,
+   the 15 Health Connect permissions with a justification each, data-safety form, financial features none, news app no, government app no), store listing drafts + screenshot list, the testing
+   track (the user has an **organisation** Play account, so the 12-tester / 14-day closed-test rule for new personal accounts does not apply), and the Apple equivalents (App Privacy label, review notes,
+   demo account, offer codes) for later. Ask the user which Play Console sections they have already filled in.
+
+**Open items that are the user's** (Claude can't do these): Play Console health declaration + data-safety form + listing + the subscription product (and RevenueCat attaching it to the
+`default` offering, which is empty); **Supabase custom SMTP** (Resend walkthrough was given: verified subdomain DNS + API key + Supabase SMTP settings — postponed, the user has a dependency);
+set `PROMO_CODES_JSON` in Vercel + redeploy; read the new policy; confirm Supabase's backup retention (the policy says "overwritten within 30 days", an assumption); a paid Apple account;
+the S21 FE device checks (check-in +5/+10 reaching `points_ledger`, first food check +2, a quest claim, logout → sign-in restore, voucher/donation refusal below 1,000 points, **water/gut/streak
+reminders still firing after the exact-alarm removal**, a delete-account run on a throwaway account in both modes, a promo redeem showing Plus without a restart). Promo codes in future:
+Play Console → Monetize → Promo codes (store-generated; needs the subscription product), Apple → subscription → Offer codes; our server `PROMO_CODES_JSON` codes are for Android/web/testers only.
+
+**Known loose ends / bugs found on 2 Oct (not fixed yet)**
+- `src/components/CycleCard.tsx:103` still says "Everything stays on your phone" but period data syncs to the account (`periodsSync.ts`) and the new privacy policy says so. **Fix the copy.**
+- `api/suggest-meals.js` and `api/scan-meal.js` still trust `appUserId` from the request body (not the verified session); `redeem-promo` still accepts a body-only account when no session is sent
+  (builds ≤1.8). Tighten once old builds are gone.
+- Plus price: the app shows a hard-coded **"£14.99 / month"** for GB when the store package is missing (`src/App.tsx` ~5485); real prices come from the store package.
+- The 4 React Compiler lint diagnostics in `App.tsx` (known, deferred). 1,264 tests pass.
+- Vitals / HealthKit: AI meal ideas send steps, sleep and workouts (possibly Apple Health-derived) to Anthropic — disclosed in the policy and asked once (`kx_ai_ideas_consent`); Apple 5.1.3 may still
+  raise it in review. Be ready to explain or to send fewer fields.
+
+## Enhancement backlog (agreed with the user, 2 Oct 2026) — not started; pick one per conversation
+
+Each item is a feature the user wants. Nothing here is built. Honour the working style above (one step per "go", tests first). Most of these touch health data: **update the privacy policy,
+the Play data-safety / Health Connect declaration and the Apple privacy label in the same change**, and keep the "wellness, not medical advice" framing.
+
+**E1. Plus intro offer £9.99 (instead of £14.99).** The user wants the apps to show an introductory price of **£9.99**, with marketing copy along the lines of **"Start your winter arc right away — just £9.99"**.
+- Prices come from the store: configure an **introductory offer** on the subscription in Play Console (base plan → offers) and App Store Connect (introductory offer / promotional offer), then RevenueCat
+  exposes it as `plusPackage.product.introPrice`; the Plus page already switches its button to "Start your free trial" when `introPrice` exists (`src/App.tsx` ~5499 — **change that wording**, it says "free trial").
+- Replace the hard-coded GB fallback "£14.99 / month" (~5485) so the app never shows a price the store doesn't charge. Show both prices honestly: the intro price **and what it renews at / when**
+  (store rules, UK consumer law). **Decide with the user:** is £9.99 for the first month or the first N months, and does it renew at £14.99/month?
+- The website deliberately shows no price (a decision from 30 Sep); the Terms now say "the price … is shown in the app". Keep them consistent. Possibly a limited-time "winter" campaign: the copy is seasonal, so make it
+  config, not code, and set an end date.
+
+**E2. Coffee voucher worth £2.50, not £5.** Today the voucher is £5 (`voucherValueGBP: 5.00` in `api/_lib/rewardConfig.js`, sent to Tremendous as the order denomination in `api/redeem-voucher.js`; the website mirrors it
+as `voucherValueGBP: 5` in `src/site/config.ts`, and tests assert the two agree: `src/site/rewards.test.ts`, `rewards.dom.test.ts` expects `'£5'`, `page.test.ts`). Change both to **2.5**, update the app and site copy
+("£5 coffee"), the FAQ / rewards story numbers, and the error message in `redeem-voucher.js`. The points cost stays 1,000 (the same as a £2.50 charity donation — worth saying in the copy). A `config:rewards` value in
+production Redis overrides the default (`GET config:rewards`; last checked 1 Oct: nil). Vouchers don't count against the £3 monthly donation cap; one voucher per month stays. Check Tremendous supports a £2.50 denomination.
+
+**E3. Ask before logging a scanned food.** Today a photo / barcode / typed scan **logs the food immediately** (`showLoggedFood` → `logFood`, `finalizeScanResult` in `src/App.tsx` ~2727-2760) — but a scan doesn't mean the
+person ate it. Change it: show the result card with **"Add to today" / "Not now"** (and the amount editor), and log only on confirm. Multi-food photos (several items under one meal) and the existing "unsure food → ask first"
+flow should share one confirmation. **Decide:** when the once-a-day scan bonus (+2 points, `scan-meal.js`) and the "food checks" quest count (on the scan, or on Add — Add is harder to game), and what happens to
+the day's free scan quota (a scan still costs one). Update the tests that pin the old contract (`api/__tests__/scan-meal.test.js` snapshots are what older apps rely on — the server contract can stay; this is mostly app-side).
+
+**E4. Women's health inputs + AI insights + more accurate cycle prediction.** Collect how she's feeling (irritation, stomach pain / cramps, bloating, mood, fatigue, flow, headaches…), then give **food suggestions,
+insights, and clear "see a doctor" guidance**, and **predict cycles more accurately**.
+- Exists: `src/lib/cycle.ts` (average of the last 6 logged cycles ± a window, confidence, "late" notes, ovulation 14 days before the next period; sleep/training/eating/HRV shown as context only), `CycleCard.tsx`,
+  `periodsSync.ts`, the gut check + "what went with better days" report. Predictions use only logged period dates today.
+- Add: a short daily symptom check-in; deterministic **red-flag rules** for "consult a doctor" (severe pain, very heavy bleeding, bleeding between periods, missed periods > N cycles, pain + fever, etc. — rules,
+  not an AI guess); food suggestions tied to symptoms and cycle phase (iron, magnesium, fibre, hydration — evidence-checked wording); better prediction from symptoms + resting HR / HRV / temperature when
+  the phone provides them, irregular-cycle handling, widening confidence honestly.
+- **AI + privacy:** the policy currently says period data is **not** sent to Anthropic. If AI sees any of it, change the policy first, get explicit consent in the app (like `kx_ai_ideas_consent`), send the least
+  possible (coarse summaries, no name/email), and update the data-safety / Apple label. Period data is special-category data and is sensitive in the US (reproductive-health laws): keep it out of logs and analytics.
+- **Medical-device line:** predictions and guidance must stay "wellness / not contraception / not diagnosis" (`cycle.ts` already says it isn't a way to prevent pregnancy). Get a clinician to review the red-flag copy.
+
+**E5. Pregnancy support (there is none today).** No pregnancy option exists anywhere (only a "pregnancy-test note" when a period is late, `cycle.ts`; `nutrition.ts` notes targets are for adults and pregnancy changes them).
+Add: a pregnancy mode (due date / weeks / trimester), pause cycle predictions, adjusted targets per **NHS guidance** (folic acid / folate, vitamin D, iron, calcium, no extra calories until the last trimester,
+foods to avoid — alcohol, high-mercury fish, unpasteurised products, liver/pâté, raw eggs per UK rules), flags on scanned foods, safe-exercise guidance, "see your midwife / doctor" triggers, and postpartum / breastfeeding and
+trying-to-conceive modes later. Clinical review needed; country-specific guidance (UK first).
+
+**E6. Weekly AI insights** — gut health, hydration, sleep, nutrients, exercise (a weekly report; Plus candidates). Data exists on the account (`gut_checks`, `water_logs`, `vitals_history` for sleep/HR, `food_log_entries`
+for nutrients vs targets, `workouts`). Compute the numbers deterministically first (on the phone or server), then have the AI write the narrative and suggestions from **aggregates only**; cache per user per week in Redis,
+rate-limit, and consent once (as for meal ideas). Deliver as a Today/Account card + an optional weekly notification. Guardrails: wellness framing, "talk to a doctor" triggers for concerning patterns. Build on the
+existing gut report's association logic (`src/lib/gut*`). Update the policy's Anthropic section when it ships.
+
+**E7. Better food data: CoFID for the UK, IFCT for India, and a real nutrition backend.** USDA numbers differ a lot for Indian foods, so results feel off. Use **CoFID** (UK Composition of Foods Integrated Dataset,
+McCance & Widdowson; UK Open Government Licence — check) for GB and **IFCT** (Indian Food Composition Tables 2017, ICMR-NIN — check usage terms) for India; keep USDA as a fallback and for other countries; tag every food with
+its **source + confidence** and show it. Today: a ~135-food USDA table bundled in the app (`scripts/food-table/gen.py` generates it) and `api/_lib/nutrition.js` doing USDA FDC + Open Food Facts lookups and matching.
+Plan the **backend architecture** properly: a nutrition service backed by Postgres (Supabase) tables — `food_items` (per-100 g nutrients, source, country), `food_aliases` (Hindi/regional/UK names: roti/chapati/phulka, curd/dahi,
+aubergine/brinjal…), household **portion sizes** (katori, 1 roti, a slice, a cup), versioned imports, golden-value tests per food, search with `pg_trgm`, caching, an admin/import tool, and per-country DB selection with a fallback
+chain. Mixed dishes: decompose with the AI then price each ingredient from the local table. This also fixes the "USDA isn't Indian" complaint from the 29 Sep food-scan work and supports E8. Other backend items to fold in
+when this is done: server-computed streaks (points plan step 4), a SQL `points_balance` view (the ledger sum stops at 1,000 rows), verified-session auth on every endpoint, per-country reward config in the database, observability.
+
+**E8. Typos in food search.** A typo can fail the lookup or, worse, match the wrong thing. Known: "chiken breast" / "bananna" fail safely ("Could not find nutrition data"), but **"avacado" matched a branded product
+containing the same misspelling and logged 46 kcal/100 g (real avocado ≈ 160)** — a 3.5× undercount that was then saved to the saved-foods list. Cause: `matchScore()`'s whole-word rule in `api/_lib/nutrition.js`
+matches a misspelled query to words in a branded product *name*. Fix: fuzzy-match the query against our canonical food names + aliases first (edit distance / trigram), ask **"Did you mean avocado?"** before logging, don't let
+a typo'd generic query match branded names, and keep the plausibility check; add a golden test list of common typos (English + Indian food names). Do this with, or just before, E7.
+
+**E9. Remove the company number and ICO reference from the website.** Where they are: `site/index.html:1478` (Trust list: "registered with the ICO (ZC236047)") and `:1659` (footer: company number 17268312, registered
+office, ICO registration), `site/404.html:64` (footer, company number), and the legal pages `public/privacy-policy.html` (controller paragraph, ICO number) and `public/terms-of-service.html:28` (company number). Update any site
+tests that assert those strings. **Caution before removing (tell the user):** as far as we know, UK law (the Companies (Trading Disclosures) Regulations 2008) requires a company to show its **registered name, company number
+and registered office** on its website, and data-protection law requires the controller's identity and contact details in the privacy policy; the **ICO registration number** is not required on the page, so that part is safe
+to drop. Google Play and Apple also ask for a developer/company contact. Confirm with the user (or their accountant) which of the two they really want gone.
+
+**E10. Continuous glucose monitor (CGM) integration.** Support CGMs (Dexcom, FreeStyle Libre / Abbott, Medtronic): the cleanest route is **Apple Health** (`bloodGlucose`) and **Android Health Connect**
+(`READ_BLOOD_GLUCOSE` — currently *removed* in the manifest with `tools:node="remove"`, so it would have to be re-added and declared in Play), where the CGM's own app writes readings; direct vendor APIs
+(Dexcom Developer API needs OAuth + approval; Libre has no public consumer API) come later. Value: post-meal glucose response per food, spikes vs meals/sleep/exercise, insights in the weekly report (E6). Needs: a
+time-series store (readings every 1–5 min — don't put them in `vitals_history` as-is), sync, charts, **careful medical-device wording** (wellness only, no dosing or diagnosis advice, "talk to your clinician"), a
+privacy policy + Play Health Connect declaration + Apple label update, and the Android manifest change. Plan after E7 (needs per-food nutrient quality) and E6.
+
+**Suggested order** (the user decides): Step 5 of the store plan and the Play Console work first → E2 and E1 (small, commercial) → E3 (scan confirmation) → E8 + E7 (food accuracy) → E4 / E5 (women's health, with
+clinical review and the privacy changes) → E6 (weekly insights) → E10 (CGM). E9 whenever the user decides.
+
+## Earlier status (2026-10-01, ~02:45) — superseded by the two sections above, kept for history
 
 ### 1 Oct ~02:45 — points work + entitlement fix are LIVE; 1.8 on the S21 FE and iPhone; Plus not showing after a promo (fix proposed, waiting on "go")
 - **PR #5 (server-authoritative points, coffee = 1,000) and PR #6 (entitlement fix) are merged and deployed.** Server before app: done.
@@ -1359,6 +1479,8 @@ Not yet: a real iPhone, sleep data, barcode/camera (the simulator has no camera)
   simulated metrics. The app's own screenshot rules (360/411 etc.) still apply to `/app/`.
 
 ### Future enhancements (on hold — agreed with the user, not started)
+- **See the "Enhancement backlog" near the top of this file (E1–E10, agreed 2 Oct 2026)** — it supersedes and extends the notes here: women's health (E4), pregnancy (E5), weekly AI insights (E6),
+  CoFID/IFCT food data (E7), typos (E8), CGM (E10). The health-conditions item below overlaps E5/E10: do them together and reuse these constraints (special-category data, NHS wording, "check with your GP").
 - **Health conditions for food suggestions** (on hold 2026-09-26). Optional "Health conditions" row in
   Account → Profile that tunes meal ideas and food checks. Constraints agreed in discussion:
   - Health conditions are UK GDPR special-category data: explicit consent step, privacy-policy update, Play
