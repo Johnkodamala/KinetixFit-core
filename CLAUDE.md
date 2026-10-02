@@ -59,6 +59,13 @@ done once, in shared code.
   `NSHealthUpdateUsageDescription` removed (the app only reads; the plugin gets an empty write list). Android Health Connect privacy URL now uses `www`.
   **The user must read the policy before it deploys** (a legal text). Still to confirm: the "backups overwritten within 30 days" line (Supabase plan), and whether sending
   Apple Health–derived steps/sleep/workouts to Anthropic for AI meal ideas is acceptable under Apple's HealthKit rules (5.1.3) — consider asking before the first send.
+- **2 Oct — Step 4 (store-policy app fixes) done + committed, NOT deployed; version is now 1.9 / versionCode 10** (`KinetixFit-builds/Kinetix-Fit-1.9.aab`, signed with the
+  upload key; 1.8.aab is superseded). Age picker minimum 16 (matches the Terms). **No `SCHEDULE_EXACT_ALARM`** (removed from the manifest; `scheduleNotifications` passes
+  `isExactNotification: false` — without that flag the notifications plugin opens Android's "Alarms & reminders" screen when the permission is missing — so reminders may
+  arrive a few minutes late; **check on the S21 FE that water/gut/streak reminders still fire**). `allowBackup="false"`. Account → Get help now opens the person's own
+  email app with the message ready (it used to say "Message sent" and send nothing; the email field is gone). Promo codes hidden on iOS (`promoCodesAllowed`; Apple wants its own
+  offer codes). AI meal ideas ask once per account before the first send (`kx_ai_ideas_consent`, in `ACCOUNT_DATA_KEYS`). 1,264 tests. Not checked on a device: reminders after
+  the exact-alarm change, the mailto handoff on a phone, the consent dialog (Plus-only screen). Noted, not changed: `api/suggest-meals.js` still trusts the body's `appUserId`.
 - **(Fixed in code 2 Oct, see above) Open bug — Plus doesn't show right after a promo:** the grant lands in RevenueCat, but the app only reads it through the RevenueCat SDK. The
   **iPhone has no `VITE_REVENUECAT_IOS_PUBLIC_KEY`**, so `Purchases` isn't configured and `refreshRevenueCatStatus()` returns early; the Android SDK's
   cached customer info showed "Free plan" until an app restart. Proposed fix (user hasn't said "go"): new authenticated `api/plus-status` (session → `isPlusUser`

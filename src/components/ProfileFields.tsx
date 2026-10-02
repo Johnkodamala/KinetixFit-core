@@ -38,7 +38,8 @@ const REGION_OPTIONS: Choice<string>[] = REGIONS.map(r => ({ value: r.id, label:
 
 const HEIGHT = { min: 120, max: 230, step: 1, labelEvery: 10, unit: 'cm' };
 const WEIGHT = { min: 30, max: 250, step: 0.1, decimals: 1, labelEvery: 10, unit: 'kg' };
-const AGE = { min: 13, max: 100, step: 1, labelEvery: 10, unit: 'years' };
+// 16 and over, as the Terms and Privacy Policy say
+const AGE = { min: 16, max: 100, step: 1, labelEvery: 10, unit: 'years' };
 const CYCLE = { min: 20, max: 45, step: 1, labelEvery: 5, unit: 'days' };
 
 const labelOf = <T,>(options: Choice<T>[], value: T) => options.find(o => o.value === value)?.label ?? '';

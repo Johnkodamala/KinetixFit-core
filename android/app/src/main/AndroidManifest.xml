@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -147,9 +147,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Lets scheduled hydration reminders fire at their exact configured time rather than
-         an approximate one (Android 12+ batches inexact alarms by default). -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Reminders (water, gut check, streak) are inexact on purpose: exact alarms are for alarm and calendar apps on Google
+         Play. The notifications plugin declares the permission itself, so it is removed here, and src/lib/notifications.ts
+         schedules with isExactNotification: false so the plugin never sends people to the "Alarms & reminders" screen. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
     <!-- Movement breaks (MoveReminderReceiver): the step counter needs "Physical activity" on Android 10+, and the
          15-minute check is re-armed after a reboot. -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />

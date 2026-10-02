@@ -309,6 +309,7 @@ const ACCOUNT_DATA_KEYS = [
   'kinetix_shift_end',
   'kx_meals_hidden',
   'kx_widget_prefs',
+  'kx_ai_ideas_consent',
   'kx_notif_water',
   'kx_more_health_asked',
   'kx_no_stress_notice_seen',

@@ -82,8 +82,12 @@ export function styled(kind: Kind, n: LocalNotificationSchema & { header?: strin
  * Schedules them; if iOS refuses the badge thumbnails (attachments must be files it can copy), schedules them again
  * without — a reminder without its picture beats no reminder.
  */
-export async function scheduleNotifications(list: LocalNotificationSchema[]) {
-  if (!list.length) return;
+export async function scheduleNotifications(input: LocalNotificationSchema[]) {
+  if (!input.length) return;
+  // Reminders don't need the exact-alarm permission (Google Play limits it to alarm and calendar apps): Android may
+  // deliver one a few minutes late instead. Without this the plugin opens Android's "Alarms & reminders" screen first.
+  // iOS ignores the flag.
+  const list = input.map(n => ({ ...n, isExactNotification: false }));
   try {
     await LocalNotifications.schedule({ notifications: list });
   } catch (err) {

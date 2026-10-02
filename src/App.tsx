@@ -1867,7 +1867,16 @@ export default function App() {
     return 'evening snack';
   };
 
-  const requestMealIdeas = async () => {
+  const AI_IDEAS_CONSENT_KEY = 'kx_ai_ideas_consent';
+  const [showAiIdeasConsent, setShowAiIdeasConsent] = useState<boolean>(false);
+  // Meal ideas send the day's food, steps, sleep and workouts (and body details) to our AI provider, so the first time
+  // each account is asked. The answer is stored per account (it's wiped on logout and when data is deleted).
+  const requestMealIdeas = () => {
+    if (!profile.email) return;
+    if (localStorage.getItem(AI_IDEAS_CONSENT_KEY) !== '1') { setShowAiIdeasConsent(true); return; }
+    void fetchMealIdeas();
+  };
+  const fetchMealIdeas = async () => {
     if (!profile.email) return;
     setIsLoadingMealIdeas(true);
     setMealIdeasError(null);
@@ -2409,7 +2418,6 @@ export default function App() {
 
   // --- CONTACT FORM STATE ---
   const [contactName, setContactName] = useState<string>('');
-  const [contactEmail, setContactEmail] = useState<string>('');
   const [contactMsg, setContactMsg] = useState<string>('');
   const [contactSuccess, setContactSuccess] = useState<boolean>(false);
 
@@ -3489,17 +3497,23 @@ export default function App() {
     }
   };
 
+  // Nothing is sent from the app itself: this opens the person's own email app with the message ready, so what was
+  // written, and who it came from, is theirs to see and send.
   const handleSendContact = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName || !contactEmail || !contactMsg) {
-      notify('error', 'Fill in your name, email and message to send it.');
+    const name = contactName.trim();
+    const message = contactMsg.trim();
+    if (!name || !message) {
+      notify('error', 'Add your name and a message to send it.');
       return;
     }
+    const subject = encodeURIComponent(`Kinetix Fit support: ${name}`);
+    const body = encodeURIComponent(`${message}\n\n${name}`);
+    window.location.href = `mailto:info@kinetixfit.co.uk?subject=${subject}&body=${body}`;
     setContactSuccess(true);
     setContactName('');
-    setContactEmail('');
     setContactMsg('');
-    setTimeout(() => setContactSuccess(false), 5000);
+    setTimeout(() => setContactSuccess(false), 8000);
   };
 
   const getPersonalizedWelcome = () => {
@@ -3560,6 +3574,7 @@ export default function App() {
   useBackHandler(showCameraModal, () => setShowCameraModal(false));
   useBackHandler(showDeviceSyncModal, () => setShowDeviceSyncModal(false));
   useBackHandler(showLogoutConfirm, () => setShowLogoutConfirm(false));
+  useBackHandler(showAiIdeasConsent, () => setShowAiIdeasConsent(false));
   useBackHandler(deleteMode !== null, () => { if (!isDeleting) setDeleteMode(null); });
   useBackHandler(showNoStressNotice, () => dismissNoStressNotice());
   useBackHandler(showLevelUpModal, () => {});
@@ -3912,6 +3927,8 @@ export default function App() {
 
   // Account menu: grouped rows, each opening its own page; the value is a short summary of what's inside.
   const accountEmail = session?.user?.email || profile.email;
+  // The App Store only lets us unlock paid features with its own offer codes, so our promo codes are for Android and the web
+  const promoCodesAllowed = Capacitor.getPlatform() !== 'ios';
   const accountSections: { title: string; rows: { page: AccountPage; value?: string }[] }[] = [
     { title: 'Profile', rows: [
       { page: 'details' },
@@ -3923,7 +3940,7 @@ export default function App() {
     ] },
     { title: 'Subscription', rows: [
       { page: 'subscription', value: planStatusText ?? undefined },
-      { page: 'promo' }
+      ...(promoCodesAllowed ? [{ page: 'promo' as const }] : [])
     ] },
     { title: 'Help & legal', rows: [{ page: 'about' }, { page: 'privacy' }, { page: 'help' }] }
   ];
@@ -5493,7 +5510,7 @@ export default function App() {
                 </div>
               )}
 
-              {accountPage === 'promo' && (
+              {accountPage === 'promo' && promoCodesAllowed && (
                 <div className="hub-support-card">
                   <p className="card-header-desc">Have a promo code? Enter it here to unlock your pass.</p>
                   <div className="promo-input-row">
@@ -5568,21 +5585,18 @@ export default function App() {
                 <div className="hub-support-card">
                   {contactSuccess ? (
                     <div className="support-success-banner">
-                      Message sent. We reply within 12 hours.
+                      Your email app should open with your message ready to send. If it doesn’t, email info@kinetixfit.co.uk.
                     </div>
                   ) : (
                     <form onSubmit={handleSendContact} className="support-form-stack">
                       <label className="support-field-label">Your name
                         <input type="text" required value={contactName} onChange={(e) => setContactName(e.target.value)} className="support-input" />
                       </label>
-                      <label className="support-field-label">Email
-                        <input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} className="support-input" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-                      </label>
                       <label className="support-field-label">Message
                         <textarea rows={3} required value={contactMsg} onChange={(e) => setContactMsg(e.target.value)} className="support-textarea" />
                       </label>
                       <button type="submit" className="primary-btn">
-                        Send message
+                        Write to us
                       </button>
                     </form>
                   )}
@@ -5744,6 +5758,22 @@ export default function App() {
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setShowLogoutConfirm(false)} autoFocus>Cancel</button>
               <button type="button" className="kx-danger-btn" onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI meal ideas: asked once, before anything is sent */}
+      {showAiIdeasConsent && (
+        <div className="portal-overlay-modal" onClick={() => setShowAiIdeasConsent(false)}>
+          <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-ai-title" aria-describedby="kx-ai-desc" onClick={e => e.stopPropagation()}>
+            <h3 id="kx-ai-title" className="modal-title">Use your day for meal ideas?</h3>
+            <p id="kx-ai-desc" className="modal-desc">
+              To suggest meals that fit your day, Kinetix Fit sends your goal, age, height, weight, diet and allergies, what you’ve eaten today, and your steps, sleep and workouts to our AI provider, Anthropic. It doesn’t get your name or email, and it isn’t used for advertising. You can read more in the Privacy policy.
+            </p>
+            <div className="kx-confirm-actions">
+              <button type="button" className="modal-close-btn" onClick={() => setShowAiIdeasConsent(false)} autoFocus>Not now</button>
+              <button type="button" className="kx-confirm-btn" onClick={() => { localStorage.setItem(AI_IDEAS_CONSENT_KEY, '1'); setShowAiIdeasConsent(false); void fetchMealIdeas(); }}>Continue</button>
             </div>
           </div>
         </div>
