@@ -181,6 +181,8 @@ No exact-alarm, location, SMS, contacts, microphone or ad-ID permissions. `allow
 
 **"Delete account URL"** → `https://www.kinetixfit.co.uk/delete-account`. Google requires this page to name the app or developer, show the steps to request deletion prominently, and say what data is deleted or kept and for how long; `public/delete-account.html` does all three (app name in the title, in-app steps and the email route first, then "What is deleted" and "What is not deleted, and for how long").
 
+**"Can users request that some or all of their data is deleted without deleting their account?"** (optional) → **Yes.** Account → Your data & privacy → Delete account or data has a "Delete my data, keep my account" choice, and the same deletion page describes it. If a data-only link is requested, use the same URL.
+
 - In-app path: **Account → Your data & privacy → Delete account or data** (two modes: delete data and keep the account, or delete the account and all data).
 - Web resource: https://www.kinetixfit.co.uk/delete-account
 - What is deleted: account, profile, logs, health readings, gut checks, period data, points and rewards history, and the RevenueCat record.
