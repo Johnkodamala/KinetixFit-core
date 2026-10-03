@@ -2164,7 +2164,7 @@ export default function App() {
     }
 
     if (totalVoucherPoints < requiredPoints) {
-      notify('info', `You need ${requiredPoints} points to donate. Complete quests to earn them.`);
+      notify('info', `You need ${fmtNumber(requiredPoints)} points to donate. Complete quests to earn them.`);
       return;
     }
 
