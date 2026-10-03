@@ -62,6 +62,7 @@
   line-height: 1;
   letter-spacing: -0.02em;
   margin: 0;
+  overflow-wrap: anywhere; /* with the phone's text at 2x "Welcome" is wider than the card: break it rather than cut it off */
   animation: kx-rise var(--dur-slow) var(--ease-out) 0.25s both;
 }
 .ob-hero-title em { font-style: normal; color: var(--accent); }
@@ -92,6 +93,9 @@
   outline: none;
   box-sizing: border-box;
   margin-bottom: 16px;
+  /* text too wide for the field (the placeholder with the phone's text at 2x) ends in an ellipsis at the content edge instead of
+     running on into the padding, which is where the password field's Show button sits */
+  text-overflow: ellipsis;
   transition: border-color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
 .ob-input:focus {
@@ -162,7 +166,8 @@
 .ob-divider::before, .ob-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
 .ob-footnote { font-size: 13px; color: var(--ink-3); text-align: center; line-height: 1.6; margin-top: 18px; }
-.ob-footnote a { color: var(--ink-2); }
+/* the vertical padding only adds tap area to an inline link (the line is not taller); the sideways pair cancels out */
+.ob-footnote a { color: var(--ink-2); padding: 14px 2px; margin: -14px -2px; }
 
 /* Permission + setup steps */
 .ob-badge {
