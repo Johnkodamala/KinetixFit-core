@@ -11,7 +11,7 @@ import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, flus
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
-import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
+import { billingNote, canManageSubscription, fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
 import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
@@ -86,7 +86,7 @@ import AllergyPicker from './components/AllergyPicker';
 import { allergyName, flagAllergies } from './lib/allergens';
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
-import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS } from './lib/plus';
+import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS, usableScanAllowance } from './lib/plus';
 import { latestReading, latestBucket, heartDay, caloriesToday, whenTaken, vitalTiles, distanceText, VITAL_TYPES, type Reading, type HeartDay, type VitalId } from './lib/vitals';
 
 // ============================================================================
@@ -2225,6 +2225,12 @@ export default function App() {
   const planStatusText = serverPlan
     ? planLabel(serverPlan, d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
     : revenueCatStatus;
+  // The plan for the billing note on Plan & billing: the server's answer, else what the RevenueCat SDK reported. A promo code's
+  // grant has nothing to manage in a store and nothing billed (src/lib/plusStatus.ts billingNote).
+  const sdkEntitlement = customerInfo?.entitlements.active[PLUS_ENTITLEMENT];
+  const planStatus: PlusStatus | null = serverPlan?.plus ? serverPlan : sdkEntitlement
+    ? { plus: true, lifetime: !sdkEntitlement.expirationDate, expiresAt: sdkEntitlement.expirationDate ?? null, willRenew: !!sdkEntitlement.willRenew, promo: sdkEntitlement.store === 'PROMOTIONAL' }
+    : null;
   const applyPlusStatus = (status: PlusStatus) => { setPlusFromServer(status.plus); setServerPlan(status); };
   const refreshPlusFromServer = async () => {
     const status = await fetchPlusStatus();
@@ -2244,6 +2250,8 @@ export default function App() {
   const [isBuyingPlus, setIsBuyingPlus] = useState(false);
   // Photo/barcode scans left today, as last reported by the server (null until the first scan).
   const [scanAllowance, setScanAllowance] = useState<{ left: number; limit: number } | null>(null);
+  // the count belongs to a plan: after upgrading, the free plan's "0 of 2 left" is not shown any more
+  const shownScanAllowance = usableScanAllowance(scanAllowance, isPlus);
 
   // The Plus widgets' settings (Account → Widgets → Customise), saved on the phone and handed to the widgets below
   const [widgetPrefs, setWidgetPrefs] = useState<WidgetPrefs>(() => loadWidgetPrefs());
@@ -2369,7 +2377,7 @@ export default function App() {
       setCustomerInfo(info);
       const entitlement = info.entitlements.active[PLUS_ENTITLEMENT];
       setRevenueCatStatus(planLabel(
-        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew },
+        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew, promo: entitlement?.store === 'PROMOTIONAL' },
         d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }),
       ));
     } catch (err) {
@@ -5622,7 +5630,7 @@ export default function App() {
                   </div>
 
                   {isPlus ? (
-                    <button onClick={handleManageSubscription} className="edit-bio-btn">Manage subscription</button>
+                    (!planStatus || canManageSubscription(planStatus)) && <button onClick={handleManageSubscription} className="edit-bio-btn">Manage subscription</button>
                   ) : Capacitor.isNativePlatform() ? (
                     <button onClick={handleBuyPlus} disabled={isBuyingPlus} className="primary-btn">
                       {isBuyingPlus ? 'Opening the store…' : plusPackage?.product.introPrice ? 'Start your free trial' : 'Get Kinetix Fit Plus'}
@@ -5632,7 +5640,9 @@ export default function App() {
                   )}
                   {Capacitor.isNativePlatform() && (
                     <p className="billing-disclaimer">
-                      Billed through your {Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} account; cancel any time.{' '}
+                      {isPlus && planStatus
+                        ? billingNote(planStatus, Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play', d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
+                        : `Billed through your ${Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} account; cancel any time.`}{' '}
                       {!isPlus && <button type="button" className="ob-link" onClick={handleRestorePurchases}>Restore purchase</button>}
                     </p>
                   )}
@@ -6034,8 +6044,8 @@ export default function App() {
                 {/* Photo + barcode scans are limited per day; typed checks aren't (the server enforces this) */}
                 <div className="kx-scan-allowance">
                   <span>
-                    {scanAllowance
-                      ? `${scanAllowance.left} of ${scanAllowance.limit} photo or barcode scans left today`
+                    {shownScanAllowance
+                      ? `${shownScanAllowance.left} of ${shownScanAllowance.limit} photo or barcode scans left today`
                       : `${isPlus ? PLUS_DAILY_SCANS : FREE_DAILY_SCANS} photo or barcode scans a day${isPlus ? ' with Plus' : ' on the free plan'}`}
                     {' · typed checks are unlimited'}
                   </span>
