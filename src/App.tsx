@@ -2677,7 +2677,9 @@ export default function App() {
       // 'local': a deleted account has no session left on the server to end, and there is nothing to wait for
       await signOutThisPhone(supabase.auth).catch(() => { /* wiped below anyway */ });
     }
-    if (forgetAccount) await clearDeviceReminders();
+    // The reminders belong to the operating system, not to the app's storage, so wiping the data below doesn't stop them: every
+    // way out cancels them (they are scheduled again when someone logs in and reaches Today)
+    await clearDeviceReminders();
     clearAllDomainData();
     if (forgetAccount) { localStorage.removeItem(ONBOARDED_EMAIL_KEY); clearWidgets(); }
     // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
