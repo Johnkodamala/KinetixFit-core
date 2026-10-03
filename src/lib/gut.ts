@@ -1,8 +1,8 @@
 // Gut health: a daily check-in (how the gut feels, 1–5, and anything bothering it) and, after a week, a report that
 // suggests foods from what the person actually ate that week and how their gut felt.
 //
-// - Everything stays on the phone: gut symptoms are health data (UK GDPR special category), so nothing here is sent to
-//   the server or the AI.
+// - Gut symptoms are health data (UK GDPR special category). The check-ins sync to the person's own account like the rest of
+//   their data (src/lib/gutSync.ts), and nothing here is ever sent to the AI.
 // - Wellness guidance, never a diagnosis. The advice follows the NHS pages on constipation, diarrhoea, IBS diet tips,
 //   bloating, farting and heartburn: add fibre gradually with plenty of fluid; oats and up to a tablespoon of linseeds a
 //   day for wind and bloating; beans, onions, cabbage, broccoli, cauliflower and dried fruit can cause wind; cut down on
@@ -202,6 +202,15 @@ const hasAny = (name: string, list: string[]) => wordsOf(name).some(w => list.in
 const NOT_TELLING = ['plain', 'boiled', 'hard-boiled', 'grilled', 'baked', 'cooked', 'fresh', 'small', 'handful', 'with', 'tea', 'day', 'tbsp', 'ground'];
 const foodKeywords = (name: string) => wordsOf(name).map(w => w.replace(/s$/, '')).filter(w => w.length > 2 && !NOT_TELLING.includes(w));
 
+// Words in a food's name that say nothing about which food it is: amounts and joining words ("Kiwi (two a day)", "A handful of
+// almonds", "Strawberries or blueberries")
+const NOT_A_NAME = new Set(['the', 'and', 'with', 'day', 'two', 'few', 'tbsp', 'tsp', 'cup', 'glass', 'handful', 'small', 'large', 'medium', 'some']);
+/** The words that name a food, read the way the meal ideas read their ingredient names: letters only, so "hard-boiled" is two
+ * words and "Rice, white, cooked" is three. Amounts and joining words are left out. */
+export function tellingWords(name: string): string[] {
+  return [...new Set((name.toLowerCase().match(/[a-z]+/g) ?? []).filter(w => w.length > 2 && !NOT_A_NAME.has(w)))];
+}
+
 /* ----------------------------------------------------------------------------------------------- */
 /* Foods the report can suggest                                                                     */
 /* ----------------------------------------------------------------------------------------------- */
@@ -237,73 +246,77 @@ export interface GutFood {
   notIn?: CountryCode[];
   /** what it does, in a few words */
   what: string;
+  /** How a meal idea (src/lib/mealIdeas.ts) names it. Each entry is words that must ALL be in one ingredient's name or in the
+   * meal's name: [['brown', 'rice']] is brown rice, not rice. A meal with any entry is "on the report's list". Not the label
+   * above: "Kiwi (two a day)" has filler in it ("a", "day") and meals just say "kiwi". */
+  inMeals: string[][];
 }
 
 export const GUT_FOODS: GutFood[] = [
   { id: 'oats', name: 'Porridge oats', diet: 'veg', plants: ['oats'], fibre: true, gentle: true, constipation: true, lightForHeartburn: true,
-    what: 'Soluble fibre that’s gentle on the gut.' },
+    what: 'Soluble fibre that’s gentle on the gut.', inMeals: [['oats'], ['oat'], ['porridge']] },
   { id: 'linseed', name: 'Ground linseeds (up to 1 tbsp a day)', diet: 'veg', plants: ['linseed'], fibre: true, gentle: true, constipation: true,
-    what: 'Stirred into porridge, cereal or a smoothie; eases constipation and bloating.' },
+    what: 'Stirred into porridge, cereal or a smoothie; eases constipation and bloating.', inMeals: [['linseed'], ['linseeds'], ['flaxseed'], ['flaxseeds']] },
   { id: 'kiwi', name: 'Kiwi (two a day)', diet: 'veg', plants: ['kiwi'], fibre: true, gentle: true, constipation: true,
-    what: 'Two a day eased constipation in trials.' },
+    what: 'Two a day eased constipation in trials.', inMeals: [['kiwi'], ['kiwis'], ['kiwifruit']] },
   { id: 'pear', name: 'Pear', diet: 'veg', plants: ['pear'], fibre: true, constipation: true, gassy: true,
-    what: 'Fibre plus natural sorbitol, which helps keep you regular.' },
+    what: 'Fibre plus natural sorbitol, which helps keep you regular.', inMeals: [['pear'], ['pears']] },
   { id: 'guava', name: 'Guava', diet: 'veg', plants: ['guava'], fibre: true,
-    what: 'One of the most fibre-rich fruits.' },
+    what: 'One of the most fibre-rich fruits.', inMeals: [['guava'], ['guavas']] },
   { id: 'berries', name: 'Strawberries or blueberries', diet: 'veg', plants: ['berries'], fibre: true, gentle: true,
-    what: 'Fibre and polyphenols, and easy on a sensitive gut.' },
+    what: 'Fibre and polyphenols, and easy on a sensitive gut.', inMeals: [['strawberries'], ['strawberry'], ['blueberries'], ['blueberry'], ['raspberries'], ['raspberry'], ['berries']] },
   { id: 'papaya', name: 'Papaya', diet: 'veg', plants: ['papaya'], gentle: true, lightForHeartburn: true,
-    what: 'Soft and easy on the stomach.' },
+    what: 'Soft and easy on the stomach.', inMeals: [['papaya']] },
   { id: 'banana', name: 'Banana', diet: 'veg', plants: ['banana'], gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Easy to digest, with a little fibre that feeds gut bacteria.' },
+    what: 'Easy to digest, with a little fibre that feeds gut bacteria.', inMeals: [['banana'], ['bananas']] },
   { id: 'dal', name: 'Dal (lentils)', diet: 'veg', plants: ['lentils'], fibre: true, gassy: true,
-    what: 'Fibre and plant protein that feed your gut bacteria.' },
+    what: 'Fibre and plant protein that feed your gut bacteria.', inMeals: [['dal'], ['lentil'], ['lentils'], ['moong'], ['toor'], ['masoor']] },
   { id: 'chickpeas', name: 'Chickpeas or chana', diet: 'veg', plants: ['chickpeas'], fibre: true, gassy: true,
-    what: 'High in fibre and plant protein.' },
+    what: 'High in fibre and plant protein.', inMeals: [['chickpeas'], ['chickpea'], ['chana'], ['hummus']] },
   { id: 'rajma', name: 'Kidney beans (rajma)', diet: 'veg', plants: ['kidney beans'], fibre: true, gassy: true,
-    what: 'Fibre-rich beans — start with a small portion.' },
+    what: 'Fibre-rich beans — start with a small portion.', inMeals: [['rajma'], ['kidney']] },
   { id: 'brown-rice', name: 'Brown rice', diet: 'veg', plants: ['rice'], fibre: true, gentle: true,
-    what: 'A wholegrain swap with more fibre than white rice.' },
+    what: 'A wholegrain swap with more fibre than white rice.', inMeals: [['brown', 'rice']] },
   { id: 'wholemeal', name: 'Wholemeal bread or roti', diet: 'veg', allergens: ['wheat'], plants: ['wheat'], fibre: true,
-    what: 'Wholegrain fibre in something you already eat.' },
+    what: 'Wholegrain fibre in something you already eat.', inMeals: [['wholemeal'], ['roti'], ['rotis'], ['chapati']] },
   { id: 'millet', name: 'Millet (ragi, bajra or jowar)', diet: 'veg', plants: ['millet'], fibre: true, gentle: true, only: ['IN'],
-    what: 'A wholegrain with plenty of fibre, as roti or porridge.' },
+    what: 'A wholegrain with plenty of fibre, as roti or porridge.', inMeals: [['millet'], ['ragi'], ['bajra'], ['jowar']] },
   { id: 'carrots', name: 'Carrots', diet: 'veg', plants: ['carrot'], fibre: true, gentle: true, lightForHeartburn: true,
-    what: 'Fibre that most sensitive guts handle well.' },
+    what: 'Fibre that most sensitive guts handle well.', inMeals: [['carrot'], ['carrots']] },
   { id: 'spinach', name: 'Spinach (palak)', diet: 'veg', plants: ['spinach'], fibre: true, gentle: true,
-    what: 'Leafy greens with fibre, iron and folate.' },
+    what: 'Leafy greens with fibre, iron and folate.', inMeals: [['spinach'], ['palak'], ['saag']] },
   { id: 'broccoli', name: 'Broccoli', diet: 'veg', plants: ['broccoli'], fibre: true, gassy: true,
-    what: 'Fibre-rich, and feeds gut bacteria.' },
+    what: 'Fibre-rich, and feeds gut bacteria.', inMeals: [['broccoli']] },
   { id: 'almonds', name: 'A small handful of almonds', diet: 'veg', allergens: ['nuts'], plants: ['almonds'], fibre: true, gassy: true,
-    what: 'Fibre and healthy fats.' },
+    what: 'Fibre and healthy fats.', inMeals: [['almonds'], ['almond']] },
   { id: 'walnuts', name: 'Walnuts', diet: 'veg', allergens: ['nuts'], plants: ['walnuts'], fibre: true, gentle: true,
-    what: 'Fibre and omega-3 fats.' },
+    what: 'Fibre and omega-3 fats.', inMeals: [['walnuts'], ['walnut']] },
   { id: 'curd', name: 'Plain yogurt or curd (dahi)', diet: 'veg', allergens: ['milk'], plants: [], fermented: true, gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Live cultures — the easiest fermented food to add.' },
+    what: 'Live cultures — the easiest fermented food to add.', inMeals: [['curd'], ['yogurt'], ['yoghurt'], ['dahi'], ['raita']] },
   { id: 'buttermilk', name: 'Buttermilk (chaas)', diet: 'veg', allergens: ['milk'], plants: [], fermented: true, settling: true,
-    what: 'Fermented, light and hydrating.' },
+    what: 'Fermented, light and hydrating.', inMeals: [['buttermilk'], ['chaas']] },
   { id: 'kefir', name: 'Kefir', diet: 'veg', allergens: ['milk'], plants: [], fermented: true, notIn: ['IN'],
-    what: 'A fermented milk drink with a wide mix of cultures.' },
+    what: 'A fermented milk drink with a wide mix of cultures.', inMeals: [['kefir']] },
   { id: 'idli', name: 'Idli', diet: 'veg', plants: ['rice', 'lentils'], fermented: true, gentle: true, settling: true, lightForHeartburn: true, only: ['IN', 'SG', 'AE'],
-    what: 'Made from fermented batter, and light on the stomach.' },
+    what: 'Made from fermented batter, and light on the stomach.', inMeals: [['idli'], ['idlis']] },
   { id: 'dosa', name: 'Plain dosa', diet: 'veg', plants: ['rice', 'lentils'], fermented: true, only: ['IN', 'SG', 'AE'],
-    what: 'Fermented rice and urad dal batter.' },
+    what: 'Fermented rice and urad dal batter.', inMeals: [['dosa'], ['dosas'], ['uttapam']] },
   { id: 'sauerkraut', name: 'Sauerkraut', diet: 'veg', plants: ['cabbage'], fermented: true, gassy: true, notIn: ['IN', 'AE'],
-    what: 'Fermented cabbage — a spoonful with a meal is enough.' },
+    what: 'Fermented cabbage — a spoonful with a meal is enough.', inMeals: [['sauerkraut']] },
   { id: 'rice', name: 'Plain rice', diet: 'veg', plants: ['rice'], gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Plain and easy on an unsettled gut.' },
+    what: 'Plain and easy on an unsettled gut.', inMeals: [['rice', 'white'], ['congee']] },
   { id: 'potato', name: 'Boiled potatoes', diet: 'veg', plants: ['potato'], gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Plain and filling while your gut settles.' },
+    what: 'Plain and filling while your gut settles.', inMeals: [['potato'], ['potatoes'], ['aloo']] },
   { id: 'toast', name: 'Plain toast', diet: 'veg', allergens: ['wheat'], plants: ['wheat'], settling: true,
-    what: 'Plain and easy while your gut settles.' },
+    what: 'Plain and easy while your gut settles.', inMeals: [['toast']] },
   { id: 'ginger', name: 'Ginger tea', diet: 'veg', plants: ['ginger'], nausea: true,
-    what: 'Ginger may help settle nausea.' },
+    what: 'Ginger may help settle nausea.', inMeals: [['ginger']] },
   { id: 'peppermint', name: 'Peppermint tea', diet: 'veg', plants: [], gentle: true, heartburnTrigger: true,
-    what: 'Many people find it eases wind and bloating.' },
+    what: 'Many people find it eases wind and bloating.', inMeals: [['peppermint']] },
   { id: 'eggs', name: 'Boiled eggs', diet: 'egg', allergens: ['eggs'], plants: [], gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Easy protein that most guts handle well.' },
+    what: 'Easy protein that most guts handle well.', inMeals: [['egg'], ['eggs']] },
   { id: 'chicken', name: 'Plain grilled chicken', diet: 'meat', plants: [], gentle: true, settling: true, lightForHeartburn: true,
-    what: 'Lean, plain protein — easy on an unsettled gut.' },
+    what: 'Lean, plain protein — easy on an unsettled gut.', inMeals: [['chicken']] },
 ];
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -357,6 +370,19 @@ export interface GutReport {
   seeDoctor: boolean;
   /** lifestyle patterns over the last 14 days (gutPatterns), strongest first — at most three */
   patterns: string[];
+  /** what the report asks the meal ideas to do */
+  rankHints: GutRankHints;
+}
+
+/** For the ranked meal ideas (src/lib/mealIdeas.ts rankMeals). Each phrase is words that must ALL be in one ingredient's name or
+ * in the meal's name, so "cooked" or "white" alone, or "a" from a label, never mark a meal. */
+export interface GutRankHints {
+  /** the suggested foods, as meals name them (GutFood.inMeals) */
+  favour: string[][];
+  /** the foods to go easy on, by all the words of the name they were logged under */
+  avoid: string[][];
+  /** the report would suggest fermented food (few this week) and the gut can take it: not while bloated */
+  wantsFermented: boolean;
 }
 
 /** A worse gut day: rated 1–2, or 3 with something bothering it. */
@@ -365,16 +391,18 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** Foods eaten on ≥ 2 days that were followed by a worse gut (that day; the next day counts half) much more often than usual. */
+/** Foods eaten on ≥ 2 days (and not on all but one of them) that were followed by a worse gut (that day; the next day counts half) much more often than usual. */
 export function possibleTriggers(checks: GutChecks, foodDays: FoodDays, days: string[]): { name: string; times: number; rough: number; sameDay: number }[] {
   const checked = days.filter(d => checks[d]);
   if (checked.length < MIN_CHECKS_FOR_REPORT) return [];
   const usual = checked.filter(d => isRough(checks[d])).length / checked.length;
   if (usual >= 0.75) return []; // nearly every day was rough: nothing stands out
   const seen = new Map<string, { name: string; times: number; rough: number; sameDay: number; weight: number }>();
+  let considered = 0; // the days the gut can be told for
   for (const day of days) {
     const next = addDays(day, 1);
     if (!checks[day] && !checks[next]) continue; // no way to tell how the gut was after it
+    considered += 1;
     const sameDay = isRough(checks[day]);
     const after = sameDay || isRough(checks[next]);
     const names = new Set((foodDays[day] ?? []).filter(e => e.foodKey !== 'earlier').map(e => e.name.trim().toLowerCase()));
@@ -388,7 +416,9 @@ export function possibleTriggers(checks: GutChecks, foodDays: FoodDays, days: st
     }
   }
   return [...seen.values()]
-    .filter(s => s.times >= 2 && s.weight / s.times >= 0.75 && s.weight / s.times >= usual + 0.25)
+    // a food on all but one of the days has nothing to be compared with (rice every day is always there on a rough day): it needs
+    // at least two days without it
+    .filter(s => s.times >= 2 && considered - s.times >= 2 && s.weight / s.times >= 0.75 && s.weight / s.times >= usual + 0.25)
     // eaten on the rough day itself ranks above the day before (most food reactions show within hours)
     .sort((a, b) => b.weight - a.weight || b.times - a.times)
     .slice(0, 3)
@@ -515,8 +545,16 @@ export function buildGutReport(input: GutReportInput): GutReport {
     waterAvgMl, waterGoalMl: input.waterGoalMl,
     headline, suggestions, goEasy, tips, seeDoctor,
     patterns: gutPatterns(input),
+    rankHints: {
+      favour: uniquePhrases(suggestions.flatMap(s => s.food.inMeals)),
+      avoid: uniquePhrases(goEasy.map(g => tellingWords(g.name))),
+      wantsFermented: lowFermented && !windy,
+    },
   };
 }
+
+const uniquePhrases = (phrases: string[][]): string[][] =>
+  [...new Map(phrases.filter(p => p.length > 0).map(p => [p.join(' '), p] as const)).values()];
 
 /* ----------------------------------------------------------------------------------------------- */
 /* Lifestyle patterns                                                                               */

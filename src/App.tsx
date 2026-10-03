@@ -2098,7 +2098,7 @@ export default function App() {
       waterMlByDay: Object.fromEntries(reportDays(todayDateKey).map(d => [d, dayMl(waterLog, d)])), today: todayDateKey,
       sleepHoursByDay: lifestyle.sleepHoursByDay, activeByDay: lifestyle.activeByDay, hrvByDay: lifestyle.hrvByDay,
     });
-    return { favour: r.suggestions.map(sg => sg.food.name), avoid: r.goEasy.map(g => g.name), wantsFermented: r.foodDaysLogged >= 3 && r.fermentedDays <= 1 };
+    return r.rankHints;
   }, [gutChecks, foodDays, waterGoalMl, nhsTargets.fiber, profile.diet, profile.personalAllergens, country.code, waterLog, todayDateKey, lifestyle]);
   const recentFoodNames = [...(foodDays[todayDateKey] ?? []), ...(foodDays[localDayKeyDaysAgo(1)] ?? [])].map(e => e.name).join('|');
   const mealSlot = slotAt();
@@ -4348,6 +4348,9 @@ export default function App() {
                           ? `Best in the evening — it’s about your whole day.${gutReminderOn && Capacitor.isNativePlatform() ? ` We’ll remind you at ${formatHour(GUT_REMINDER_HOUR)}.` : ''}`
                           : 'One tap for today. Saved to your account when you sign in.'}
                     </p>
+                    {gutStatus.ready && !gutDraft && !gutForYesterday && (
+                      <button type="button" className="ob-link kx-gut-yesterday kx-gut-report-link" onClick={() => setShowGutReport(true)}>Your gut report is ready — see it</button>
+                    )}
                     {!todayGut && !gutDraft && !gutForYesterday && canLogYesterdaysGut && (
                       <button type="button" className="ob-link kx-gut-yesterday" onClick={() => setGutForYesterday(true)}>Missed last night? Add yesterday’s</button>
                     )}

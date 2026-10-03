@@ -291,3 +291,5 @@
 /* "Missed last night? Add yesterday's" (mornings only) and "Back to today" */
 .kx-gut .ob-link.kx-gut-yesterday { display: inline; padding: 0; margin: 0; font-size: 14px; font-weight: 700; }
 .kx-gut > .ob-link.kx-gut-yesterday { display: inline-flex; align-items: center; margin-top: 6px; text-align: left; }
+/* the report link above it, on its own line even when "Missed last night?" is showing too */
+.kx-gut > .ob-link.kx-gut-report-link { display: flex; margin: 6px 0 0; }

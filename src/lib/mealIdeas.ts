@@ -350,10 +350,12 @@ export interface RankInput {
   recentFoods: string[];
   /** meal ids the person said "not for me" to */
   hidden: string[];
-  /** from this week's gut report, if there is one: plant/food words to favour, and possible triggers to avoid */
-  gutFavour?: string[];
-  gutAvoid?: string[];
-  /** the gut report found few fermented foods this week */
+  /** From this week's gut report, if there is one (GutRankHints in src/lib/gut.ts): foods to favour, and possible triggers to go
+   * easy on. Each is a phrase: words that must ALL be in one ingredient's name or in the meal's name, so [['brown', 'rice']] is
+   * brown rice and never white rice, and a lone "cooked" can't match anything. */
+  gutFavour?: string[][];
+  gutAvoid?: string[][];
+  /** the gut report found few fermented foods this week, and the gut can take them */
   wantsFermented?: boolean;
 }
 
@@ -408,8 +410,8 @@ export function rankMeals(input: RankInput): RankedMeal[] {
   const proteinFor = Math.max(input.slot === 'snack' ? 5 : 15, proteinNeed * share);
   const fibreFor = Math.max(input.slot === 'snack' ? 2 : 5, fibreNeed * share);
   const recent = new Set(input.recentFoods.flatMap(words));
-  const favour = new Set((input.gutFavour ?? []).flatMap(words));
-  const avoid = new Set((input.gutAvoid ?? []).flatMap(words));
+  const favour = input.gutFavour ?? [];
+  const avoid = input.gutAvoid ?? [];
   const local = CUISINES_BY_COUNTRY[input.country] ?? CUISINES_BY_COUNTRY.GB;
   const typedAllergies = customAllergies(input.allergens);
 
@@ -424,8 +426,10 @@ export function rankMeals(input: RankInput): RankedMeal[] {
     if (avoidedThere(text, input.country)) continue;
     if (typedAllergies.length && allergiesIn(text, typedAllergies).length) continue;
     const n = mealNutrients(meal);
-    const mealWords = new Set([...words(meal.name), ...meal.ingredients.flatMap(([name]) => words(name))]);
-    const favoured = [...mealWords].some(w => favour.has(w));
+    // the meal's name and each ingredient's name, as words: a hint phrase has to be whole inside one of them
+    const parts: string[][] = [words(meal.name), ...meal.ingredients.map(([name]) => words(name))];
+    const hasPhrase = (phrases: string[][]) => phrases.some(phrase => phrase.length > 0 && parts.some(part => phrase.every(w => part.includes(w))));
+    const favoured = hasPhrase(favour);
 
     // calories: close to this meal's budget; going well over it costs more than coming in under
     const over = n.kcal - budget;
@@ -454,7 +458,7 @@ export function rankMeals(input: RankInput): RankedMeal[] {
     score += place === 0 ? 1.5 : place === 1 ? 0.5 : 0;
     if (favoured) score += 0.35;
     if (input.wantsFermented && meal.fermented) score += 0.3;
-    if ([...mealWords].some(w => avoid.has(w))) score -= 1.5;
+    if (hasPhrase(avoid)) score -= 1.5;
     if (words(meal.base).some(w => recent.has(w))) score -= 0.35;
     if (input.slot !== 'dinner' && meal.prepMinutes <= 10) score += 0.1;
 
