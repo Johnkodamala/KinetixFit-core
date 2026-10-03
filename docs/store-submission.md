@@ -99,7 +99,7 @@ Expected result: low rating (PEGI 3 / Everyone). The audience is still set to 16
 **Is all collected data encrypted in transit?** Yes (HTTPS everywhere).
 **Can users request data deletion?** Yes — in the app (Account → Your data & privacy → Delete account or data) and at the deletion URL.
 
-**Why "shared" = No.** Google's definition excludes transfers to service providers that process data on the developer's behalf. Supabase, Vercel, Upstash, RevenueCat and Anthropic act on our instructions (policy §4); Tremendous receives the email only when the person redeems a voucher; Open Food Facts / USDA receive a food name or barcode only. If you prefer to be conservative, declare *Health info* and *Photos* as shared with a service provider for *App functionality* — the form allows it and nothing in the app has to change.
+**Why "shared" = No.** Google's definition excludes transfers to service providers that process data on the developer's behalf. Supabase, Vercel, Upstash, RevenueCat and Anthropic act on our instructions (policy §4); Tremendous receives the email only when the person redeems a voucher; Open Food Facts / USDA receive a food name or barcode only. If you prefer to be conservative, declare *Health info* and *Photos* as shared with a service provider for *App functionality* — the form allows it and nothing in the app has to change. **One exception: Diagnostics.** Google's own page says ML Kit sends device information, performance metrics and error codes to Google for diagnostics and usage analytics and leaves the answer to the developer; because Google uses that data for its own analytics, declare *Diagnostics* as collected **and shared with Google** (purpose: Analytics). That makes the store listing say that diagnostics data is shared, which is accurate. Policy §2 already mentions it; adding Google (ML Kit) to the §4 list would make the policy match the form word for word.
 
 | Data type | Examples in the app | Collected | Shared | Optional? | Ephemeral? | Purposes |
 |---|---|---|---|---|---|---|
@@ -112,7 +112,7 @@ Expected result: low rating (PEGI 3 / Everyone). The audience is still set to 16
 | **Photos and videos → Photos** | meal photos sent to identify food (not stored after the answer) | Yes | No | Optional | **Yes** | App functionality |
 | **Financial info → Purchase history** | whether Plus is active (via Google Play + RevenueCat); no card details | Yes | No | Optional | No | App functionality |
 | **App activity → App interactions** | points, XP, streaks, quests, voucher and donation records | Yes | No | Required | No | App functionality, Fraud prevention, security and compliance |
-| **App info and performance → Diagnostics** | Google ML Kit (barcode scanner) diagnostics | **CHECK** | No | — | — | Analytics / App functionality — verify against Google's ML Kit data disclosure (https://developers.google.com/ml-kit/android-data-disclosure) and declare what it says; the policy §2 already states this |
+| **App info and performance → Diagnostics** | Google ML Kit (the barcode scanner bundles `com.google.mlkit:barcode-scanning`) collects device model and OS version, performance metrics and error codes "for diagnostics and usage analytics" (Google's ML Kit data disclosure) | Yes | **Yes — with Google** (the SDK provider uses it for its own analytics, so it is not purely on our behalf) | Required (cannot be turned off) | No | Analytics |
 
 **Not collected:** location (approximate or precise), contacts, messages, audio, files, calendar, web browsing, device or other IDs, advertising ID, crash logs of our own (no crash-reporting SDK).
 
@@ -341,7 +341,7 @@ At least one set at 6.9" (1320 × 2868) or 6.5" (1284 × 2778); same eight scree
 
 ## 8. Open items found while writing this
 
-1. **Diagnostics from ML Kit** (§2.6): decide the declaration after reading Google's disclosure — the one row I can't answer from the repo.
+1. **Diagnostics from ML Kit** (§2.6): answered from Google's ML Kit data disclosure (collected and shared with Google, purpose Analytics). Optional follow-up: add "Google (ML Kit barcode scanner diagnostics)" to the policy's §4 provider list so the policy matches the form.
 2. **Play countries and price** are decisions, not facts.
 3. **Reviewer account** and its lifetime promo code don't exist yet.
 4. **Feature graphic** and **screenshots** still need to be made; the screenshots must be 2:1 or less.
