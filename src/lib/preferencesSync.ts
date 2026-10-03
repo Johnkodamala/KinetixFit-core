@@ -21,6 +21,7 @@ export const PREF_KEYS = [
   'kinetix_move_minutes',
   'kx_gut_reminder',
   'kx_streak_reminder',
+  'kx_meals_hidden', // meals hidden with "Not for me" (a JSON list of ids)
 ] as const;
 
 export type PrefKey = (typeof PREF_KEYS)[number];

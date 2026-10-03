@@ -1,4 +1,4 @@
-// Logging out must stop the phone's reminders. They are scheduled with the operating system, so wiping the app's storage does
+// Logging out must stop the phone's reminders (and empty its widgets). They are scheduled with the operating system, so wiping the app's storage does
 // not touch them: before this, a phone that was logged out (not deleted) went on showing "Morning glass" every day and the
 // gut check and daily check-in nudges for the next week. Only deleting the account cancelled them.
 // endSession lives inside the App component, which has no component tests, so this reads its source like the site tests do.
@@ -21,6 +21,13 @@ describe('ending a session (log out, log out anyway, and after deleting)', () =>
     expect(endSession).toMatch(/await clearDeviceReminders\(\);/);
     expect(endSession).not.toMatch(/if \(forgetAccount\)\s*await clearDeviceReminders/);
     expect(endSession.indexOf('clearDeviceReminders()')).toBeLessThan(endSession.indexOf('clearAllDomainData()'));
+  });
+
+  it('also empties the home-screen widgets: they showed the last account’s numbers until someone logged in again', () => {
+    expect(endSession).toMatch(/clearWidgets\(\);/);
+    expect(endSession).not.toMatch(/if \(forgetAccount\) \{[^}]*clearWidgets/);
+    // after the storage is wiped, so they come back as the defaults
+    expect(endSession.indexOf('clearWidgets()')).toBeGreaterThan(endSession.indexOf('clearAllDomainData()'));
   });
 
   it('every way of logging out goes through it', () => {

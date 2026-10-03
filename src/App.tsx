@@ -2723,7 +2723,10 @@ export default function App() {
     // way out cancels them (they are scheduled again when someone logs in and reaches Today)
     await clearDeviceReminders();
     clearAllDomainData();
-    if (forgetAccount) { localStorage.removeItem(ONBOARDED_EMAIL_KEY); clearWidgets(); }
+    // The home-screen widgets showed the last account's numbers until someone logged in again: empty them on every way out
+    // (after the wipe above, so they come back as the defaults)
+    clearWidgets();
+    if (forgetAccount) localStorage.removeItem(ONBOARDED_EMAIL_KEY);
     // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
     try {
       if (Capacitor.isNativePlatform() && (await Purchases.isConfigured()).isConfigured) await Purchases.logOut();

@@ -26,6 +26,7 @@ import { ZERO, type Nutrients } from './foodLog';
 import { tagFits, type Diet, type DietTag } from './diet';
 import type { CountryCode } from './countries';
 import { allergiesIn, customAllergies } from './allergens';
+import { notePreferencesChanged } from './preferencesSync';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Cuisine = 'uk' | 'indian' | 'med' | 'asian' | 'american' | 'mideast' | 'sg';
@@ -512,7 +513,7 @@ export function pageOf<T>(list: T[], page: number): T[] {
   return list.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE);
 }
 
-// "Not for me": meal ids the person never wants suggested (on the phone)
+// "Not for me": meal ids the person never wants suggested (kept on the phone and synced with the account's settings)
 const HIDDEN_KEY = 'kx_meals_hidden';
 export function loadHiddenMeals(): string[] {
   try {
@@ -525,9 +526,12 @@ export function loadHiddenMeals(): string[] {
 export function hideMeal(hidden: string[], id: string): string[] {
   const next = [...new Set([...hidden, id])].slice(-200);
   localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+  notePreferencesChanged(); // the list follows the account (src/lib/preferencesSync.ts)
   return next;
 }
 export function unhideAllMeals(): string[] {
-  localStorage.removeItem(HIDDEN_KEY);
+  // an empty list, not a removed key: the account's other phones only change what the saved settings say
+  localStorage.setItem(HIDDEN_KEY, '[]');
+  notePreferencesChanged();
   return [];
 }

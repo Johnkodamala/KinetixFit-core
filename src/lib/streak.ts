@@ -1,7 +1,8 @@
 // The streak: days in a row with the daily check-in (src/lib/checkins.ts). Until today's check-in is done, the
 // streak through yesterday is still alive (it only breaks once a whole day passes without one), so the app and the
 // Streak widget show it with "Check in today". Worked out from the saved check-ins every time, so it can't drift or
-// count a day twice; the best streak is also saved, because it can outlive the check-ins that are kept.
+// count a day twice; the best streak is also saved, because it can outlive the check-ins that are kept (and is read off the
+// history, so every phone agrees).
 import { localDayKey, localDayKeyDaysAgo } from './dates';
 
 export interface Streak {
@@ -44,6 +45,26 @@ export function runEndingOn(days: ReadonlySet<string>, day: string): number {
   return n;
 }
 
+/** The longest run of days in a row with a check-in, anywhere in the history. */
+export function longestRun(checkInDays: Iterable<string>): number {
+  const days = [...new Set(checkInDays)].sort();
+  let best = 0;
+  let run = 0;
+  let previous: string | null = null;
+  for (const day of days) {
+    if (previous !== null) {
+      const next = new Date(`${previous}T12:00:00`); // noon keeps it clear of clock changes
+      next.setDate(next.getDate() + 1);
+      run = localDayKey(next) === day ? run + 1 : 1;
+    } else {
+      run = 1;
+    }
+    best = Math.max(best, run);
+    previous = day;
+  }
+  return best;
+}
+
 /** The streak on `now`, from the days that have a check-in. */
 export function streakOf(checkInDays: Iterable<string>, now = new Date(), savedBest = 0): Streak {
   const days = new Set(checkInDays);
@@ -51,7 +72,9 @@ export function streakOf(checkInDays: Iterable<string>, now = new Date(), savedB
   const yesterday = localDayKeyDaysAgo(1, now);
   const doneToday = days.has(today);
   const current = runEndingOn(days, doneToday ? today : yesterday);
-  const best = Math.max(savedBest, current);
+  // The best is also read off the whole history: the check-ins sync to the account, so a second phone that never saw an old
+  // streak happen still knows it (the saved best only has to cover streaks older than the history that is kept)
+  const best = Math.max(savedBest, longestRun(days), current);
   const week = Array.from({ length: 7 }, (_, i) => {
     const day = localDayKeyDaysAgo(6 - i, now);
     return { day, letter: new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'narrow' }), done: days.has(day) };
