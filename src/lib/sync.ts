@@ -248,6 +248,16 @@ export async function pullIfDue(minGapMs = 60_000, now = Date.now()): Promise<{ 
   try { return await syncWithAccount(); } catch { return { changed: false }; }
 }
 
+/**
+ * The app leaving and returning to the screen. Leaving sends what is waiting, so another phone that opens next finds it on
+ * the account (an edit used to wait for the next time this app was opened). Coming back sends what is still waiting, then
+ * reads the account (at most once a minute) and says whether it had news. Never throws: offline, it all stays queued.
+ */
+export async function syncOnAppState(isActive: boolean, now = Date.now()): Promise<{ changed: boolean } | null> {
+  try { await flushOutbox(); } catch { /* offline: stays queued for the next time */ }
+  return isActive ? pullIfDue(60_000, now) : null;
+}
+
 const accountChangeListeners = new Set<() => void>();
 
 /** Called when a pull that finished after the app had already drawn brought something new. Returns the unsubscribe. */

@@ -12,6 +12,7 @@ let failUpsertForTable: string | null = null;
 // Runs while an upload is in flight (after the row was built, before the answer): the phone keeps being used during a
 // flush that takes seconds on a mobile connection, so a test can make an edit "at that moment".
 let onUpsert: ((table: string, row: Record<string, unknown>) => void) | null = null;
+let selectCalls = 0; // how many times the account was read
 
 vi.mock('./supabase', () => ({
   isSupabaseConfigured: true,
@@ -20,8 +21,8 @@ vi.mock('./supabase', () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => selectResult,
-          then: (resolve: (r: typeof selectManyResult) => void) => resolve(selectManyResult),
+          maybeSingle: async () => { selectCalls++; return selectResult; },
+          then: (resolve: (r: typeof selectManyResult) => void) => { selectCalls++; resolve(selectManyResult); },
         }),
       }),
       upsert: (row: Record<string, unknown>) => {
@@ -43,7 +44,7 @@ import {
   noteLocalChange, isDirty, localMtime, registerSingleton, pushSingleton, pullSingleton,
   syncAllOnLogin, flushOutbox, clearAllDomainData, type SingletonDomain,
   noteKeyedChange, registerKeyed, pushKeyed, pullKeyed, type KeyedDomain, unsyncedDomains, syncKeepingThisPhone,
-  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint,
+  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint, syncOnAppState,
 } from './sync';
 
 const USER_ID = 'user-1';
@@ -73,6 +74,7 @@ beforeEach(() => {
   upsertCalls.length = 0;
   failUpsertForTable = null;
   onUpsert = null;
+  selectCalls = 0;
 });
 
 describe('outbox bookkeeping', () => {
@@ -646,6 +648,54 @@ describe('an edit made while an upload is in flight is not forgotten', () => {
     await pushSingleton(domain);
     expect(upsertCalls).toEqual([{ user_id: USER_ID, v: 'second' }]);
     expect(isDirty('race-single')).toBe(false);
+  });
+});
+
+describe('syncOnAppState: push when leaving the app, push and read the account when coming back', () => {
+  // Until now an edit was only sent the next time the app was opened, so a second phone opened in between didn't have it.
+  const MINUTES_LATER = () => Date.now() + 10 * 60_000; // beyond pullIfDue's once-a-minute gap, whatever ran before
+
+  function somethingWaiting(name: string) {
+    registerKeyed(makeKeyedDomain({ name, table: name.replace(/-/g, '_'), load: () => ({ a: { v: '1' } }) }));
+    noteKeyedChange(name, 'a');
+  }
+
+  it('leaving sends what is waiting and does not read the account', async () => {
+    selectManyResult.data = [];
+    somethingWaiting('leave-thing');
+    expect(await syncOnAppState(false)).toBeNull();
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true);
+    expect(isDirty('leave-thing')).toBe(false);
+    expect(selectCalls).toBe(0);
+  });
+
+  it('coming back sends what is waiting, then reads the account', async () => {
+    selectManyResult.data = [];
+    somethingWaiting('return-thing');
+    const result = await syncOnAppState(true, MINUTES_LATER());
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true);
+    expect(isDirty('return-thing')).toBe(false);
+    expect(selectCalls).toBeGreaterThan(0);
+    expect(result).toEqual({ changed: false });
+  });
+
+  it('coming back again within a minute sends again but reads the account only once', async () => {
+    selectManyResult.data = [];
+    const first = MINUTES_LATER();
+    await syncOnAppState(true, first);
+    const reads = selectCalls;
+    somethingWaiting('again-thing');
+    expect(await syncOnAppState(true, first + 20_000)).toBeNull();
+    expect(selectCalls).toBe(reads);
+    expect(isDirty('again-thing')).toBe(false);
+  });
+
+  it('never throws when the connection is down: what is waiting stays queued for the next time', async () => {
+    somethingWaiting('offline-thing');
+    getUser.mockRejectedValue(new Error('Failed to fetch'));
+    await expect(syncOnAppState(false)).resolves.toBeNull();
+    await expect(syncOnAppState(true, Date.now() + 30 * 60_000)).resolves.toEqual({ changed: false });
+    expect(isDirty('offline-thing')).toBe(true);
   });
 });
 

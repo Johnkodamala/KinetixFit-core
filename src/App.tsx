@@ -7,7 +7,7 @@ import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
-import { syncAllOnLogin, syncKeepingThisPhone, flushOutbox, clearAllDomainData, unsyncedDomains, pullIfDue, onAccountDataChanged } from './lib/sync';
+import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, clearAllDomainData, unsyncedDomains, onAccountDataChanged } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
@@ -710,13 +710,10 @@ export default function App() {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       appActiveRef.current = isActive;
-      if (isActive) {
-        setForegroundTick(t => t + 1);
-        // send what is waiting, then read what the account has (another phone may have added to it)
-        flushOutbox().catch(() => { /* offline: the outbox stays queued for the next foreground/reconnect */ })
-          .then(() => pullIfDue())
-          .then(result => { if (result?.changed) setAccountUpdated(true); });
-      }
+      if (isActive) setForegroundTick(t => t + 1);
+      // leaving sends what is waiting (the next phone to open finds it); coming back sends, then reads what the account has
+      // (another phone may have added to it)
+      syncOnAppState(isActive).then(result => { if (result?.changed) setAccountUpdated(true); });
     });
     return () => { listener.then(l => l.remove()); };
   }, []);
