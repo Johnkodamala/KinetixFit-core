@@ -5889,8 +5889,8 @@ export default function App() {
         </div>
       )}
 
-      {/* The account has news from another phone */}
-      {accountUpdated && isLoggedIn && onboardingStep >= DASHBOARD_STEP && (
+      {/* The account has news from another phone. It sits where the message pill drops in, so it waits while one is showing. */}
+      {accountUpdated && isLoggedIn && onboardingStep >= DASHBOARD_STEP && !motivationMessage && (
         <div className="kx-refresh-pill" role="status">
           <span>Updated from your account</span>
           <button type="button" className="kx-refresh-go" onClick={() => window.location.reload()}>Refresh</button>
