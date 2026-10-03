@@ -1021,9 +1021,11 @@
   cursor: pointer;
   font-size: 15px;
   font-weight: 600;
+  text-align: left; /* a button centres its text: a label that wraps (Samsung Health · via Health Connect) must line up with the rest of the sheet */
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   transition: border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
 }
 @media (hover: hover) {
