@@ -86,6 +86,7 @@ import VitalsCard from './components/VitalsCard';
 import AllergyPicker from './components/AllergyPicker';
 import { allergyName, flagAllergies } from './lib/allergens';
 import { accountPageAllowed, promoCodesAllowedOn } from './lib/accountPages';
+import { CORE_HEALTH_TYPES, healthPermissionRemoved } from './lib/healthPermission';
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
 import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS, usableScanAllowance } from './lib/plus';
@@ -733,7 +734,8 @@ export default function App() {
 
   // What the last health read found. 'no-data' means every read worked but came back empty — usually because
   // Samsung Health (or the user's tracker app) hasn't been allowed to share with Health Connect yet.
-  const [healthDataState, setHealthDataState] = useState<'unknown' | 'has-data' | 'no-data'>('unknown');
+  // 'permission-removed': Health Connect (Android) no longer lets the app read steps, heart rate or sleep (src/lib/healthPermission.ts)
+  const [healthDataState, setHealthDataState] = useState<'unknown' | 'has-data' | 'no-data' | 'permission-removed'>('unknown');
   // The app that actually wrote the data ("Samsung Health"), once a read tells us.
   const [healthSource, setHealthSource] = useState<string | null>(null);
   // Whether any heart rate arrived in the trend window (null until the first read finishes).
@@ -756,6 +758,16 @@ export default function App() {
 
     const fetchHealthTrends = async () => {
       if (!appActiveRef.current) return;
+      // Android can say whether reading is still allowed: the person can take the permission away in Health Connect at any time,
+      // and the reads below would only fail quietly, leaving "Synced" on screen. (Apple Health never says.)
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          const status = await Health.checkAuthorization({ read: [...CORE_HEALTH_TYPES] });
+          if (healthPermissionRemoved(status.readAuthorized)) { setHealthDataState('permission-removed'); return; }
+        } catch (err) {
+          console.warn('Health permission check failed:', err); // can't tell: read as before
+        }
+      }
       try {
         const now = new Date();
         const startDate = new Date(now);
@@ -1150,18 +1162,6 @@ export default function App() {
   const todayCheckIn = checkIns[localDayKey()] ?? null;
   const [checkInSleep, setCheckInSleep] = useState<number | null>(null);
   const [editingCheckIn, setEditingCheckIn] = useState(false);
-  const submitCheckIn = (energy: number, sleepHours: number | null) => {
-    hapticTap();
-    const first = !todayCheckIn;
-    const next = saveCheckIn(checkIns, { sleepHours, energy, at: Date.now() });
-    setCheckIns(next);
-    setCheckInSleep(null);
-    setEditingCheckIn(false);
-    if (first) {
-      rewardCheckIns(next, [localDayKey()]);
-      void claimCheckIns([localDayKey()]);
-    }
-  };
   // The check-in streak (src/lib/streak.ts): days in a row with a check-in, worked out from them; the best is saved.
   const [bestStreakSaved, setBestStreakSaved] = useState(() => loadBestStreak());
   const streak = streakOf(Object.keys(checkIns), new Date(), bestStreakSaved);
@@ -1660,6 +1660,20 @@ export default function App() {
     const now = streakOf(withCheckIn, new Date(), bestStreakSaved);
     if (now.best > bestStreakSaved) setBestStreakSaved(saveBestStreak(now.best));
   }
+
+  // A check-in tapped on Today: saved, and its points filed (declared after rewardCheckIns, which it calls)
+  const submitCheckIn = (energy: number, sleepHours: number | null) => {
+    hapticTap();
+    const first = !todayCheckIn;
+    const next = saveCheckIn(checkIns, { sleepHours, energy, at: Date.now() });
+    setCheckIns(next);
+    setCheckInSleep(null);
+    setEditingCheckIn(false);
+    if (first) {
+      rewardCheckIns(next, [localDayKey()]);
+      void claimCheckIns([localDayKey()]);
+    }
+  };
 
   // Quests claimed today (saved, so a restart doesn't offer the same points again).
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadToday('kinetix_quests_claimed', [] as string[]));
@@ -3671,9 +3685,11 @@ export default function App() {
           <p className="kx-hero-status">
             {!profile.smartDeviceConnected
               ? 'Connect a device to see your steps, heart rate and sleep.'
-              : healthDataState === 'no-data'
-                ? `Connected to ${profile.smartDeviceConnected} — no data yet.`
-                : `Synced with ${healthSource ?? profile.smartDeviceConnected}`}
+              : healthDataState === 'permission-removed'
+                ? `Kinetix Fit isn’t allowed to read ${profile.smartDeviceConnected} — allow it to sync.`
+                : healthDataState === 'no-data'
+                  ? `Connected to ${profile.smartDeviceConnected} — no data yet.`
+                  : `Synced with ${healthSource ?? profile.smartDeviceConnected}`}
           </p>
         </div>
         <div className="kx-hero-targets" aria-label="Today's targets">
@@ -4152,6 +4168,26 @@ export default function App() {
                 onAddGlass={addGlass}
                 onOpen={() => setShowHydration(true)}
               />
+
+              {/* The person took Kinetix Fit's permission away in Health Connect (src/lib/healthPermission.ts) */}
+              {isLiveHealthData && healthDataState === 'permission-removed' && Capacitor.getPlatform() === 'android' && (
+                <div className="hub-support-card kx-setup-card">
+                  <span className="vitals-label">Permission removed</span>
+                  <h3 className="card-header-title">Allow Kinetix Fit in Health Connect</h3>
+                  <p className="card-header-desc">
+                    Health Connect no longer lets Kinetix Fit read your steps, heart rate or sleep, so these cards can’t update. Turn it back on and they will.
+                  </p>
+                  <ol className="kx-steps">
+                    <li>Tap <strong>Open Health Connect</strong>, then <strong>App permissions</strong>.</li>
+                    <li>Choose <strong>Kinetix Fit</strong> and turn on <strong>Allow all</strong>.</li>
+                    <li>Come back here.</li>
+                  </ol>
+                  <div className="kx-setup-actions">
+                    <button type="button" className="primary-btn" onClick={openHealthConnectSettings}>Open Health Connect</button>
+                    <button type="button" className="edit-bio-btn" onClick={() => setForegroundTick(t => t + 1)}>Check again</button>
+                  </div>
+                </div>
+              )}
 
               {/* Connected, but Health Connect is empty — almost always a tracker app that isn't allowed to share yet */}
               {isLiveHealthData && healthDataState === 'no-data' && Capacitor.getPlatform() === 'android' && (
@@ -5462,6 +5498,8 @@ export default function App() {
                   <p className="validator-desc">
                     {!profile.smartDeviceConnected
                       ? 'Connect your wearable device to sync your activity, heart rate, and sleep data automatically.'
+                      : healthDataState === 'permission-removed'
+                        ? 'Kinetix Fit isn’t allowed to read Health Connect any more, so nothing can sync. Open Health Connect settings, choose App permissions → Kinetix Fit, and turn on Allow all.'
                       : healthDataState === 'no-data'
                         ? (Capacitor.getPlatform() === 'ios'
                           ? `Connected to ${profile.smartDeviceConnected}, but nothing has arrived yet — check Kinetix Fit is allowed to read your data in the Health app (profile picture → Apps → Kinetix Fit).`
