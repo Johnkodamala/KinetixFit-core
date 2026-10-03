@@ -257,10 +257,10 @@ Play App Signing: **on** (recommended). The upload key is the keystore in `~/Kin
 |---|---|---|
 | App icon | 512 × 512 PNG, ≤ 1 MB (source `assets/icon-only.png` is 1024²; downscale) | derive |
 | Feature graphic | 1024 × 500 PNG/JPG | **to make** — clay `#E5532D` on `#16181F`, the infinity mark and the line "Small wins. Real rewards." |
-| Phone screenshots | 2–8, min 320 px, max 3840 px, **long side ≤ 2× the short side** | **to capture** |
+| Phone screenshots | 2–8 PNG/JPEG, ≤ 8 MB each, each side 320–3,840 px, aspect ratio **exactly 16:9 or 9:16**; to be eligible for promotion include ≥ 4 at ≥ 1080 px on each side | **to capture** |
 | 7" / 10" tablet screenshots | optional | skip for now |
 
-**Screenshot note:** the S21 FE screen is 1080 × 2340 (ratio 2.17:1) and Play rejects ratios above 2:1. Crop or pad captures to **1080 × 2160** (or use a 9:19 emulator).
+**Screenshot note:** the S21 FE screen is 1080 × 2340 (2.17:1), which Play's form rejects (it wants 9:16). Easiest fix: set the phone to exactly 9:16 while you capture, then reset it: `adb shell wm size 1080x1920`, take the screenshots (`adb exec-out screencap -p > shot.png`), then `adb shell wm size reset`. The app lays out normally at that size. (Cropping 2340 down to 1920 would cut off the status bar and tab bar.)
 
 **Screenshot list (use a demo account with a few days of data and Plus on, so no real personal data appears):**
 1. Today — greeting, targets, hydration, morning check-in (dark theme)
