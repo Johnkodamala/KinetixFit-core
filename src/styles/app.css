@@ -877,8 +877,8 @@
   padding: 6px;
   box-sizing: border-box;
   background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
   border: 1px solid var(--line);
   border-radius: var(--r-pill);
   display: grid;
@@ -969,8 +969,9 @@
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--ink) 38%, transparent);
-  backdrop-filter: blur(6px);
+  /* prefixed line first: the build's CSS minifier drops the unprefixed one when it comes first, and Chrome/Android ignores the prefixed one */
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: flex-end;
