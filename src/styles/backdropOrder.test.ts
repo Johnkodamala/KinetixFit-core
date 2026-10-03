@@ -4,6 +4,7 @@
 // refresh pill had no blur on Android at all (found on the S21 FE: the screen behind a sheet showed through, crisp). Written
 // the other way round, as glass.css does, both survive. This reads every stylesheet and checks that order.
 import { describe, it, expect } from 'vitest';
+import pickersCss from './pickers.css?raw';
 
 const sheets = import.meta.glob('../**/*.css', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const noComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -37,5 +38,13 @@ describe('backdrop-filter order in the stylesheets', () => {
       }
     }
     expect(alone).toEqual([]);
+  });
+
+  it('blurs what is behind the bottom sheets too (.kx-sheet-root): a sheet is 94% opaque, and on Android its own blur does not reach the page', () => {
+    const root = [...noComments(pickersCss).matchAll(/(?:^|[\s}])\.kx-sheet-root\s*\{([^}]*)\}/g)].map(m => m[1]).join('\n');
+    const prefixed = root.search(/-webkit-backdrop-filter:\s*blur\(6px\)\s*;/);
+    const plain = root.search(/(?<![-\w])backdrop-filter:\s*blur\(6px\)\s*;/);
+    expect(prefixed).toBeGreaterThan(-1);
+    expect(plain).toBeGreaterThan(prefixed); // prefixed first, as the rest of this file requires
   });
 });

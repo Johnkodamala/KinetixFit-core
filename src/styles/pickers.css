@@ -261,6 +261,10 @@
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.42);
+  /* blur what is behind, as the dialogs' overlay does (prefixed line first, see backdropOrder.test.ts): the sheet is 94% opaque and
+     on Android its own blur does not reach the page, so without this the page ghosted through it */
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   font-family: var(--font-body);
   color: var(--ink);
   animation: kx-fade 200ms var(--ease-out) both;
