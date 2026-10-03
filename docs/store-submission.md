@@ -344,6 +344,6 @@ At least one set at 6.9" (1320 × 2868) or 6.5" (1284 × 2778); same eight scree
 1. **Diagnostics from ML Kit** (§2.6): answered from Google's ML Kit data disclosure (collected and shared with Google, purpose Analytics). Optional follow-up: add "Google (ML Kit barcode scanner diagnostics)" to the policy's §4 provider list so the policy matches the form.
 2. **Play countries and price** are decisions, not facts.
 3. **Reviewer account** and its lifetime promo code don't exist yet.
-4. **Feature graphic** and **screenshots** still need to be made; the screenshots must be 2:1 or less.
+4. **Feature graphic** and **screenshots** still need to be made; the screenshots must be exactly 9:16 (see the screenshot note in §4). The icon (`~/KinetixFit-store-assets/play-icon-512.png`) and feature graphic (`play-feature-graphic-1024x500.png`) were generated on 3 Oct; the listing text is in `listing-text.txt` there.
 5. The listing mentions Plus benefits exactly as `src/lib/plus.ts` lists them; if that list changes, update the description.
 6. The policy says `JustGiving (once live)` — keep donations out of the listing until live.
