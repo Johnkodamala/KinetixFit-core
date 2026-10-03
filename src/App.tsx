@@ -12,7 +12,7 @@ import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questCla
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
 import { billingNote, canManageSubscription, fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
-import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
+import { requestDeletion, clearDeviceReminders, deleteDescription, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
 import './lib/preferencesSync';
@@ -1926,7 +1926,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/suggest-meals'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({
           appUserId: profile.email,
           mealSlot: currentMealSlot(),
@@ -3280,7 +3280,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/lookup-barcode'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ barcode, appUserId: profile.email, timeZone: deviceTimeZone() })
       });
       const data = await response.json();
@@ -6008,12 +6008,7 @@ export default function App() {
         <div className="portal-overlay-modal" onClick={() => { if (!isDeleting) setDeleteMode(null); }}>
           <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-delete-title" aria-describedby="kx-delete-desc" onClick={e => e.stopPropagation()}>
             <h3 id="kx-delete-title" className="modal-title">{deleteMode === 'account' ? 'Delete your account and all your data?' : 'Delete all your data?'}</h3>
-            <p id="kx-delete-desc" className="modal-desc">
-              {deleteMode === 'account'
-                ? 'Your account, profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. You’ll need to sign up again to use Kinetix Fit.'
-                : 'Your profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. Your account stays, so you can log in again and start fresh.'}
-              {' '}If you pay for Kinetix Fit Plus, this doesn’t cancel it: cancel in your App Store or Google Play subscriptions.
-            </p>
+            <p id="kx-delete-desc" className="modal-desc">{deleteDescription(deleteMode)}</p>
             {deleteError && <p className="promo-response-msg response-error" role="alert">{deleteError}</p>}
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setDeleteMode(null)} disabled={isDeleting} autoFocus>Cancel</button>

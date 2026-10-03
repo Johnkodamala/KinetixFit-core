@@ -13,6 +13,7 @@ import { checkScanQuota, recordScan, quotaExceededBody } from './_lib/scanQuota.
 import { fromTypical, lookupNutrition } from './_lib/nutrition.js';
 import { IdentifyError } from './_lib/identify.js';
 import { verifiedUserId } from './_lib/supabaseAuth.js';
+import { resolveCaller, callerProblem } from './_lib/caller.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
 import { grantOnce } from './_lib/pointsLedger.js';
 import { identifyMealWithClaude } from './_lib/identifyClaude.js';
@@ -186,7 +187,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { image, mimeType, foodText, appUserId } = req.body;
+  const { image, mimeType, foodText } = req.body;
+  // The account is the signed-in session's; a body naming another one is refused (a photo scan spends that account's daily scans
+  // and a model call). Older builds send no session and are still served as before (api/_lib/caller.js).
+  const caller = await resolveCaller(req, req.body.appUserId);
+  const problem = callerProblem(caller, { needsIdentity: !!image });
+  if (problem) return res.status(problem.status).json(problem.body);
+  const { appUserId } = caller;
   // The person's own description of a photo ("unsweetened almond milk, 250 ml"): plain text, kept short.
   const note = typeof req.body.note === 'string' ? req.body.note.replace(/[\u0000-\u001f"\\]/g, ' ').trim().slice(0, 200) : '';
 

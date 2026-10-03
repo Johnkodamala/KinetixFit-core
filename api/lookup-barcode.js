@@ -2,6 +2,7 @@
 // key). Returns real product data or an honest 404 — never fabricated fallback data.
 import { handleCors } from './_lib/cors.js';
 import { checkScanQuota, recordScan, quotaExceededBody } from './_lib/scanQuota.js';
+import { resolveCaller, callerProblem } from './_lib/caller.js';
 
 const ALLERGEN_TAG_MAP = {
   'en:peanuts': 'peanuts',
@@ -59,10 +60,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { barcode, appUserId } = req.body;
+  const { barcode } = req.body;
   if (!barcode) {
     return res.status(400).json({ error: 'barcode is required.' });
   }
+  // The account is the signed-in session's; a body naming another one is refused: the scan would spend that account's daily
+  // scans. Older builds send no session and are still served as before (api/_lib/caller.js).
+  const caller = await resolveCaller(req, req.body.appUserId);
+  const problem = callerProblem(caller, { needsIdentity: true });
+  if (problem) return res.status(problem.status).json(problem.body);
+  const { appUserId } = caller;
   // Barcode scans share the daily photo-scan limit (free 2, Plus 10).
   if (!appUserId) {
     return res.status(401).json({ error: 'Sign in to scan a barcode.' });

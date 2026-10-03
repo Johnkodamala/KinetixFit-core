@@ -21,6 +21,7 @@ import { handleCors } from './_lib/cors.js';
 import { isPlusUser } from './_lib/plus.js';
 import { COUNTRY_REWARDS, dayKey, requestCountry } from './_lib/countries.js';
 import { keepSuggestions } from './_lib/ideaFilter.js';
+import { resolveCaller, callerProblem } from './_lib/caller.js';
 
 export const config = { maxDuration: 60 };
 
@@ -130,7 +131,12 @@ export default async function handler(req, res) {
   if (handleCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  const { appUserId } = req.body || {};
+  // Plus is checked for the signed-in session's account; a body naming another one (a Plus person's email) is refused: it would
+  // spend their ideas and a model call. Older builds send no session and are still served as before (api/_lib/caller.js).
+  const caller = await resolveCaller(req, req.body?.appUserId);
+  const problem = callerProblem(caller, { needsIdentity: true });
+  if (problem) return res.status(problem.status).json(problem.body);
+  const { appUserId } = caller;
   if (!appUserId) return res.status(401).json({ error: 'Sign in to get meal ideas.' });
 
   if (!(await isPlusUser(appUserId, { whenUnknown: false }))) {

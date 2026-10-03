@@ -41,3 +41,11 @@ export async function clearDeviceReminders(): Promise<void> {
     await applyMoveReminders({ enabled: false, startHour: 8, endHour: 20, minutes: 60 });
   } catch { /* same */ }
 }
+
+/** The sentence under "Delete all your data?" / "Delete your account and all your data?". */
+export function deleteDescription(mode: DeleteMode): string {
+  const what = mode === 'account'
+    ? 'Your account, profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. You’ll need to sign up again to use Kinetix Fit.'
+    : 'Your profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. Your account stays, so you can log in again and start fresh. If you use Kinetix Fit on another phone, log out there first: a phone that’s still signed in can send some of it back to your account.';
+  return `${what} If you pay for Kinetix Fit Plus, this doesn’t cancel it: cancel in your App Store or Google Play subscriptions.`;
+}

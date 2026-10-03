@@ -7,7 +7,7 @@ vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false, 
 vi.mock('@capacitor/local-notifications', () => ({ LocalNotifications: {} }));
 vi.mock('./moveReminders', () => ({ applyMoveReminders: vi.fn() }));
 
-import { requestDeletion } from './accountDeletion';
+import { deleteDescription, requestDeletion } from './accountDeletion';
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -48,5 +48,26 @@ describe('requestDeletion', () => {
     const offline = await requestDeletion('account');
     expect(offline.ok).toBe(false);
     expect(!offline.ok && offline.message).toContain('Nothing was deleted');
+  });
+});
+
+describe('deleteDescription', () => {
+  it('says what is deleted from the phone and the servers, and that a Plus subscription is not cancelled', () => {
+    for (const mode of ['data', 'account'] as const) {
+      const text = deleteDescription(mode);
+      expect(text).toMatch(/deleted from your phone and from our servers/);
+      expect(text).toMatch(/doesn’t cancel it/);
+    }
+  });
+
+  it('keeping the account: tells people to log out of their other phones first, which would put some of it back', () => {
+    expect(deleteDescription('data')).toMatch(/other phone/);
+    expect(deleteDescription('data')).toMatch(/log out there first/);
+    expect(deleteDescription('data')).toMatch(/Your account stays/);
+  });
+
+  it('deleting the account needs no such warning: the other phones are signed out with it', () => {
+    expect(deleteDescription('account')).not.toMatch(/other phone/);
+    expect(deleteDescription('account')).toMatch(/sign up again/);
   });
 });
