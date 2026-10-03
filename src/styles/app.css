@@ -36,7 +36,9 @@
   inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 112px);
+  /* the room left under the last card so the floating tab bar never hides it (see ::after below) */
+  --clear-bottom: calc(env(safe-area-inset-bottom) + 112px);
+  padding: calc(env(safe-area-inset-top) + 8px) 16px 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -46,6 +48,10 @@
   scrollbar-width: none;
 }
 .app-scroll-body::-webkit-scrollbar { display: none; }
+/* That room is an element in the flow, not padding-bottom: iOS WebKit leaves a flex scroller's bottom padding out of the
+   scrollable height whenever the content ends inside it, so a short page (the App icon page on an iPhone 13 mini) ended
+   under the tab bar with nothing to scroll. The 16px is the gap this element already sits after. */
+.app-scroll-body::after { content: ''; flex: none; height: calc(var(--clear-bottom) - 16px); }
 
 /* Brand header: quiet, so the hero below carries the energy */
 .app-brand-header {
