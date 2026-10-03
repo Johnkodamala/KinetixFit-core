@@ -105,6 +105,11 @@ export function registerSingleton<T>(domain: SingletonDomain<T>) {
   singletonDomains.set(domain.name, domain as SingletonDomain<unknown>);
 }
 
+/** Looks up a registered singleton domain by name — used by tests. */
+export function registeredSingleton(name: string): SingletonDomain<unknown> | undefined {
+  return singletonDomains.get(name);
+}
+
 async function currentUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { data } = await supabase.auth.getUser();
@@ -178,6 +183,69 @@ async function syncKeyedOnLogin(): Promise<void> {
 export async function syncKeepingThisPhone(): Promise<void> {
   for (const domain of singletonDomains.values()) await pushSingleton(domain);
   await syncKeyedOnLogin();
+}
+
+/**
+ * Pulling from the account when the app opens, and when it comes back to the screen. Until now the account was only
+ * read at login, so a second phone didn't see the first one's new entries until it logged out and in.
+ * `syncAllOnLogin` is safe to repeat (newest-wins for profile and settings, record by record for logs, this phone's
+ * unsent edits always win), so these just run it and say whether anything here changed.
+ */
+
+/** JSON with keys in a fixed order, so the same data compares equal however it was built. */
+export function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : v);
+}
+
+function snapshotAll(): string {
+  const parts: string[] = [];
+  for (const d of singletonDomains.values()) parts.push(`${d.name}:${stableStringify(d.load())}`);
+  for (const d of keyedDomains.values()) parts.push(`${d.name}:${stableStringify(d.load())}`);
+  return parts.join('\n');
+}
+
+/** Syncs with the account and reports whether the data held here changed (so the screen is out of date). */
+export async function syncWithAccount(): Promise<{ changed: boolean }> {
+  const before = snapshotAll();
+  await syncAllOnLogin();
+  return { changed: snapshotAll() !== before };
+}
+
+let lastPullAt = 0;
+
+/** Pulls unless it already did within `minGapMs`. Null = skipped; otherwise whether anything changed. */
+export async function pullIfDue(minGapMs = 60_000, now = Date.now()): Promise<{ changed: boolean } | null> {
+  if (now - lastPullAt < minGapMs) return null;
+  lastPullAt = now;
+  try { return await syncWithAccount(); } catch { return { changed: false }; }
+}
+
+const accountChangeListeners = new Set<() => void>();
+
+/** Called when a pull that finished after the app had already drawn brought something new. Returns the unsubscribe. */
+export function onAccountDataChanged(listener: () => void): () => void {
+  accountChangeListeners.add(listener);
+  return () => { accountChangeListeners.delete(listener); };
+}
+
+/**
+ * Before the app draws (while the opening animation plays): pull the account's data, so every screen starts from it.
+ * Waits at most `timeoutMs` — a slow or missing connection must never hold the app up — and if the pull then finishes
+ * with news, tells the app (onAccountDataChanged) so it can offer a refresh. Never throws.
+ */
+export async function pullOnLaunch(timeoutMs = 1800): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const pull = pullIfDue(0).then(r => r ?? { changed: false });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<'timeout'>(resolve => { timer = setTimeout(() => resolve('timeout'), timeoutMs); });
+  const first = await Promise.race([pull, timedOut]);
+  clearTimeout(timer);
+  if (first === 'timeout') {
+    void pull.then(r => { if (r.changed) accountChangeListeners.forEach(l => l()); });
+  }
 }
 
 /**

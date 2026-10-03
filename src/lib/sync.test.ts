@@ -39,6 +39,7 @@ import {
   noteLocalChange, isDirty, localMtime, registerSingleton, pushSingleton, pullSingleton,
   syncAllOnLogin, flushOutbox, clearAllDomainData, type SingletonDomain,
   noteKeyedChange, registerKeyed, pushKeyed, pullKeyed, type KeyedDomain, unsyncedDomains, syncKeepingThisPhone,
+  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, stableStringify,
 } from './sync';
 
 const USER_ID = 'user-1';
@@ -321,6 +322,77 @@ describe('records that failed their first upload are retried, and count as unsyn
   it('does not count a domain with no records', () => {
     registerKeyed(makeKeyedDomain({ name: 'retry-empty', table: 'retry_empty', load: () => ({}) }));
     expect(unsyncedDomains()).not.toContain('retry-empty');
+  });
+});
+
+describe('stableStringify: equal data compares equal whatever order its keys were built in', () => {
+  it('ignores key order, at any depth', () => {
+    expect(stableStringify({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: null } })).toBe(stableStringify({ a: { c: null, d: [1, { x: 1, y: 2 }] }, b: 1 }));
+  });
+  it('still tells different data apart (and keeps array order)', () => {
+    expect(stableStringify({ a: [1, 2] })).not.toBe(stableStringify({ a: [2, 1] }));
+    expect(stableStringify({ a: 1 })).not.toBe(stableStringify({ a: 2 }));
+  });
+});
+
+describe('syncWithAccount: pull the account’s data and say whether anything here changed', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+
+  it('reports a change when the account had a record this phone lacked, then none the second time', async () => {
+    registerKeyed(makeKeyedDomain({ name: 'pull-open-keyed', table: 'pull_open_keyed' }));
+    selectManyResult.data = [{ id: 'from-other-phone', v: 'hello' }];
+    const first = await syncWithAccount();
+    expect(first.changed).toBe(true);
+    const second = await syncWithAccount();
+    expect(second.changed).toBe(false);
+  });
+
+  it('reports no change when the account has nothing new', async () => {
+    selectManyResult.data = [];
+    expect((await syncWithAccount()).changed).toBe(false);
+  });
+});
+
+describe('pullIfDue: opening or returning to the app should not hammer the account', () => {
+  it('pulls once, then not again within the gap', async () => {
+    selectManyResult.data = [];
+    expect(await pullIfDue(60_000, 1_000_000)).not.toBeNull();
+    expect(await pullIfDue(60_000, 1_030_000)).toBeNull(); // 30 s later
+    expect(await pullIfDue(60_000, 1_070_000)).not.toBeNull(); // 70 s later
+  });
+});
+
+describe('pullOnLaunch: the account’s data is in before the app draws, but a slow network never holds the app up', () => {
+  it('returns quickly when the pull is done', async () => {
+    selectManyResult.data = [];
+    await expect(pullOnLaunch(500)).resolves.toBeUndefined();
+  });
+
+  it('gives up waiting after the timeout, and announces the change if the pull finishes with news later', async () => {
+    vi.useFakeTimers();
+    try {
+      let release: (v: unknown) => void = () => {};
+      getUser.mockImplementation(() => new Promise(res => { release = res; })); // the network is stuck
+      registerKeyed(makeKeyedDomain({ name: 'pull-late-keyed', table: 'pull_late_keyed' }));
+      selectManyResult.data = [{ id: 'late-one', v: 'x' }];
+      const heard = vi.fn();
+      const stopListening = onAccountDataChanged(heard);
+      const done = pullOnLaunch(1800);
+      await vi.advanceTimersByTimeAsync(1800);
+      await done; // resolved on the timeout, while the pull is still waiting
+      expect(heard).not.toHaveBeenCalled();
+      getUser.mockResolvedValue({ data: { user: { id: USER_ID } } });
+      release({ data: { user: { id: USER_ID } } });
+      await vi.advanceTimersByTimeAsync(50);
+      await vi.runAllTimersAsync();
+      expect(heard).toHaveBeenCalled();
+      stopListening();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

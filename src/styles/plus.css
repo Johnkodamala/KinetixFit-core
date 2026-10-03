@@ -188,3 +188,36 @@
   .kx-plus-confetti { display: none; }
   .kx-plus-card, .kx-plus-mark path, .kx-intro-plus { animation: none; }
 }
+
+/* --- "Updated from your account": news from another phone arrived after the screens were drawn --- */
+.kx-refresh-pill {
+  position: fixed;
+  left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  transform: translateX(-50%);
+  z-index: 1150;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  animation: kx-fade var(--dur) var(--ease-out) both;
+}
+.kx-refresh-go {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+}
+.kx-refresh-x { border: 0; background: none; color: var(--ink-3); font-size: 20px; line-height: 1; padding: 0 8px; }

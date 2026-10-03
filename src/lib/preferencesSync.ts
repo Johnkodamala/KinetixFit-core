@@ -4,13 +4,26 @@
 // those keys for sync and writes them back individually on pull.
 import { registerSingleton, noteLocalChange } from './sync';
 
-const PREF_KEYS = [
+// Settings that follow the account to another phone. Reminder settings are here (water, gut check and streak reminders,
+// the active hours, the movement-break gap) so a new phone opens with the same ones. Left out on purpose, because they
+// describe one phone: "movement breaks on" (needs this phone's Physical activity permission and step counter),
+// "notifications skipped" (this phone's answer to the permission) and the AI-ideas consent (asked again on each phone).
+export const PREF_KEYS = [
   'kx_theme',
   'kx_sounds',
   'kinetix_glass_ml',
   'kinetix_water_goal_ml',
   'kx_widget_prefs',
+  'kinetix_hydration_enabled',
+  'kinetix_hydration_interval',
+  'kinetix_shift_start',
+  'kinetix_shift_end',
+  'kinetix_move_minutes',
+  'kx_gut_reminder',
+  'kx_streak_reminder',
 ] as const;
+
+export type PrefKey = (typeof PREF_KEYS)[number];
 
 type PrefBlob = Partial<Record<(typeof PREF_KEYS)[number], string>>;
 
@@ -43,4 +56,10 @@ registerSingleton<PrefBlob>({
 /** Call right after any of PREF_KEYS is written locally. */
 export function notePreferencesChanged() {
   noteLocalChange('preferences');
+}
+
+/** Saves one synced setting and marks the preferences as waiting to be sent to the account. */
+export function setPref(key: PrefKey, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* storage full or blocked */ }
+  notePreferencesChanged();
 }
