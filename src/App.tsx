@@ -72,6 +72,7 @@ import { questsForToday, allQuestValues, type Quest } from './lib/quests';
 import { updateWidgets, clearWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
 import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
 import { keepSafeIdeas } from './lib/aiIdeas';
+import { scanButtonAway } from './lib/scanButton';
 import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
 import { APP_ICONS, DEFAULT_APP_ICON, appIconInfo, appIconPreview, appIconSupported, canUseIcon, changeAppIcon, currentAppIcon, shouldRevertIcon, type AppIconId } from './lib/appIcons';
@@ -84,6 +85,7 @@ import CycleCard from './components/CycleCard';
 import VitalsCard from './components/VitalsCard';
 import AllergyPicker from './components/AllergyPicker';
 import { allergyName, flagAllergies } from './lib/allergens';
+import { accountPageAllowed, promoCodesAllowedOn } from './lib/accountPages';
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
 import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS, usableScanAllowance } from './lib/plus';
@@ -186,7 +188,7 @@ function parseRoute(hash: string): { tab: string; page: AccountPage | null } | n
   const [rawTab, rawPage] = hash.replace('#', '').split('/');
   const tab = LEGACY_TABS[rawTab] ?? rawTab;
   if (!TAB_IDS.includes(tab)) return null;
-  const page = tab === 'account' && rawPage && rawPage in ACCOUNT_PAGE_TITLES ? rawPage as AccountPage : null;
+  const page = tab === 'account' && rawPage && rawPage in ACCOUNT_PAGE_TITLES && accountPageAllowed(rawPage, Capacitor.getPlatform()) ? rawPage as AccountPage : null;
   return { tab, page };
 }
 
@@ -2113,6 +2115,8 @@ export default function App() {
 
   // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
+  // The scan window's own "Or type the ingredients" box: its own text, not the food search box's (a word typed in one used to show in the other)
+  const [ingredientsInput, setIngredientsInput] = useState<string>('');
   // "Did you mean avocado?" — asked instead of searching when a typed food looks like a typo of one we know
   const [typoAsk, setTypoAsk] = useState<{ typed: string; name: string; corrected: string } | null>(null);
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
@@ -2123,6 +2127,22 @@ export default function App() {
   const typedMatches = useMemo(() => searchFoods(savedFoods, parseTypedPortion(mealInput).name), [savedFoods, mealInput]);
   const recent = useMemo(() => recentFoods(savedFoods), [savedFoods]);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
+  // The scan button on Today steps aside while the page scrolls down, so it can't cover what passes under it (src/lib/scanButton.ts)
+  const [scanButtonIsAway, setScanButtonIsAway] = useState<boolean>(false);
+  useEffect(() => {
+    if (activeTab !== 'vitals') return;
+    const body = document.querySelector('.app-scroll-body');
+    if (!body) return;
+    let from = body.scrollTop;
+    const onScroll = () => {
+      // read both ends now: React runs the updater later, when `from` already holds the new position
+      const [prev, to] = [from, body.scrollTop];
+      from = to;
+      setScanButtonIsAway(away => scanButtonAway(away, prev, to));
+    };
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, [activeTab, isLoggedIn, onboardingStep]);
   // From anywhere (scan limit, locked vouchers) to Account → Your plan.
   const openPlusPage = () => {
     setShowCameraModal(false);
@@ -3441,7 +3461,6 @@ export default function App() {
 
   const triggerCameraScan = (item: string) => {
     setIsCameraScanning(true);
-    setMealInput(item);
     handleMealScan(item).finally(() => {
       setIsCameraScanning(false);
       setShowCameraModal(false);
@@ -4048,7 +4067,7 @@ export default function App() {
   // Account menu: grouped rows, each opening its own page; the value is a short summary of what's inside.
   const accountEmail = session?.user?.email || profile.email;
   // The App Store only lets us unlock paid features with its own offer codes, so our promo codes are for Android and the web
-  const promoCodesAllowed = Capacitor.getPlatform() !== 'ios';
+  const promoCodesAllowed = promoCodesAllowedOn(Capacitor.getPlatform());
   const accountSections: { title: string; rows: { page: AccountPage; value?: string }[] }[] = [
     { title: 'Profile', rows: [
       { page: 'details' },
@@ -5759,7 +5778,7 @@ export default function App() {
               handleTabChange('nourish');
               setShowCameraModal(true);
             }}
-            className="floating-hud-camera-fab"
+            className={`floating-hud-camera-fab${scanButtonIsAway ? ' is-away' : ''}`}
             title="Scan food"
             aria-label="Scan food"
           >
@@ -6140,13 +6159,13 @@ export default function App() {
                     rows={2}
                     id="kx-ingredients"
                     placeholder="e.g. wheat, milk, eggs, peanuts"
-                    value={mealInput}
-                    onChange={(e) => setMealInput(e.target.value)}
+                    value={ingredientsInput}
+                    onChange={(e) => setIngredientsInput(e.target.value)}
                     className="support-textarea"
                   />
                   <button
-                    onClick={() => triggerCameraScan(mealInput)}
-                    disabled={!mealInput.trim()}
+                    onClick={() => triggerCameraScan(ingredientsInput)}
+                    disabled={!ingredientsInput.trim()}
                     className="primary-btn"
                     style={{ width: '100%', marginTop: '10px' }}
                   >

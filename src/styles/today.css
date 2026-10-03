@@ -111,7 +111,10 @@
 .kx-hs-remove {
   all: unset; cursor: pointer; padding: 6px 10px; border-radius: var(--r-pill);
   font-size: 12px; font-weight: 650; color: var(--ink-3); background: var(--surface-2);
+  position: relative;
 }
+/* the pill is 28px tall; the part you can tap is 44px (an invisible extension above and below it) */
+.kx-hs-remove::after { content: ''; position: absolute; inset: -8px -4px; }
 .kx-hs-remove:focus-visible { outline: 2px solid var(--m-water); }
 
 .kx-hs-week {

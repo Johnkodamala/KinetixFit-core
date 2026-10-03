@@ -299,7 +299,10 @@
 .kx-wg-sizes button {
   min-height: 30px; padding: 0 12px; border: 0; border-radius: var(--r-pill); background: transparent; cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 650; color: var(--ink-3);
+  position: relative;
 }
+/* 30px tall to look at, 44px to tap: an invisible extension above and below (the buttons touch side by side, so none sideways) */
+.kx-wg-sizes button::after { content: ''; position: absolute; inset: -7px 0; }
 .kx-wg-sizes button.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
 .kx-wg-size-note, .kx-wg-tag { font-size: 12px; font-weight: 650; color: var(--ink-3); padding: 4px 9px; border-radius: var(--r-pill); background: var(--surface-2); }
 .kx-wg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

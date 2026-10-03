@@ -233,7 +233,7 @@ export const MEALS: Meal[] = [
     LD, 'veg', ['wheat', 'milk'], 'indian', 25, 'moong', [['Moong (mung beans), cooked', 200], ['Ghee', 5], ['Roti / chapati', 136]]),
   m('fish-curry-rice', 'Fish curry with rice', 'A bowl of fish curry (250 g) and 150 g rice',
     LD, 'meat', ['fish'], 'indian', 35, 'fish', [['Fish curry', 250], ['Rice, white, cooked', 150]]),
-  m('surmai-dal-rice', 'Grilled surmai with dal and rice', 'A surmai (king mackerel) steak, 120 g, a bowl of dal and 120 g rice',
+  m('surmai-dal-rice', 'Grilled surmai with dal and rice', 'A surmai (king mackerel) fillet, 120 g, a bowl of dal and 120 g rice',
     LD, 'meat', ['fish'], 'indian', 30, 'fish', [['Surmai (king mackerel), cooked', 120], ['Olive oil', 5], ['Dal', 150], ['Rice, white, cooked', 120]]),
   m('egg-curry-roti', 'Egg curry with two rotis', 'Two boiled eggs in onion and tomato gravy (120 g) and two rotis',
     LD, 'egg', ['eggs', 'wheat'], 'indian', 25, 'egg', [['Egg, hard-boiled', 100], ['Curry sauce', 120], ['Roti / chapati', 136]]),

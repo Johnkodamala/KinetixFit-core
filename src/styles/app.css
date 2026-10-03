@@ -811,14 +811,15 @@
 .billing-stat-box p { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.45; }
 /* Your plan: Free vs Plus side by side (stacks on narrow phones) */
 .kx-plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0 16px; }
-@media (max-width: 340px) { .kx-plan-grid { grid-template-columns: 1fr; } }
+/* two columns are ~165px each on a 360px phone: every bullet wrapped to 3-5 lines, so stack them below 440px */
+@media (max-width: 439px) { .kx-plan-grid { grid-template-columns: 1fr; } }
 .kx-plan { position: relative; background: var(--surface-2); border: 1.5px solid transparent; border-radius: var(--r-md); padding: 14px; display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .kx-plan.is-plus { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .kx-plan.is-current { border-color: var(--accent); }
 .kx-plan-name { font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
 .kx-plan.is-plus .kx-plan-name { color: var(--accent); }
 .kx-plan-price { font-size: 20px; color: var(--ink); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
-.kx-plan-price small { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.kx-plan-price small { font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ink-3); }
 .kx-plan ul { margin: 0; padding: 0 0 0 16px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
 .kx-plan li + li { margin-top: 4px; }
 .kx-plan-badge { align-self: flex-start; margin-top: 10px; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: var(--r-pill); }
@@ -959,6 +960,10 @@
   .floating-hud-camera-fab:hover { transform: scale(1.06); background: var(--accent-press); }
 }
 .floating-hud-camera-fab:active { transform: scale(0.94); }
+/* Scrolling down: it slips down behind the tab bar (translate and scale, because the pop-in animation holds transform and opacity),
+   and is back as the page scrolls up (src/lib/scanButton.ts) */
+.floating-hud-camera-fab { transition: transform var(--dur) var(--ease-spring), background var(--dur-fast), translate 180ms ease-out, scale 180ms ease-out, visibility 0s; }
+.floating-hud-camera-fab.is-away { translate: 0 28px; scale: 0.7; visibility: hidden; pointer-events: none; transition: translate 180ms ease-out, scale 180ms ease-out, visibility 0s 180ms; }
 @media (min-width: 1120px) {
   .floating-hud-camera-fab { right: calc(50% - 540px); }
 }

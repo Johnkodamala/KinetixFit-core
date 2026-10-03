@@ -48,6 +48,17 @@ describe('meal library', () => {
     }
   });
 
+  it('no meal is hidden from the country it was written for by that country’s avoided meats (a king mackerel "steak" was read as beef in India)', () => {
+    const textOf = (m: (typeof MEALS)[number]) => `${m.name} ${m.portion} ${m.ingredients.map(([name]) => name).join(' ')}`;
+    for (const country of Object.keys(CUISINES_BY_COUNTRY) as RankInput['country'][]) {
+      const local = CUISINES_BY_COUNTRY[country];
+      for (const meal of MEALS.filter(m => m.cuisines.some(c => local.includes(c)))) {
+        // a meal that really has the avoided meat (beef in India) simply isn't written for that country
+        expect(avoidedThere(textOf(meal), country), `${country}: ${meal.id}`).toBe(false);
+      }
+    }
+  });
+
   it('every meal belongs somewhere', () => {
     const offered = new Set(Object.values(CUISINES_BY_COUNTRY).flat());
     for (const meal of MEALS) expect(meal.cuisines.some(c => offered.has(c)), meal.id).toBe(true);
