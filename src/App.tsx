@@ -14,7 +14,7 @@ import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
 import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
 import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
-import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
+import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
 import './lib/preferencesSync';
 import './lib/gutSync';
 import './lib/checkinsSync';
@@ -634,7 +634,7 @@ export default function App() {
   // Merge a few fields into the latest profile — safe for rapid updates (ruler scrolling, typing)
   const patchProfile = (changes: Partial<UserProfile>) => {
     setProfile(prev => {
-      const next = { ...prev, ...changes };
+      const next = profileAfterEdit(prev, readLocalProfile(), changes); // onto the newest stored copy, not the (possibly older) one on screen
       setActiveCountry(countryOf(next));
       localStorage.setItem('kinetix_profile', JSON.stringify(next));
       return next;
@@ -3474,7 +3474,7 @@ export default function App() {
       }
 
       const sourceName = healthSourceName(Capacitor.getPlatform());
-      saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
+      saveProfileToStorage(profileAfterEdit(profile, readLocalProfile(), { smartDeviceConnected: sourceName }));
       setShowDeviceSyncModal(false);
       notify('success', `Connected to ${sourceName}. Your data can take a moment to appear.`);
       // Onboarding: carry on. The step used to stay put with the same Connect button, and tapping it again did

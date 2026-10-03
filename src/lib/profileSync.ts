@@ -67,6 +67,16 @@ export function profileFromRemote(row: Record<string, unknown>): Omit<UserProfil
   };
 }
 
+/**
+ * The profile after an edit. What is stored on this phone is the newest copy: a pull from the account may have changed it since
+ * the screen last drew, and the "Updated from your account" notice may have been dismissed instead of refreshed. Building the
+ * edit on the copy held in memory wrote the older values back over the other phone's newer ones (a weight set on one phone was
+ * reverted by an age edit on the other, and the account kept the older weight). So the edit goes onto the stored copy.
+ */
+export function profileAfterEdit(inMemory: UserProfile, stored: Partial<UserProfile> | null, changes: Partial<UserProfile>): UserProfile {
+  return { ...inMemory, ...(stored ?? {}), ...changes };
+}
+
 /** Call right after `kinetix_profile` is written (saveProfileToStorage / patchProfile). */
 export function noteProfileChanged() {
   noteLocalChange('profiles');
