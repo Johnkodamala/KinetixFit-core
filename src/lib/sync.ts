@@ -149,6 +149,13 @@ export async function pushSingleton<T>(domain: SingletonDomain<T>, knownUid?: st
   const { data, error } = await supabase.from(domain.table).upsert(row).select('updated_at').maybeSingle();
   if (error) return false;
   const t = data?.updated_at ? new Date(data.updated_at as string).getTime() : Date.now();
+  // The app keeps working while this waits on the network. An edit made meanwhile is newer than the row just written and
+  // has not been sent: it stays queued, and counts as newer than that row, so a pull before the next push can't bring the
+  // older copy back over it. (Clearing the mark here used to forget the edit.)
+  if (JSON.stringify(domain.toRemote(domain.load(), uid)) !== JSON.stringify(row)) {
+    setLocalMtime(domain.name, Math.max(localMtime(domain.name), t + 1));
+    return true;
+  }
   setLocalMtime(domain.name, t);
   clearDirty(domain.name);
   return true;
@@ -343,13 +350,22 @@ export async function pushKeyed<T>(domain: KeyedDomain<T>, knownUid?: string): P
   const uid = knownUid ?? await currentUserId();
   if (!uid) return;
   const records = domain.load() as Record<string, T>;
-  const keys = dirtyKeysSet(domain.name);
-  for (const key of [...keys]) {
+  const sent = new Map<string, string>(); // key -> the row as it went up
+  for (const key of dirtyKeysSet(domain.name)) {
     const value = records[key];
     if (value === undefined) continue; // removed without a tombstone: nothing to push
     const row = domain.toRemote(key, value, uid);
     const { error } = await supabase.from(domain.table).upsert(row);
-    if (!error) keys.delete(key);
+    if (!error) sent.set(key, JSON.stringify(row));
+  }
+  // The app keeps working while the uploads wait on the network, and each edit marks its own key. So the marks are read
+  // again now and only what went up unchanged is forgotten (writing back the copy taken at the start used to forget a
+  // record added meanwhile, and a record edited again after it was sent). A mark whose record is gone has nothing to send.
+  const now = domain.load() as Record<string, T>;
+  const keys = dirtyKeysSet(domain.name);
+  for (const key of [...keys]) {
+    const value = now[key];
+    if (value === undefined || sent.get(key) === JSON.stringify(domain.toRemote(key, value, uid))) keys.delete(key);
   }
   saveDirtyKeysSet(domain.name, keys);
   if (keys.size === 0) clearDirty(domain.name);

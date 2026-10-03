@@ -9,6 +9,9 @@ const upsertCalls: Record<string, unknown>[] = [];
 // lets a test force one domain's push to fail without affecting other domains still registered from
 // earlier tests in this file (the singleton/keyed domain registries are module-level and never reset).
 let failUpsertForTable: string | null = null;
+// Runs while an upload is in flight (after the row was built, before the answer): the phone keeps being used during a
+// flush that takes seconds on a mobile connection, so a test can make an edit "at that moment".
+let onUpsert: ((table: string, row: Record<string, unknown>) => void) | null = null;
 
 vi.mock('./supabase', () => ({
   isSupabaseConfigured: true,
@@ -23,6 +26,7 @@ vi.mock('./supabase', () => ({
       }),
       upsert: (row: Record<string, unknown>) => {
         upsertCalls.push(row);
+        onUpsert?.(table, row);
         const error = table === failUpsertForTable ? new Error(`upsert failed for ${table}`) : null;
         return {
           select: () => ({
@@ -68,6 +72,7 @@ beforeEach(() => {
   upsertResult.error = null;
   upsertCalls.length = 0;
   failUpsertForTable = null;
+  onUpsert = null;
 });
 
 describe('outbox bookkeeping', () => {
@@ -546,6 +551,101 @@ describe('syncKeepingThisPhone: a phone that held data the account never receive
     await syncKeepingThisPhone();
     expect(upsertCalls.slice(before).some(r => r.id === 'a')).toBe(true);
     expect(localStorage.getItem('kx_sync_backfilled_keep-phone-keyed')).toBe('1');
+  });
+});
+
+describe('an edit made while an upload is in flight is not forgotten', () => {
+  // A flush takes seconds on a phone connection and the app keeps working meanwhile: a drink from the widget, a food
+  // logged, a profile change. The push used to write back its own copy of "what is waiting" when it finished, so the
+  // new edit's mark vanished: it never went up, and a later pull could put the account's older copy back over it.
+
+  it('a record added during the push stays queued and goes up on the next flush', async () => {
+    let records: Record<string, { v: string }> = { a: { v: '1' } };
+    const domain = makeKeyedDomain({ name: 'race-add', table: 'race_add', load: () => records, save: r => { records = r; } });
+    noteKeyedChange('race-add', 'a');
+    onUpsert = (_table, row) => {
+      if (row.id !== 'a') return;
+      records = { ...records, b: { v: '2' } };
+      noteKeyedChange('race-add', 'b');
+    };
+    await pushKeyed(domain);
+    onUpsert = null;
+    expect(isDirty('race-add')).toBe(true);
+    registerKeyed(domain);
+    expect(unsyncedDomains()).toContain('race-add');
+    upsertCalls.length = 0;
+    await pushKeyed(domain);
+    expect(upsertCalls.map(r => r.id)).toEqual(['b']);
+    expect(isDirty('race-add')).toBe(false);
+  });
+
+  it('the same record edited during its own push is sent again, and a pull in between does not put the older copy back', async () => {
+    let records: Record<string, { v: string }> = { a: { v: 'first' } };
+    const domain = makeKeyedDomain({ name: 'race-edit', table: 'race_edit', load: () => records, save: r => { records = r; } });
+    noteKeyedChange('race-edit', 'a');
+    onUpsert = () => { records = { a: { v: 'second' } }; noteKeyedChange('race-edit', 'a'); };
+    await pushKeyed(domain);
+    onUpsert = null;
+    expect(isDirty('race-edit')).toBe(true);
+    selectManyResult.data = [{ id: 'a', v: 'first' }]; // the account holds what was sent first
+    await pullKeyed(domain);
+    expect(records.a).toEqual({ v: 'second' });
+    upsertCalls.length = 0;
+    await pushKeyed(domain);
+    expect(upsertCalls).toEqual([{ user_id: USER_ID, id: 'a', v: 'second' }]);
+    expect(isDirty('race-edit')).toBe(false);
+  });
+
+  it('an unchanged record that was sent stops being queued, as before', async () => {
+    const records: Record<string, { v: string }> = { a: { v: '1' }, b: { v: '2' } };
+    const domain = makeKeyedDomain({ name: 'race-plain', table: 'race_plain', load: () => records });
+    noteKeyedChange('race-plain', 'a');
+    noteKeyedChange('race-plain', 'b');
+    await pushKeyed(domain);
+    expect(upsertCalls.map(r => r.id)).toEqual(['a', 'b']);
+    expect(isDirty('race-plain')).toBe(false);
+  });
+
+  it('a record whose upload failed stays queued while one that went up does not', async () => {
+    const records: Record<string, { v: string }> = { a: { v: '1' } };
+    const domain = makeKeyedDomain({ name: 'race-fail', table: 'race_fail', load: () => records });
+    noteKeyedChange('race-fail', 'a');
+    failUpsertForTable = 'race_fail';
+    await pushKeyed(domain);
+    expect(isDirty('race-fail')).toBe(true);
+    failUpsertForTable = null;
+    await pushKeyed(domain);
+    expect(isDirty('race-fail')).toBe(false);
+  });
+
+  it('a queued key whose record is gone is dropped instead of keeping the domain unsynced for ever (it would block every log out)', async () => {
+    const domain = makeKeyedDomain({ name: 'race-gone', table: 'race_gone', load: () => ({}) });
+    registerKeyed(domain);
+    noteKeyedChange('race-gone', 'ghost');
+    await pushKeyed(domain);
+    expect(upsertCalls).toEqual([]);
+    expect(isDirty('race-gone')).toBe(false);
+    expect(unsyncedDomains()).not.toContain('race-gone');
+  });
+
+  it('a singleton edited during its push stays queued, and counts as newer than the row just written, so a pull cannot revert it', async () => {
+    let value: { v: string } | null = { v: 'first' };
+    const domain = makeDomain({ name: 'race-single', table: 'race_single', load: () => value, save: v => { value = v; } });
+    noteLocalChange('race-single');
+    // the account stamps its row a little after the edit: the edit was made after the request left but before the account wrote it
+    const serverTime = new Date(Date.now() + 500).toISOString();
+    upsertResult.data = { updated_at: serverTime };
+    onUpsert = () => { value = { v: 'second' }; noteLocalChange('race-single'); };
+    await pushSingleton(domain);
+    onUpsert = null;
+    expect(isDirty('race-single')).toBe(true);
+    selectResult.data = { v: 'first', updated_at: serverTime };
+    expect(await pullSingleton(domain)).toBe('local-newer');
+    expect(value).toEqual({ v: 'second' });
+    upsertCalls.length = 0;
+    await pushSingleton(domain);
+    expect(upsertCalls).toEqual([{ user_id: USER_ID, v: 'second' }]);
+    expect(isDirty('race-single')).toBe(false);
   });
 });
 
