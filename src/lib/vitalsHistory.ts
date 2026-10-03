@@ -31,6 +31,14 @@ function saveVitalReadings(records: Record<string, VitalReading>) {
   writeJson(KEY, kept);
 }
 
+/** Adds the readings the account has that this phone doesn't. One this phone already holds stays as it is: for a day's
+ * total the account's copy may be another phone's, and each phone writes its own back when it changes, so letting the
+ * account's version win only made two phones keep replacing each other's numbers. The 90-day limit applies to what comes
+ * down too, so a long history on the account never fills this phone's storage. */
+export function addRemoteVitalReadings(remote: Record<string, VitalReading>): void {
+  saveVitalReadings({ ...remote, ...loadVitalReadings() });
+}
+
 /** Call right after a fresh reading for a metric arrives. A no-op for a reading already recorded
  * (same metric + exact timestamp) — readLatest* is often re-run on foreground/resume with the same
  * newest sample. Never overwrites an existing event, so it's safe to call on every read. */

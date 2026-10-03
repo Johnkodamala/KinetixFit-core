@@ -39,7 +39,7 @@ import {
   noteLocalChange, isDirty, localMtime, registerSingleton, pushSingleton, pullSingleton,
   syncAllOnLogin, flushOutbox, clearAllDomainData, type SingletonDomain,
   noteKeyedChange, registerKeyed, pushKeyed, pullKeyed, type KeyedDomain, unsyncedDomains, syncKeepingThisPhone,
-  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, stableStringify,
+  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint,
 } from './sync';
 
 const USER_ID = 'user-1';
@@ -325,16 +325,6 @@ describe('records that failed their first upload are retried, and count as unsyn
   });
 });
 
-describe('stableStringify: equal data compares equal whatever order its keys were built in', () => {
-  it('ignores key order, at any depth', () => {
-    expect(stableStringify({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: null } })).toBe(stableStringify({ a: { c: null, d: [1, { x: 1, y: 2 }] }, b: 1 }));
-  });
-  it('still tells different data apart (and keeps array order)', () => {
-    expect(stableStringify({ a: [1, 2] })).not.toBe(stableStringify({ a: [2, 1] }));
-    expect(stableStringify({ a: 1 })).not.toBe(stableStringify({ a: 2 }));
-  });
-});
-
 describe('syncWithAccount: pull the account’s data and say whether anything here changed', () => {
   beforeEach(() => {
     selectManyResult.data = [];
@@ -353,6 +343,104 @@ describe('syncWithAccount: pull the account’s data and say whether anything he
   it('reports no change when the account has nothing new', async () => {
     selectManyResult.data = [];
     expect((await syncWithAccount()).changed).toBe(false);
+  });
+});
+
+describe('fingerprint: what a person would see of some data', () => {
+  it('ignores key order, at any depth', () => {
+    expect(fingerprint({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: 3 } })).toBe(fingerprint({ a: { c: 3, d: [1, { x: 1, y: 2 }] }, b: 1 }));
+  });
+
+  it('counts a key holding null as a missing key: the account says null where this phone never stored the field', () => {
+    expect(fingerprint({ a: 1, note: null })).toBe(fingerprint({ a: 1 }));
+    expect(fingerprint({ a: { b: null, c: 2 } })).toBe(fingerprint({ a: { c: 2 } }));
+  });
+
+  it('still tells real differences apart: array order, 0, an empty string and false are values, and an array that gains a null is longer', () => {
+    expect(fingerprint({ a: 1 })).not.toBe(fingerprint({ a: 2 }));
+    expect(fingerprint({ a: [1, 2] })).not.toBe(fingerprint({ a: [2, 1] }));
+    expect(fingerprint({ a: 0 })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: '' })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: false })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: [1] })).not.toBe(fingerprint({ a: [1, null] }));
+  });
+});
+
+describe('syncAllOnLogin says which domains the account changed (only what the pull itself wrote counts)', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+  const told = async () => {
+    const names: string[] = [];
+    await syncAllOnLogin(name => names.push(name));
+    return names;
+  };
+
+  it('names a keyed domain that got a record from the account, and not one whose record came back the same', async () => {
+    let news: Record<string, { v: string }> = {};
+    let same: Record<string, { v: string }> = { r1: { v: 'x' } };
+    registerKeyed(makeKeyedDomain({ name: 'told-news', table: 'told_news', load: () => news, save: r => { news = r; } }));
+    registerKeyed(makeKeyedDomain({ name: 'told-same', table: 'told_same', load: () => same, save: r => { same = r; } }));
+    selectManyResult.data = [{ id: 'r1', v: 'x' }]; // both domains see this row: new to one, already held by the other
+    const names = await told();
+    expect(names).toContain('told-news');
+    expect(names).not.toContain('told-same');
+  });
+
+  it('does not count something the app wrote itself while the pull was running', async () => {
+    let own: Record<string, { v: string }> = {};
+    let control: Record<string, { v: string }> = {};
+    registerKeyed(makeKeyedDomain({ name: 'told-own', table: 'told_own', load: () => own, save: r => { own = r; } }));
+    registerKeyed(makeKeyedDomain({ name: 'told-control', table: 'told_control', load: () => control, save: r => { control = r; } }));
+    // the account holds a record that this phone also logs for itself, partway through the pull (here: while the account
+    // is being asked who this is), so by the time the account's copy is applied it is nothing new to this phone
+    selectManyResult.data = [{ id: 'mine', v: 'logged here' }];
+    getUser.mockImplementation(async () => {
+      own = { ...own, mine: { v: 'logged here' } };
+      return { data: { user: { id: USER_ID } } };
+    });
+    const names = await told();
+    expect(names).toContain('told-control'); // the record is news to a phone that did not have it...
+    expect(names).not.toContain('told-own'); // ...but not to the one that wrote it itself while pulling
+  });
+
+  it('does not count a record that differs only by a field holding null', async () => {
+    let records: Record<string, { v: string; note?: string | null }> = { k1: { v: 'same' } };
+    registerKeyed({
+      name: 'told-null', table: 'told_null', load: () => records, save: r => { records = r; },
+      toRemote: (key, value, userId) => ({ user_id: userId, id: key, v: value.v }),
+      fromRemote: row => ({ key: row.id as string, value: { v: row.v as string, note: (row.note as string | null) ?? null } }),
+    });
+    let control: Record<string, { v: string }> = {};
+    registerKeyed(makeKeyedDomain({ name: 'told-null-control', table: 'told_null_control', load: () => control, save: r => { control = r; } }));
+    selectManyResult.data = [{ id: 'k1', v: 'same', note: null }];
+    const names = await told();
+    expect(names).toContain('told-null-control'); // a record that really is new is reported...
+    expect(names).not.toContain('told-null'); // ...one that differs only by a null is not
+    expect(records.k1).toEqual({ v: 'same', note: null }); // it was still written; it just isn't news
+  });
+
+  it('writes a quiet domain’s records from the account without announcing them', async () => {
+    let records: Record<string, { v: string }> = {};
+    let loud: Record<string, { v: string }> = {};
+    registerKeyed({ ...makeKeyedDomain({ name: 'told-quiet', table: 'told_quiet', load: () => records, save: r => { records = r; } }), quiet: true });
+    registerKeyed(makeKeyedDomain({ name: 'told-loud', table: 'told_loud', load: () => loud, save: r => { loud = r; } }));
+    selectManyResult.data = [{ id: 'q1', v: 'from the account' }];
+    const names = await told();
+    expect(records.q1).toEqual({ v: 'from the account' }); // the records still arrive
+    expect(names).toContain('told-loud'); // the same record is news to an ordinary domain...
+    expect(names).not.toContain('told-quiet'); // ...and not to a quiet one
+  });
+
+  it('names a singleton when the account’s copy is different, and not when it came back the same', async () => {
+    let value: { v: string } | null = { v: 'same' };
+    registerSingleton(makeDomain({ name: 'told-singleton', table: 'told_singleton', load: () => value, save: v => { value = v; } }));
+    selectResult.data = { v: 'same', updated_at: new Date(Date.now() + 1_000).toISOString() };
+    expect(await told()).not.toContain('told-singleton');
+    selectResult.data = { v: 'changed elsewhere', updated_at: new Date(Date.now() + 2_000).toISOString() };
+    expect(await told()).toContain('told-singleton');
+    expect(value).toEqual({ v: 'changed elsewhere' });
   });
 });
 
