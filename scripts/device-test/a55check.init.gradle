@@ -1,0 +1,11 @@
+// Test-only: installs the debug build as a SEPARATE app (com.jnglobalventures.kinetixfit.a55check),
+// so a borrowed phone's own Kinetix Fit install, session and data are never replaced or touched.
+// Used from android/:  ./gradlew -I ../scripts/device-test/a55check.init.gradle assembleDebug   (see CLAUDE.md, 'The isolated test app')
+allprojects {
+    plugins.withId('com.android.application') {
+        project.extensions.getByName('androidComponents').finalizeDsl { dsl ->
+            dsl.buildTypes.getByName('debug').applicationIdSuffix = '.a55check'
+            dsl.buildTypes.getByName('debug').versionNameSuffix = '-a55check'
+        }
+    }
+}
