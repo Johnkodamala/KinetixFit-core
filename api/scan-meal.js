@@ -9,6 +9,7 @@ import { getRewardConfig } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { Redis } from '@upstash/redis';
 import { handleCors } from './_lib/cors.js';
+import { requestDay } from './_lib/countries.js';
 import { checkScanQuota, recordScan, quotaExceededBody } from './_lib/scanQuota.js';
 import { fromTypical, lookupNutrition } from './_lib/nutrition.js';
 import { IdentifyError } from './_lib/identify.js';
@@ -232,7 +233,8 @@ export default async function handler(req, res) {
     // before, a Redis error turned every signed-in food check into a 500.
     try {
       if (appUserId) {
-        const today = new Date().toISOString().slice(0, 10);
+        // "the first check of the day" is the phone's day, the same one its quests are filed under (requestDay)
+        const today = requestDay(req.body?.timeZone);
         const awardKey = `meal_scan_points_awarded:${appUserId}:${today}`;
         const alreadyAwarded = await redis.get(awardKey);
         if (!alreadyAwarded) {

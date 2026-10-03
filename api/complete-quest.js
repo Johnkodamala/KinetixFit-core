@@ -14,6 +14,7 @@
 import { Redis } from '@upstash/redis';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
+import { requestDay } from './_lib/countries.js';
 import { verifiedUserId } from './_lib/supabaseAuth.js';
 import { awardLevelUps } from './_lib/pointsLedger.js';
 import { questById } from './_lib/quests.js';
@@ -69,7 +70,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { appUserId, taskId, completed } = req.body;
+  const { appUserId, taskId, completed, timeZone } = req.body;
   if (!appUserId || !taskId) {
     return res.status(400).json({ error: 'appUserId and taskId are required.' });
   }
@@ -87,7 +88,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, verified: false, xpAwarded: 0, pointsAwarded: 0 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // The day this claim belongs to: the phone's own (it sends its time zone), else the UTC date, as older builds always got.
+  const today = requestDay(timeZone);
 
   const rateLimitKey = `earn_event_count:${appUserId}:${today}`;
   const countToday = Number((await redis.get(rateLimitKey)) || 0);

@@ -3,6 +3,7 @@
 // verification possible at all — until now, synced health data never left the device.
 import { Redis } from '@upstash/redis';
 import { handleCors } from './_lib/cors.js';
+import { requestDay } from './_lib/countries.js';
 
 const redis = Redis.fromEnv();
 
@@ -13,12 +14,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { appUserId, steps, liveBpm, liveHrv, sleepQualityPercent } = req.body;
+  const { appUserId, steps, liveBpm, liveHrv, sleepQualityPercent, timeZone } = req.body;
   if (!appUserId) {
     return res.status(400).json({ error: 'appUserId is required.' });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // filed under the day api/complete-quest.js will look it up under (the phone's own, else the UTC date)
+  const today = requestDay(timeZone);
   const snapshot = {
     steps: typeof steps === 'number' ? steps : null,
     liveBpm: typeof liveBpm === 'number' ? liveBpm : null,

@@ -7,7 +7,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MEAL_SCHEMA } from '../_lib/identify.js';
 import { FOOD_TABLE } from '../_lib/foodTable.js';
 import { isPlausible } from '../../src/lib/foodLog.ts';
@@ -359,6 +359,33 @@ describe('single foods: the contract the app relies on', () => {
     it('writes no ledger row without a verified session (older builds), and the points work as before', async () => {
       expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
       expect(ledger).toHaveLength(0);
+    });
+  });
+
+  // "Your first food check of the day" is the phone's day when it sends its time zone (the same day the quests are filed
+  // under, api/complete-quest.js), the UTC date when it doesn't. 00:30 on 4 Oct in India is still 3 Oct in UTC.
+  describe('which day the first check belongs to', () => {
+    const EVENING_IN_INDIA = new Date('2026-10-03T16:30:00Z'); // 22:00 on 3 Oct
+    const NIGHT_IN_INDIA = new Date('2026-10-03T19:00:00Z'); //   00:30 on 4 Oct
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); mockUserId = 'user-1'; });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('is the UTC day when the request sends no time zone (builds from before)', async () => {
+      vi.setSystemTime(EVENING_IN_INDIA);
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(2);
+      vi.setSystemTime(NIGHT_IN_INDIA);
+      expect((await typed('banana', { appUserId: 'user@example.com' })).body.pointsAwarded).toBe(0);
+      expect(ledger.map(row => row.day)).toEqual(['2026-10-03']);
+    });
+
+    it("is the phone's own day when it sends its time zone: the first check after midnight earns again, once", async () => {
+      const india = { appUserId: 'user@example.com', timeZone: 'Asia/Kolkata' };
+      vi.setSystemTime(EVENING_IN_INDIA);
+      expect((await typed('banana', india)).body.pointsAwarded).toBe(2);
+      vi.setSystemTime(NIGHT_IN_INDIA);
+      expect((await typed('banana', india)).body.pointsAwarded).toBe(2);
+      expect((await typed('banana', india)).body.pointsAwarded).toBe(0);
+      expect(ledger.map(row => row.day)).toEqual(['2026-10-03', '2026-10-04']);
     });
   });
 });

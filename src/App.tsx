@@ -966,7 +966,7 @@ export default function App() {
           fetch(serverUrl('/api/sync-health-data'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appUserId: profile.email, ...snapshot })
+            body: JSON.stringify({ appUserId: profile.email, ...snapshot, timeZone: deviceTimeZone() })
           })
             .then(async r => {
               if (r.ok) lastSyncedSnapshot.current = snapshotKey;
@@ -1712,7 +1712,9 @@ export default function App() {
           verificationType: task.verificationType,
           xpValue: task.xpValue,
           pointsValue: task.pointsValue,
-          completed: true
+          completed: true,
+          // the server files the claim under the phone's own date (api/_lib/countries.js requestDay)
+          timeZone: deviceTimeZone()
         })
       });
       const data = await response.json();
@@ -3609,7 +3611,9 @@ export default function App() {
         body: JSON.stringify({
           country: country.code,
           userName: profile.name,
-          simulatedCadence: 0
+          simulatedCadence: 0,
+          // "2 quests today" is the phone's own day, the day its quests are filed under
+          timeZone: deviceTimeZone()
         })
       });
       const data = await response.json();

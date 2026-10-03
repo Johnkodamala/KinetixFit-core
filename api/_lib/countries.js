@@ -36,3 +36,21 @@ export function safeTimeZone(tz) {
 export function dayKey(timeZone, date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: safeTimeZone(timeZone) }).format(date);
 }
+
+/**
+ * The day a quest claim, the health snapshot that verifies it and the first-scan bonus are filed under: the phone's own
+ * date when the request sends a real IANA time zone, so a quest is "today's" at the person's own midnight; otherwise the
+ * UTC date, which is what every build before the phone sent its time zone was filed under, so those are unchanged. (Not
+ * dayKey: that falls back to UK time, which would move an older build's claims.) The phone's date and the UTC date
+ * differ for hours every day: in India (UTC+5:30) a quest done at 01:00 was "the same day" as last evening's, and
+ * answered "already claimed" with no points. Day strings are claimed once each however the zone is changed, so sending a
+ * different zone cannot earn a day twice.
+ */
+export function requestDay(timeZone, date = new Date()) {
+  if (typeof timeZone === 'string' && timeZone.length > 0 && timeZone.length <= 64) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone }).format(date);
+    } catch { /* not a time zone: the UTC date below */ }
+  }
+  return date.toISOString().slice(0, 10);
+}

@@ -17,7 +17,8 @@ export async function ledgerBalance(admin, userId) {
   };
 }
 
-/** Quest ids the user has claimed on `day` (the UTC date api/complete-quest.js files claims under), or null if unreadable. */
+/** Quest ids the user has claimed on `day` (the day api/complete-quest.js files claims under: the phone's own date when it
+ * sent its time zone, else the UTC date; see requestDay in countries.js), or null if unreadable. */
 export async function claimedQuestIds(admin, userId, day) {
   const { data, error } = await admin.from('quest_claims').select('quest_id').eq('user_id', userId).eq('day', day);
   if (error || !data) return null;

@@ -1,7 +1,7 @@
 // api/complete-quest.js with Redis and Supabase replaced by in-memory stand-ins: the existing
 // Redis dedup/rate-limit path (unauthenticated or older clients), and the new durable
 // quest_claims/points_ledger write once a request carries a verified Supabase session.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const redisStore = { strings: new Map(), lists: new Map() };
 vi.mock('@upstash/redis', () => ({
@@ -154,5 +154,96 @@ describe('with a verified session', () => {
     const res = await call({ body: claimBody(), headers: { authorization: 'Bearer good-token' } });
     expect(res.statusCode).toBe(200);
     expect(claimsStore).toHaveLength(0);
+  });
+});
+
+// The server files a claim under a day: the phone's own date when the request sends its time zone (requestDay in
+// api/_lib/countries.js), the UTC date when it doesn't (builds from before). The phone offers quests by its own day, so
+// in India (UTC+5:30) the UTC date lags the phone's for the first five and a half hours of every day: last evening's
+// claim was then "the same day", and a quest done at 01:00 answered "already claimed" with no points.
+describe('which day a claim is filed under', () => {
+  const EVENING_IN_INDIA = new Date('2026-10-03T16:30:00Z'); // 22:00 on 3 Oct
+  const NIGHT_IN_INDIA = new Date('2026-10-03T19:00:00Z'); //   00:30 on 4 Oct: still 3 Oct in UTC
+  const signedIn = { authorization: 'Bearer good-token' };
+  const at = when => vi.setSystemTime(when);
+
+  beforeEach(() => { mockUserId = 'uid-123'; vi.useFakeTimers({ toFake: ['Date'] }); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('uses the UTC date when the request sends no time zone (builds from before)', async () => {
+    at(NIGHT_IN_INDIA);
+    await call({ body: claimBody(), headers: signedIn });
+    expect(claimsStore.map(c => c.day)).toEqual(['2026-10-03']);
+    expect(ledgerStore.map(l => l.day)).toEqual(['2026-10-03']);
+  });
+
+  it("uses the phone's own date when it sends its time zone: the claim row, the ledger row", async () => {
+    at(NIGHT_IN_INDIA);
+    await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn });
+    expect(claimsStore.map(c => c.day)).toEqual(['2026-10-04']);
+    expect(ledgerStore.map(l => l.day)).toEqual(['2026-10-04']);
+  });
+
+  it("lets the new day's quest be claimed just after midnight although last evening's was claimed", async () => {
+    at(EVENING_IN_INDIA);
+    expect((await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn })).statusCode).toBe(200);
+    at(NIGHT_IN_INDIA);
+    const res = await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({ pointsAwarded: 8 });
+    expect(claimsStore.map(c => c.day)).toEqual(['2026-10-03', '2026-10-04']);
+  });
+
+  it('still answers 409 in those hours without a time zone: it is the same UTC day (builds from before)', async () => {
+    at(EVENING_IN_INDIA);
+    await call({ body: claimBody(), headers: signedIn });
+    at(NIGHT_IN_INDIA);
+    expect((await call({ body: claimBody(), headers: signedIn })).statusCode).toBe(409);
+    expect(claimsStore).toHaveLength(1);
+  });
+
+  it("still refuses a second claim of the same quest on the same day of the phone's own", async () => {
+    at(NIGHT_IN_INDIA);
+    await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn });
+    at(new Date('2026-10-03T21:30:00Z')); // 03:00 on 4 Oct
+    expect((await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn })).statusCode).toBe(409);
+    expect(claimsStore).toHaveLength(1);
+  });
+
+  it('applies the daily limit to the phone\'s own day too, not to the UTC day', async () => {
+    at(EVENING_IN_INDIA);
+    redisStore.strings.set('earn_event_count:maya@example.com:2026-10-03', 20); // today's limit used up (UTC and India agree at 22:00)
+    expect((await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn })).statusCode).toBe(429);
+    at(NIGHT_IN_INDIA); // a new day in India
+    expect((await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn })).statusCode).toBe(200);
+  });
+
+  it('treats a time zone that is not one as none: the UTC date, never an error', async () => {
+    at(NIGHT_IN_INDIA);
+    for (const timeZone of ['Mars/Phobos', '', 42, 'x'.repeat(70)]) {
+      claimsStore.length = 0; ledgerStore.length = 0; redisStore.strings.clear();
+      const res = await call({ body: claimBody({ timeZone }), headers: signedIn });
+      expect(res.statusCode, String(timeZone)).toBe(200);
+      expect(claimsStore.map(c => c.day)).toEqual(['2026-10-03']);
+    }
+  });
+
+  it('checks a steps quest against the health snapshot filed under that same day', async () => {
+    at(NIGHT_IN_INDIA);
+    redisStore.strings.set('health_snapshot:maya@example.com:2026-10-04', JSON.stringify({ steps: 5000 }));
+    const withZone = await call({ body: claimBody({ timeZone: 'Asia/Kolkata' }), headers: signedIn });
+    expect(withZone.body).toMatchObject({ verified: true, verificationNote: '5000 steps synced today.' });
+    // the same snapshot is not found by a build that asks for the UTC date
+    redisStore.strings.delete('quest_award:maya@example.com:Q-steps-10000:2026-10-04');
+    claimsStore.length = 0; ledgerStore.length = 0;
+    const withoutZone = await call({ body: claimBody(), headers: signedIn });
+    expect(withoutZone.body.verified).toBe(false);
+  });
+
+  it("checks a food quest against the first-scan bonus filed under the phone's own day", async () => {
+    at(NIGHT_IN_INDIA);
+    redisStore.strings.set('meal_scan_points_awarded:maya@example.com:2026-10-04', '1');
+    const res = await call({ body: claimBody({ taskId: 'Q-food-3', verificationType: 'nutrition', timeZone: 'Asia/Kolkata' }), headers: signedIn });
+    expect(res.body).toMatchObject({ verified: true, verificationNote: 'Meal scan logged today.' });
   });
 });

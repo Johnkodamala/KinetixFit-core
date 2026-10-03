@@ -1,6 +1,6 @@
 // api/redeem-voucher.js: the points balance and the quests-done gate come from the database for the account the
 // session token belongs to, not from the request body; a redemption writes a negative points_ledger row.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockUserId = null;
 let mockEmail = 'maya@example.com'; // the account's own address, from the verified session
@@ -194,5 +194,34 @@ describe('redeem-voucher: a redemption', () => {
     const res = await call();
     expect(res.statusCode).toBe(403);
     expect(res.body.code).toBe('PLUS_REQUIRED');
+  });
+});
+
+// "2 quests done today" means today on the phone: quests are filed under the phone's own date when it sends its time zone
+// (api/complete-quest.js), so this gate reads the same day. 00:30 on 4 Oct in India is still 3 Oct in UTC.
+describe('redeem-voucher: which day the two quests must be from', () => {
+  const claimOn = (day, id) => claims.push({ user_id: USER, day, quest_id: id });
+  beforeEach(() => {
+    earn(1000);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-03T19:00:00Z'));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("counts the quests claimed on the phone's own day when it sends its time zone", async () => {
+    claimOn('2026-10-04', 'Q-a'); claimOn('2026-10-04', 'Q-b');
+    expect((await call({ timeZone: 'Asia/Kolkata' })).statusCode).toBe(200);
+  });
+
+  it("does not count last evening's quests as today's for a phone that sends its time zone", async () => {
+    claimOn('2026-10-03', 'Q-a'); claimOn('2026-10-03', 'Q-b');
+    const res = await call({ timeZone: 'Asia/Kolkata' });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('EFFORT THRESHOLD UNMET');
+  });
+
+  it('counts the UTC date for a request with no time zone (builds from before)', async () => {
+    claimOn('2026-10-03', 'Q-a'); claimOn('2026-10-03', 'Q-b');
+    expect((await call()).statusCode).toBe(200);
   });
 });
