@@ -5328,7 +5328,7 @@ export default function App() {
               <div className="kx-account-head">
                 <span className={`kx-avatar${isPlus ? ' is-plus' : ''}`} aria-hidden="true">{(profile.name || accountEmail || 'K').trim().charAt(0).toUpperCase()}</span>
                 <div className="kx-account-id">
-                  <h2 className="kx-account-name">{profile.name || 'Your account'}{isPlus && <PlusBadge />}</h2>
+                  <h2 className="kx-account-name"><span className="kx-account-name-text">{profile.name || 'Your account'}</span>{isPlus && <PlusBadge />}</h2>
                   {accountEmail && <p className="kx-account-email">{accountEmail}</p>}
                 </div>
               </div>

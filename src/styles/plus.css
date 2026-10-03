@@ -25,7 +25,7 @@
 /* beside the date at the top of Today */
 .kx-hero-eyebrow .kx-plus-badge { margin-left: 10px; }
 /* beside the name in Account */
-.kx-account-name .kx-plus-badge { margin-left: 8px; font-size: 9px; }
+.kx-account-name .kx-plus-badge { margin-left: 8px; font-size: 9px; flex: none; }
 .kx-account-name { overflow: visible; }
 .kx-avatar.is-plus {
   background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
