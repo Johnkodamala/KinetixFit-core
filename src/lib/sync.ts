@@ -110,6 +110,9 @@ export function registeredSingleton(name: string): SingletonDomain<unknown> | un
   return singletonDomains.get(name);
 }
 
+/** Who is signed in. This asks the account's server (a network round trip), so a sync asks once and hands the answer to
+ * every step (`knownUid`). Asking again for each table was 18 lookups at ~280 ms each, more than half of a ~9 s launch
+ * pull (measured on an iPhone 13 mini). */
 async function currentUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { data } = await supabase.auth.getUser();
@@ -118,20 +121,27 @@ async function currentUserId(): Promise<string | null> {
 
 export type PullResult = 'no-session' | 'empty' | 'applied' | 'local-newer';
 
-export async function pullSingleton<T>(domain: SingletonDomain<T>): Promise<PullResult> {
-  const uid = await currentUserId();
+/** Told which domain a pull really changed here (see syncAllOnLogin). */
+export type ChangeReporter = (domainName: string) => void;
+
+export async function pullSingleton<T>(domain: SingletonDomain<T>, onChanged?: ChangeReporter, knownUid?: string): Promise<PullResult> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return 'no-session';
   const { data, error } = await supabase.from(domain.table).select('*').eq('user_id', uid).maybeSingle();
   if (error || !data) return 'empty';
   const remoteUpdated = data.updated_at ? new Date(data.updated_at as string).getTime() : 0;
   if (localMtime(domain.name) > remoteUpdated) return 'local-newer';
+  // Compared right here, in the same breath as the write (nothing else can run in between), so whatever the app wrote
+  // itself while this pull was waiting on the network can never look like something the account sent.
+  const before = onChanged ? fingerprint(domain.load()) : '';
   domain.save(domain.fromRemote(data));
+  if (onChanged && fingerprint(domain.load()) !== before) onChanged(domain.name);
   setLocalMtime(domain.name, remoteUpdated);
   return 'applied';
 }
 
-export async function pushSingleton<T>(domain: SingletonDomain<T>): Promise<boolean> {
-  const uid = await currentUserId();
+export async function pushSingleton<T>(domain: SingletonDomain<T>, knownUid?: string): Promise<boolean> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return false;
   const value = domain.load();
   if (domain.isEmpty(value)) return false;
@@ -139,6 +149,13 @@ export async function pushSingleton<T>(domain: SingletonDomain<T>): Promise<bool
   const { data, error } = await supabase.from(domain.table).upsert(row).select('updated_at').maybeSingle();
   if (error) return false;
   const t = data?.updated_at ? new Date(data.updated_at as string).getTime() : Date.now();
+  // The app keeps working while this waits on the network. An edit made meanwhile is newer than the row just written and
+  // has not been sent: it stays queued, and counts as newer than that row, so a pull before the next push can't bring the
+  // older copy back over it. (Clearing the mark here used to forget the edit.)
+  if (JSON.stringify(domain.toRemote(domain.load(), uid)) !== JSON.stringify(row)) {
+    setLocalMtime(domain.name, Math.max(localMtime(domain.name), t + 1));
+    return true;
+  }
   setLocalMtime(domain.name, t);
   clearDirty(domain.name);
   return true;
@@ -146,30 +163,33 @@ export async function pushSingleton<T>(domain: SingletonDomain<T>): Promise<bool
 
 /** Runs once after a session is confirmed: pull every registered domain, backfilling (pushing local
  * straight up) when the server has nothing yet, and pushing when the local copy turns out to be the
- * newer one (unflushed edits from before this login, or a stale remote row). Never drops local data. */
-export async function syncAllOnLogin(): Promise<void> {
+ * newer one (unflushed edits from before this login, or a stale remote row). Never drops local data.
+ * `onChanged` hears the name of each domain whose data the account actually changed here. */
+export async function syncAllOnLogin(onChanged?: ChangeReporter): Promise<void> {
+  const uid = await currentUserId(); // asked once for the whole sync; nobody signed in = nothing to do
+  if (!uid) return;
   for (const domain of singletonDomains.values()) {
-    const result = await pullSingleton(domain);
+    const result = await pullSingleton(domain, onChanged, uid);
     if (result === 'empty' || result === 'local-newer') {
-      await pushSingleton(domain);
+      await pushSingleton(domain, uid);
     }
   }
-  await syncKeyedOnLogin();
+  await syncKeyedOnLogin(onChanged, uid);
 }
 
-async function syncKeyedOnLogin(): Promise<void> {
+async function syncKeyedOnLogin(onChanged: ChangeReporter | undefined, uid: string): Promise<void> {
   for (const domain of keyedDomains.values()) {
     if (!isBackfilled(domain.name)) {
       // First sync for this domain: push everything local first (existing local-only data is never
       // lost), then pull down anything the server already had that this device doesn't. Only mark it
       // backfilled if every local record actually made it up — otherwise a failed push (e.g. the table
       // doesn't exist yet, or a transient network error) would permanently strand this user's local data.
-      const ok = await pushAllKeyed(domain);
-      await pullKeyed(domain);
+      const ok = await pushAllKeyed(domain, uid);
+      await pullKeyed(domain, onChanged, uid);
       if (ok) setBackfilled(domain.name);
     } else {
-      await pullKeyed(domain);
-      await pushKeyed(domain);
+      await pullKeyed(domain, onChanged, uid);
+      await pushKeyed(domain, uid);
     }
   }
 }
@@ -181,37 +201,42 @@ async function syncKeyedOnLogin(): Promise<void> {
  * merged as usual: this phone's records go up first, then the account's come down.
  */
 export async function syncKeepingThisPhone(): Promise<void> {
-  for (const domain of singletonDomains.values()) await pushSingleton(domain);
-  await syncKeyedOnLogin();
+  const uid = await currentUserId();
+  if (!uid) return;
+  for (const domain of singletonDomains.values()) await pushSingleton(domain, uid);
+  await syncKeyedOnLogin(undefined, uid);
 }
 
 /**
  * Pulling from the account when the app opens, and when it comes back to the screen. Until now the account was only
  * read at login, so a second phone didn't see the first one's new entries until it logged out and in.
  * `syncAllOnLogin` is safe to repeat (newest-wins for profile and settings, record by record for logs, this phone's
- * unsent edits always win), so these just run it and say whether anything here changed.
+ * unsent edits always win), so these just run it and say whether the account changed anything here.
  */
 
-/** JSON with keys in a fixed order, so the same data compares equal however it was built. */
-export function stableStringify(value: unknown): string {
+/**
+ * What a person would see of some data, as a string to compare: keys in a fixed order, and a key holding null counts as
+ * missing (an account row has `null` where this phone never stored the field at all, and that is not a change).
+ */
+export function fingerprint(value: unknown): string {
   return JSON.stringify(value, (_key, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      ? Object.fromEntries(Object.entries(v as Record<string, unknown>)
+          .filter(([, x]) => x !== null && x !== undefined)
+          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
       : v);
 }
 
-function snapshotAll(): string {
-  const parts: string[] = [];
-  for (const d of singletonDomains.values()) parts.push(`${d.name}:${stableStringify(d.load())}`);
-  for (const d of keyedDomains.values()) parts.push(`${d.name}:${stableStringify(d.load())}`);
-  return parts.join('\n');
-}
-
-/** Syncs with the account and reports whether the data held here changed (so the screen is out of date). */
+/**
+ * Syncs with the account and reports whether the account changed anything held here (so the screen is out of date).
+ * Each pull judges that itself, at the moment it writes. Comparing the whole phone before and after the sync does not
+ * work: the sync takes seconds on a phone connection, and whatever this phone writes meanwhile (a Health reading, a
+ * drink from a widget) would look like news from the account.
+ */
 export async function syncWithAccount(): Promise<{ changed: boolean }> {
-  const before = snapshotAll();
-  await syncAllOnLogin();
-  return { changed: snapshotAll() !== before };
+  let changed = false;
+  await syncAllOnLogin(() => { changed = true; });
+  return { changed };
 }
 
 let lastPullAt = 0;
@@ -221,6 +246,16 @@ export async function pullIfDue(minGapMs = 60_000, now = Date.now()): Promise<{ 
   if (now - lastPullAt < minGapMs) return null;
   lastPullAt = now;
   try { return await syncWithAccount(); } catch { return { changed: false }; }
+}
+
+/**
+ * The app leaving and returning to the screen. Leaving sends what is waiting, so another phone that opens next finds it on
+ * the account (an edit used to wait for the next time this app was opened). Coming back sends what is still waiting, then
+ * reads the account (at most once a minute) and says whether it had news. Never throws: offline, it all stays queued.
+ */
+export async function syncOnAppState(isActive: boolean, now = Date.now()): Promise<{ changed: boolean } | null> {
+  await flushWithRetry();
+  return isActive ? pullIfDue(60_000, now) : null;
 }
 
 const accountChangeListeners = new Set<() => void>();
@@ -284,6 +319,28 @@ export async function flushOutbox(): Promise<void> {
   }
 }
 
+const FLUSH_RETRY_DELAYS_MS = [10_000, 30_000, 90_000];
+let flushRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Stops a pending retry (logging out: there is nothing left to send). */
+export function cancelFlushRetry() {
+  clearTimeout(flushRetryTimer);
+  flushRetryTimer = undefined;
+}
+
+/**
+ * flushOutbox, and when something is still unsent afterwards (the phone said "connected" a moment before the connection
+ * carried traffic, or the account was briefly unreachable) try again a little later: after 10 s, 30 s, then 90 s. Until
+ * now a failed flush waited for the next time the app was opened. A newer attempt replaces the pending one. Never throws.
+ */
+export async function flushWithRetry(delays: number[] = FLUSH_RETRY_DELAYS_MS, attempt = 0): Promise<void> {
+  cancelFlushRetry();
+  try { await flushOutbox(); } catch { /* offline: stays queued */ }
+  if (unsyncedDomains().length === 0 || attempt >= delays.length) return;
+  cancelFlushRetry(); // another attempt may have set its own timer while this one was waiting on the network
+  flushRetryTimer = setTimeout(() => { flushRetryTimer = undefined; void flushWithRetry(delays, attempt + 1); }, delays[attempt]);
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Keyed domains (everything else): stable per-record keys (a client-generated id, or a natural
 // (user_id, day) key). A record present locally but missing remotely is always pushed, never dropped.
@@ -303,6 +360,9 @@ export interface KeyedDomain<T> {
   toRemote: (key: string, value: T, userId: string) => Record<string, unknown>;
   /** A row from the server -> its key and the local shape `save` expects. */
   fromRemote: (row: Record<string, unknown>) => { key: string; value: T };
+  /** True for a domain nothing on screen reads (the vitals history): records still come down, but their arrival is
+   * never announced as "Updated from your account", because there is nothing to refresh. */
+  quiet?: boolean;
 }
 
 const keyedDomains = new Map<string, KeyedDomain<unknown>>();
@@ -318,17 +378,26 @@ export function registeredKeyed(name: string): KeyedDomain<unknown> | undefined 
 }
 
 /** Pushes only the records noted dirty since the last successful push — cheap, safe to call often. */
-export async function pushKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
-  const uid = await currentUserId();
+export async function pushKeyed<T>(domain: KeyedDomain<T>, knownUid?: string): Promise<void> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return;
   const records = domain.load() as Record<string, T>;
-  const keys = dirtyKeysSet(domain.name);
-  for (const key of [...keys]) {
+  const sent = new Map<string, string>(); // key -> the row as it went up
+  for (const key of dirtyKeysSet(domain.name)) {
     const value = records[key];
     if (value === undefined) continue; // removed without a tombstone: nothing to push
     const row = domain.toRemote(key, value, uid);
     const { error } = await supabase.from(domain.table).upsert(row);
-    if (!error) keys.delete(key);
+    if (!error) sent.set(key, JSON.stringify(row));
+  }
+  // The app keeps working while the uploads wait on the network, and each edit marks its own key. So the marks are read
+  // again now and only what went up unchanged is forgotten (writing back the copy taken at the start used to forget a
+  // record added meanwhile, and a record edited again after it was sent). A mark whose record is gone has nothing to send.
+  const now = domain.load() as Record<string, T>;
+  const keys = dirtyKeysSet(domain.name);
+  for (const key of [...keys]) {
+    const value = now[key];
+    if (value === undefined || sent.get(key) === JSON.stringify(domain.toRemote(key, value, uid))) keys.delete(key);
   }
   saveDirtyKeysSet(domain.name, keys);
   if (keys.size === 0) clearDirty(domain.name);
@@ -337,8 +406,8 @@ export async function pushKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
 /** Pushes every local record regardless of dirty state — only for the one-time backfill on first sync,
  * so a phone-only user's existing data is never lost even though it predates this file's bookkeeping.
  * Returns false if any upsert failed, so the caller knows not to mark this domain backfilled yet. */
-async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<boolean> {
-  const uid = await currentUserId();
+async function pushAllKeyed<T>(domain: KeyedDomain<T>, knownUid?: string): Promise<boolean> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return false;
   const records = domain.load() as Record<string, T>;
   let ok = true;
@@ -350,22 +419,31 @@ async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<boolean> {
 }
 
 /** Pulls every remote row and merges remote-only or remote-newer records into local storage. A record
- * whose key is still pending push (edited locally, not yet flushed) is left alone — local wins. */
-export async function pullKeyed<T>(domain: KeyedDomain<T>): Promise<'no-session' | 'empty' | 'applied'> {
-  const uid = await currentUserId();
+ * whose key is still pending push (edited locally, not yet flushed) is left alone — local wins.
+ * `onChanged` is told when the merge really changed what this phone holds (never for a `quiet` domain). */
+export async function pullKeyed<T>(domain: KeyedDomain<T>, onChanged?: ChangeReporter, knownUid?: string): Promise<'no-session' | 'empty' | 'applied'> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return 'no-session';
   const { data, error } = await supabase.from(domain.table).select('*').eq('user_id', uid);
   if (error || !data || data.length === 0) return 'empty';
   const local = domain.load() as Record<string, T>;
+  // What this phone holds right now, before the account's records go in (a domain may hand out its own live object).
+  // Compared again right after the write, in the same breath, so what the app wrote itself while this pull was waiting
+  // on the network is part of "before", never of the change. Skipped when nobody is listening or the domain is quiet.
+  const watching = onChanged !== undefined && !domain.quiet;
+  const before = watching ? fingerprint(local) : '';
   const dirty = dirtyKeysSet(domain.name);
-  let changed = false;
+  let wrote = false;
   for (const row of data) {
     const { key, value } = domain.fromRemote(row);
     if (dirty.has(key)) continue;
     local[key] = value;
-    changed = true;
+    wrote = true;
   }
-  if (changed) domain.save(local);
+  if (wrote) {
+    domain.save(local);
+    if (watching && fingerprint(domain.load()) !== before) onChanged?.(domain.name);
+  }
   return 'applied';
 }
 
@@ -442,6 +520,7 @@ const ALL_DOMAIN_NAMES = [
 ];
 
 export function clearAllDomainData() {
+  cancelFlushRetry();
   for (const key of ACCOUNT_DATA_KEYS) {
     try { localStorage.removeItem(key); } catch { /* storage blocked */ }
   }

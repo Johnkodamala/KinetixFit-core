@@ -1,19 +1,15 @@
 // Registers the `vitals_history` keyed domain — additive, no delete semantics (a health reading is
-// never edited or removed once recorded, on either side).
-import { loadVitalReadings, type VitalReading } from './vitalsHistory';
-import { readJson, writeJson } from './storage';
+// never edited or removed once recorded, on either side). Nothing on screen reads it, so it is `quiet`: readings from
+// another phone come down without an "Updated from your account" notice.
+import { loadVitalReadings, addRemoteVitalReadings, type VitalReading } from './vitalsHistory';
 import { registerKeyed } from './sync';
-
-const KEY = 'kx_vitals_history';
 
 registerKeyed<VitalReading>({
   name: 'vitals_history',
   table: 'vitals_history',
+  quiet: true,
   load: () => loadVitalReadings(),
-  save: (records) => {
-    const existing = readJson<Record<string, VitalReading>>(KEY) ?? {};
-    writeJson(KEY, { ...existing, ...records });
-  },
+  save: (records) => addRemoteVitalReadings(records),
   toRemote: (id, value, userId) => ({
     user_id: userId,
     id,

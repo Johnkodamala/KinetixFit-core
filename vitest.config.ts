@@ -7,5 +7,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'api/**/*.test.js'],
     setupFiles: ['src/test/setup.ts'],
+    // a test may read a stylesheet's text (import x from './plus.css?raw'); without this Vitest hands back an empty string
+    css: { include: [/\.css\?raw$/] },
   },
 });

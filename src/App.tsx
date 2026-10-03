@@ -7,14 +7,14 @@ import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
-import { syncAllOnLogin, syncKeepingThisPhone, flushOutbox, clearAllDomainData, unsyncedDomains, pullIfDue, onAccountDataChanged } from './lib/sync';
+import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, flushWithRetry, clearAllDomainData, unsyncedDomains, onAccountDataChanged } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
 import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
 import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
-import { noteProfileChanged, readLocalProfile } from './lib/profileSync';
+import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
 import './lib/preferencesSync';
 import './lib/gutSync';
 import './lib/checkinsSync';
@@ -634,7 +634,7 @@ export default function App() {
   // Merge a few fields into the latest profile — safe for rapid updates (ruler scrolling, typing)
   const patchProfile = (changes: Partial<UserProfile>) => {
     setProfile(prev => {
-      const next = { ...prev, ...changes };
+      const next = profileAfterEdit(prev, readLocalProfile(), changes); // onto the newest stored copy, not the (possibly older) one on screen
       setActiveCountry(countryOf(next));
       localStorage.setItem('kinetix_profile', JSON.stringify(next));
       return next;
@@ -710,13 +710,10 @@ export default function App() {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       appActiveRef.current = isActive;
-      if (isActive) {
-        setForegroundTick(t => t + 1);
-        // send what is waiting, then read what the account has (another phone may have added to it)
-        flushOutbox().catch(() => { /* offline: the outbox stays queued for the next foreground/reconnect */ })
-          .then(() => pullIfDue())
-          .then(result => { if (result?.changed) setAccountUpdated(true); });
-      }
+      if (isActive) setForegroundTick(t => t + 1);
+      // leaving sends what is waiting (the next phone to open finds it); coming back sends, then reads what the account has
+      // (another phone may have added to it)
+      syncOnAppState(isActive).then(result => { if (result?.changed) setAccountUpdated(true); });
     });
     return () => { listener.then(l => l.remove()); };
   }, []);
@@ -725,7 +722,8 @@ export default function App() {
   // the website) don't have to wait for the next app-foreground to reach the server.
   useEffect(() => {
     const listener = Network.addListener('networkStatusChange', ({ connected }) => {
-      if (connected) flushOutbox().catch(() => { /* still offline, or a transient error: stays queued */ });
+      // tried again a few times if the first attempt lands before the connection carries traffic
+      if (connected) void flushWithRetry();
     });
     return () => { listener.then(l => l.remove()); };
   }, []);
@@ -2166,7 +2164,7 @@ export default function App() {
     }
 
     if (totalVoucherPoints < requiredPoints) {
-      notify('info', `You need ${requiredPoints} points to donate. Complete quests to earn them.`);
+      notify('info', `You need ${fmtNumber(requiredPoints)} points to donate. Complete quests to earn them.`);
       return;
     }
 
@@ -3474,7 +3472,7 @@ export default function App() {
       }
 
       const sourceName = healthSourceName(Capacitor.getPlatform());
-      saveProfileToStorage({ ...profile, smartDeviceConnected: sourceName });
+      saveProfileToStorage(profileAfterEdit(profile, readLocalProfile(), { smartDeviceConnected: sourceName }));
       setShowDeviceSyncModal(false);
       notify('success', `Connected to ${sourceName}. Your data can take a moment to appear.`);
       // Onboarding: carry on. The step used to stay put with the same Connect button, and tapping it again did
@@ -5328,7 +5326,7 @@ export default function App() {
               <div className="kx-account-head">
                 <span className={`kx-avatar${isPlus ? ' is-plus' : ''}`} aria-hidden="true">{(profile.name || accountEmail || 'K').trim().charAt(0).toUpperCase()}</span>
                 <div className="kx-account-id">
-                  <h2 className="kx-account-name">{profile.name || 'Your account'}{isPlus && <PlusBadge />}</h2>
+                  <h2 className="kx-account-name"><span className="kx-account-name-text">{profile.name || 'Your account'}</span>{isPlus && <PlusBadge />}</h2>
                   {accountEmail && <p className="kx-account-email">{accountEmail}</p>}
                 </div>
               </div>
@@ -5889,8 +5887,8 @@ export default function App() {
         </div>
       )}
 
-      {/* The account has news from another phone */}
-      {accountUpdated && isLoggedIn && onboardingStep >= DASHBOARD_STEP && (
+      {/* The account has news from another phone. It sits where the message pill drops in, so it waits while one is showing. */}
+      {accountUpdated && isLoggedIn && onboardingStep >= DASHBOARD_STEP && !motivationMessage && (
         <div className="kx-refresh-pill" role="status">
           <span>Updated from your account</span>
           <button type="button" className="kx-refresh-go" onClick={() => window.location.reload()}>Refresh</button>

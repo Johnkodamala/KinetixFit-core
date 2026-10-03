@@ -9,6 +9,10 @@ const upsertCalls: Record<string, unknown>[] = [];
 // lets a test force one domain's push to fail without affecting other domains still registered from
 // earlier tests in this file (the singleton/keyed domain registries are module-level and never reset).
 let failUpsertForTable: string | null = null;
+// Runs while an upload is in flight (after the row was built, before the answer): the phone keeps being used during a
+// flush that takes seconds on a mobile connection, so a test can make an edit "at that moment".
+let onUpsert: ((table: string, row: Record<string, unknown>) => void) | null = null;
+let selectCalls = 0; // how many times the account was read
 
 vi.mock('./supabase', () => ({
   isSupabaseConfigured: true,
@@ -17,12 +21,13 @@ vi.mock('./supabase', () => ({
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => selectResult,
-          then: (resolve: (r: typeof selectManyResult) => void) => resolve(selectManyResult),
+          maybeSingle: async () => { selectCalls++; return selectResult; },
+          then: (resolve: (r: typeof selectManyResult) => void) => { selectCalls++; resolve(selectManyResult); },
         }),
       }),
       upsert: (row: Record<string, unknown>) => {
         upsertCalls.push(row);
+        onUpsert?.(table, row);
         const error = table === failUpsertForTable ? new Error(`upsert failed for ${table}`) : null;
         return {
           select: () => ({
@@ -39,7 +44,7 @@ import {
   noteLocalChange, isDirty, localMtime, registerSingleton, pushSingleton, pullSingleton,
   syncAllOnLogin, flushOutbox, clearAllDomainData, type SingletonDomain,
   noteKeyedChange, registerKeyed, pushKeyed, pullKeyed, type KeyedDomain, unsyncedDomains, syncKeepingThisPhone,
-  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, stableStringify,
+  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint, syncOnAppState, cancelFlushRetry,
 } from './sync';
 
 const USER_ID = 'user-1';
@@ -68,6 +73,9 @@ beforeEach(() => {
   upsertResult.error = null;
   upsertCalls.length = 0;
   failUpsertForTable = null;
+  onUpsert = null;
+  selectCalls = 0;
+  cancelFlushRetry(); // a failed flush in an earlier test must not fire in a later one
 });
 
 describe('outbox bookkeeping', () => {
@@ -325,16 +333,6 @@ describe('records that failed their first upload are retried, and count as unsyn
   });
 });
 
-describe('stableStringify: equal data compares equal whatever order its keys were built in', () => {
-  it('ignores key order, at any depth', () => {
-    expect(stableStringify({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: null } })).toBe(stableStringify({ a: { c: null, d: [1, { x: 1, y: 2 }] }, b: 1 }));
-  });
-  it('still tells different data apart (and keeps array order)', () => {
-    expect(stableStringify({ a: [1, 2] })).not.toBe(stableStringify({ a: [2, 1] }));
-    expect(stableStringify({ a: 1 })).not.toBe(stableStringify({ a: 2 }));
-  });
-});
-
 describe('syncWithAccount: pull the account’s data and say whether anything here changed', () => {
   beforeEach(() => {
     selectManyResult.data = [];
@@ -353,6 +351,140 @@ describe('syncWithAccount: pull the account’s data and say whether anything he
   it('reports no change when the account has nothing new', async () => {
     selectManyResult.data = [];
     expect((await syncWithAccount()).changed).toBe(false);
+  });
+});
+
+describe('fingerprint: what a person would see of some data', () => {
+  it('ignores key order, at any depth', () => {
+    expect(fingerprint({ b: 1, a: { d: [1, { y: 2, x: 1 }], c: 3 } })).toBe(fingerprint({ a: { c: 3, d: [1, { x: 1, y: 2 }] }, b: 1 }));
+  });
+
+  it('counts a key holding null as a missing key: the account says null where this phone never stored the field', () => {
+    expect(fingerprint({ a: 1, note: null })).toBe(fingerprint({ a: 1 }));
+    expect(fingerprint({ a: { b: null, c: 2 } })).toBe(fingerprint({ a: { c: 2 } }));
+  });
+
+  it('still tells real differences apart: array order, 0, an empty string and false are values, and an array that gains a null is longer', () => {
+    expect(fingerprint({ a: 1 })).not.toBe(fingerprint({ a: 2 }));
+    expect(fingerprint({ a: [1, 2] })).not.toBe(fingerprint({ a: [2, 1] }));
+    expect(fingerprint({ a: 0 })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: '' })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: false })).not.toBe(fingerprint({}));
+    expect(fingerprint({ a: [1] })).not.toBe(fingerprint({ a: [1, null] }));
+  });
+});
+
+describe('syncAllOnLogin says which domains the account changed (only what the pull itself wrote counts)', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+  const told = async () => {
+    const names: string[] = [];
+    await syncAllOnLogin(name => names.push(name));
+    return names;
+  };
+
+  it('names a keyed domain that got a record from the account, and not one whose record came back the same', async () => {
+    let news: Record<string, { v: string }> = {};
+    let same: Record<string, { v: string }> = { r1: { v: 'x' } };
+    registerKeyed(makeKeyedDomain({ name: 'told-news', table: 'told_news', load: () => news, save: r => { news = r; } }));
+    registerKeyed(makeKeyedDomain({ name: 'told-same', table: 'told_same', load: () => same, save: r => { same = r; } }));
+    selectManyResult.data = [{ id: 'r1', v: 'x' }]; // both domains see this row: new to one, already held by the other
+    const names = await told();
+    expect(names).toContain('told-news');
+    expect(names).not.toContain('told-same');
+  });
+
+  it('does not count something the app wrote itself while the pull was running', async () => {
+    let own: Record<string, { v: string }> = {};
+    let control: Record<string, { v: string }> = {};
+    registerKeyed(makeKeyedDomain({ name: 'told-own', table: 'told_own', load: () => own, save: r => { own = r; } }));
+    registerKeyed(makeKeyedDomain({ name: 'told-control', table: 'told_control', load: () => control, save: r => { control = r; } }));
+    // the account holds a record that this phone also logs for itself, partway through the pull (here: while the account
+    // is being asked who this is), so by the time the account's copy is applied it is nothing new to this phone
+    selectManyResult.data = [{ id: 'mine', v: 'logged here' }];
+    getUser.mockImplementation(async () => {
+      own = { ...own, mine: { v: 'logged here' } };
+      return { data: { user: { id: USER_ID } } };
+    });
+    const names = await told();
+    expect(names).toContain('told-control'); // the record is news to a phone that did not have it...
+    expect(names).not.toContain('told-own'); // ...but not to the one that wrote it itself while pulling
+  });
+
+  it('does not count a record that differs only by a field holding null', async () => {
+    let records: Record<string, { v: string; note?: string | null }> = { k1: { v: 'same' } };
+    registerKeyed({
+      name: 'told-null', table: 'told_null', load: () => records, save: r => { records = r; },
+      toRemote: (key, value, userId) => ({ user_id: userId, id: key, v: value.v }),
+      fromRemote: row => ({ key: row.id as string, value: { v: row.v as string, note: (row.note as string | null) ?? null } }),
+    });
+    let control: Record<string, { v: string }> = {};
+    registerKeyed(makeKeyedDomain({ name: 'told-null-control', table: 'told_null_control', load: () => control, save: r => { control = r; } }));
+    selectManyResult.data = [{ id: 'k1', v: 'same', note: null }];
+    const names = await told();
+    expect(names).toContain('told-null-control'); // a record that really is new is reported...
+    expect(names).not.toContain('told-null'); // ...one that differs only by a null is not
+    expect(records.k1).toEqual({ v: 'same', note: null }); // it was still written; it just isn't news
+  });
+
+  it('writes a quiet domain’s records from the account without announcing them', async () => {
+    let records: Record<string, { v: string }> = {};
+    let loud: Record<string, { v: string }> = {};
+    registerKeyed({ ...makeKeyedDomain({ name: 'told-quiet', table: 'told_quiet', load: () => records, save: r => { records = r; } }), quiet: true });
+    registerKeyed(makeKeyedDomain({ name: 'told-loud', table: 'told_loud', load: () => loud, save: r => { loud = r; } }));
+    selectManyResult.data = [{ id: 'q1', v: 'from the account' }];
+    const names = await told();
+    expect(records.q1).toEqual({ v: 'from the account' }); // the records still arrive
+    expect(names).toContain('told-loud'); // the same record is news to an ordinary domain...
+    expect(names).not.toContain('told-quiet'); // ...and not to a quiet one
+  });
+
+  it('names a singleton when the account’s copy is different, and not when it came back the same', async () => {
+    let value: { v: string } | null = { v: 'same' };
+    registerSingleton(makeDomain({ name: 'told-singleton', table: 'told_singleton', load: () => value, save: v => { value = v; } }));
+    selectResult.data = { v: 'same', updated_at: new Date(Date.now() + 1_000).toISOString() };
+    expect(await told()).not.toContain('told-singleton');
+    selectResult.data = { v: 'changed elsewhere', updated_at: new Date(Date.now() + 2_000).toISOString() };
+    expect(await told()).toContain('told-singleton');
+    expect(value).toEqual({ v: 'changed elsewhere' });
+  });
+});
+
+describe('a step that is given the account’s id does not ask for it again', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+
+  it('pull and push, singleton and keyed', async () => {
+    const single = makeDomain({ name: 'known-uid-singleton', table: 'known_uid_singleton', load: () => ({ v: 'x' }) });
+    const keyedDomain = makeKeyedDomain({ name: 'known-uid-keyed', table: 'known_uid_keyed', load: () => ({ a: { v: '1' } }) });
+    noteKeyedChange('known-uid-keyed', 'a');
+    getUser.mockClear();
+    await pullSingleton(single, undefined, USER_ID);
+    await pushSingleton(single, USER_ID);
+    await pullKeyed(keyedDomain, undefined, USER_ID);
+    await pushKeyed(keyedDomain, USER_ID);
+    expect(getUser).not.toHaveBeenCalled();
+    expect(upsertCalls.some(r => r.user_id === USER_ID && r.id === 'a')).toBe(true); // and what it sent is stamped with that id
+  });
+
+  it('a whole sync asks once', async () => {
+    registerKeyed(makeKeyedDomain({ name: 'known-uid-sync', table: 'known_uid_sync', load: () => ({ a: { v: '1' } }) }));
+    getUser.mockClear();
+    await syncAllOnLogin();
+    expect(getUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('and stops there when nobody is signed in', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const before = upsertCalls.length;
+    await syncAllOnLogin();
+    await syncKeepingThisPhone();
+    expect(upsertCalls.length).toBe(before);
+    expect(getUser).toHaveBeenCalledTimes(2); // once per sync
   });
 });
 
@@ -422,6 +554,149 @@ describe('syncKeepingThisPhone: a phone that held data the account never receive
     await syncKeepingThisPhone();
     expect(upsertCalls.slice(before).some(r => r.id === 'a')).toBe(true);
     expect(localStorage.getItem('kx_sync_backfilled_keep-phone-keyed')).toBe('1');
+  });
+});
+
+describe('an edit made while an upload is in flight is not forgotten', () => {
+  // A flush takes seconds on a phone connection and the app keeps working meanwhile: a drink from the widget, a food
+  // logged, a profile change. The push used to write back its own copy of "what is waiting" when it finished, so the
+  // new edit's mark vanished: it never went up, and a later pull could put the account's older copy back over it.
+
+  it('a record added during the push stays queued and goes up on the next flush', async () => {
+    let records: Record<string, { v: string }> = { a: { v: '1' } };
+    const domain = makeKeyedDomain({ name: 'race-add', table: 'race_add', load: () => records, save: r => { records = r; } });
+    noteKeyedChange('race-add', 'a');
+    onUpsert = (_table, row) => {
+      if (row.id !== 'a') return;
+      records = { ...records, b: { v: '2' } };
+      noteKeyedChange('race-add', 'b');
+    };
+    await pushKeyed(domain);
+    onUpsert = null;
+    expect(isDirty('race-add')).toBe(true);
+    registerKeyed(domain);
+    expect(unsyncedDomains()).toContain('race-add');
+    upsertCalls.length = 0;
+    await pushKeyed(domain);
+    expect(upsertCalls.map(r => r.id)).toEqual(['b']);
+    expect(isDirty('race-add')).toBe(false);
+  });
+
+  it('the same record edited during its own push is sent again, and a pull in between does not put the older copy back', async () => {
+    let records: Record<string, { v: string }> = { a: { v: 'first' } };
+    const domain = makeKeyedDomain({ name: 'race-edit', table: 'race_edit', load: () => records, save: r => { records = r; } });
+    noteKeyedChange('race-edit', 'a');
+    onUpsert = () => { records = { a: { v: 'second' } }; noteKeyedChange('race-edit', 'a'); };
+    await pushKeyed(domain);
+    onUpsert = null;
+    expect(isDirty('race-edit')).toBe(true);
+    selectManyResult.data = [{ id: 'a', v: 'first' }]; // the account holds what was sent first
+    await pullKeyed(domain);
+    expect(records.a).toEqual({ v: 'second' });
+    upsertCalls.length = 0;
+    await pushKeyed(domain);
+    expect(upsertCalls).toEqual([{ user_id: USER_ID, id: 'a', v: 'second' }]);
+    expect(isDirty('race-edit')).toBe(false);
+  });
+
+  it('an unchanged record that was sent stops being queued, as before', async () => {
+    const records: Record<string, { v: string }> = { a: { v: '1' }, b: { v: '2' } };
+    const domain = makeKeyedDomain({ name: 'race-plain', table: 'race_plain', load: () => records });
+    noteKeyedChange('race-plain', 'a');
+    noteKeyedChange('race-plain', 'b');
+    await pushKeyed(domain);
+    expect(upsertCalls.map(r => r.id)).toEqual(['a', 'b']);
+    expect(isDirty('race-plain')).toBe(false);
+  });
+
+  it('a record whose upload failed stays queued while one that went up does not', async () => {
+    const records: Record<string, { v: string }> = { a: { v: '1' } };
+    const domain = makeKeyedDomain({ name: 'race-fail', table: 'race_fail', load: () => records });
+    noteKeyedChange('race-fail', 'a');
+    failUpsertForTable = 'race_fail';
+    await pushKeyed(domain);
+    expect(isDirty('race-fail')).toBe(true);
+    failUpsertForTable = null;
+    await pushKeyed(domain);
+    expect(isDirty('race-fail')).toBe(false);
+  });
+
+  it('a queued key whose record is gone is dropped instead of keeping the domain unsynced for ever (it would block every log out)', async () => {
+    const domain = makeKeyedDomain({ name: 'race-gone', table: 'race_gone', load: () => ({}) });
+    registerKeyed(domain);
+    noteKeyedChange('race-gone', 'ghost');
+    await pushKeyed(domain);
+    expect(upsertCalls).toEqual([]);
+    expect(isDirty('race-gone')).toBe(false);
+    expect(unsyncedDomains()).not.toContain('race-gone');
+  });
+
+  it('a singleton edited during its push stays queued, and counts as newer than the row just written, so a pull cannot revert it', async () => {
+    let value: { v: string } | null = { v: 'first' };
+    const domain = makeDomain({ name: 'race-single', table: 'race_single', load: () => value, save: v => { value = v; } });
+    noteLocalChange('race-single');
+    // the account stamps its row a little after the edit: the edit was made after the request left but before the account wrote it
+    const serverTime = new Date(Date.now() + 500).toISOString();
+    upsertResult.data = { updated_at: serverTime };
+    onUpsert = () => { value = { v: 'second' }; noteLocalChange('race-single'); };
+    await pushSingleton(domain);
+    onUpsert = null;
+    expect(isDirty('race-single')).toBe(true);
+    selectResult.data = { v: 'first', updated_at: serverTime };
+    expect(await pullSingleton(domain)).toBe('local-newer');
+    expect(value).toEqual({ v: 'second' });
+    upsertCalls.length = 0;
+    await pushSingleton(domain);
+    expect(upsertCalls).toEqual([{ user_id: USER_ID, v: 'second' }]);
+    expect(isDirty('race-single')).toBe(false);
+  });
+});
+
+describe('syncOnAppState: push when leaving the app, push and read the account when coming back', () => {
+  // Until now an edit was only sent the next time the app was opened, so a second phone opened in between didn't have it.
+  const MINUTES_LATER = () => Date.now() + 10 * 60_000; // beyond pullIfDue's once-a-minute gap, whatever ran before
+
+  function somethingWaiting(name: string) {
+    registerKeyed(makeKeyedDomain({ name, table: name.replace(/-/g, '_'), load: () => ({ a: { v: '1' } }) }));
+    noteKeyedChange(name, 'a');
+  }
+
+  it('leaving sends what is waiting and does not read the account', async () => {
+    selectManyResult.data = [];
+    somethingWaiting('leave-thing');
+    expect(await syncOnAppState(false)).toBeNull();
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true);
+    expect(isDirty('leave-thing')).toBe(false);
+    expect(selectCalls).toBe(0);
+  });
+
+  it('coming back sends what is waiting, then reads the account', async () => {
+    selectManyResult.data = [];
+    somethingWaiting('return-thing');
+    const result = await syncOnAppState(true, MINUTES_LATER());
+    expect(upsertCalls.some(r => r.id === 'a')).toBe(true);
+    expect(isDirty('return-thing')).toBe(false);
+    expect(selectCalls).toBeGreaterThan(0);
+    expect(result).toEqual({ changed: false });
+  });
+
+  it('coming back again within a minute sends again but reads the account only once', async () => {
+    selectManyResult.data = [];
+    const first = MINUTES_LATER();
+    await syncOnAppState(true, first);
+    const reads = selectCalls;
+    somethingWaiting('again-thing');
+    expect(await syncOnAppState(true, first + 20_000)).toBeNull();
+    expect(selectCalls).toBe(reads);
+    expect(isDirty('again-thing')).toBe(false);
+  });
+
+  it('never throws when the connection is down: what is waiting stays queued for the next time', async () => {
+    somethingWaiting('offline-thing');
+    getUser.mockRejectedValue(new Error('Failed to fetch'));
+    await expect(syncOnAppState(false)).resolves.toBeNull();
+    await expect(syncOnAppState(true, Date.now() + 30 * 60_000)).resolves.toEqual({ changed: false });
+    expect(isDirty('offline-thing')).toBe(true);
   });
 });
 

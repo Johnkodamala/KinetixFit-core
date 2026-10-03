@@ -9,7 +9,7 @@ import './savedFoodsSync';
 import './foodLogSync';
 import './workoutsSync';
 import './vitalsHistorySync';
-import { recordVitalReading } from './vitalsHistory';
+import { recordVitalReading, recordDailyVitalTotal, loadVitalReadings } from './vitalsHistory';
 import { registeredKeyed } from './sync';
 import { saveGutCheck, loadGutChecks } from './gut';
 import { saveCheckIn, loadCheckIns } from './checkins';
@@ -17,7 +17,7 @@ import { savePeriods } from './cycle';
 import { withDrinks, withoutDrink, saveWaterLog } from './water';
 import { saveFoods, loadFoods, saveFoodDays, loadFoodDays, ZERO, type SavedFood, type LogEntry } from './foodLog';
 import { addManualWorkout, removeManualWorkout, loadManualWorkouts, recordDetectedWorkouts, loadDetectedWorkoutHistory } from './workouts';
-import { localDayKey } from './dates';
+import { localDayKey, localDayKeyDaysAgo } from './dates';
 
 const domain = (name: string) => {
   const d = registeredKeyed(name);
@@ -265,5 +265,37 @@ describe('vitals_history domain adapter', () => {
     const row = d.toRemote(`heartRate:${t}`, rec, 'uid-1');
     expect(row).toMatchObject({ user_id: 'uid-1', id: `heartRate:${t}`, metric: 'heartRate', value: 72, recorded_at: t });
     expect(d.fromRemote(row as Record<string, unknown>)).toEqual({ key: `heartRate:${t}`, value: rec });
+  });
+});
+
+describe('vitals_history domain adapter: what a pull from the account may do', () => {
+  const day = (ago = 0) => localDayKeyDaysAgo(ago);
+  const total = (forDay: string, value: number) => ({ metric: 'steps', value, source: null, recordedAt: new Date(`${forDay}T12:00:00`).getTime(), day: forDay });
+
+  it("adds readings this phone doesn't have (a new phone gets the history)", () => {
+    recordDailyVitalTotal('steps', day(), 1510);
+    const d = domain('vitals_history');
+    d.save({ ...d.load(), [`steps:${day(3)}`]: total(day(3), 800) } as never);
+    expect(loadVitalReadings()[`steps:${day(3)}`].value).toBe(800);
+    expect(loadVitalReadings()[`steps:${day()}`].value).toBe(1510);
+  });
+
+  it("never replaces a reading this phone already has: the account's copy of a day's total may be another phone's, and each phone writes its own back", () => {
+    recordDailyVitalTotal('steps', day(), 1510);
+    const d = domain('vitals_history');
+    // what the pull hands to save(): this phone's records, with the account's version on top of the same key
+    d.save({ ...d.load(), [`steps:${day()}`]: total(day(), 999) } as never);
+    expect(loadVitalReadings()[`steps:${day()}`].value).toBe(1510);
+  });
+
+  it('keeps this phone to the last 90 days, however much history the account holds', () => {
+    const d = domain('vitals_history');
+    d.save({ [`steps:${day(200)}`]: total(day(200), 700), [`steps:${day(5)}`]: total(day(5), 900) } as never);
+    expect(loadVitalReadings()[`steps:${day(200)}`]).toBeUndefined();
+    expect(loadVitalReadings()[`steps:${day(5)}`].value).toBe(900);
+  });
+
+  it('is quiet: nothing on screen reads it, so its arrival is not worth a "Refresh"', () => {
+    expect(domain('vitals_history').quiet).toBe(true);
   });
 });

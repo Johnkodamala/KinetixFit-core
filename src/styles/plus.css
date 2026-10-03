@@ -25,7 +25,7 @@
 /* beside the date at the top of Today */
 .kx-hero-eyebrow .kx-plus-badge { margin-left: 10px; }
 /* beside the name in Account */
-.kx-account-name .kx-plus-badge { margin-left: 8px; font-size: 9px; }
+.kx-account-name .kx-plus-badge { margin-left: 8px; font-size: 9px; flex: none; }
 .kx-account-name { overflow: visible; }
 .kx-avatar.is-plus {
   background: linear-gradient(135deg, var(--plus-gold-hi), var(--plus-gold));
@@ -59,8 +59,8 @@
   padding: 24px;
   box-sizing: border-box;
   background: color-mix(in srgb, #0B0C10 72%, transparent);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   animation: kx-fade var(--dur) var(--ease-out) both;
   overflow: hidden;
 }
@@ -198,26 +198,48 @@
   z-index: 1150;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  /* A width of its own: a fixed box that starts at left: 50% and has none can only grow into the right half of the
+     screen, which squeezed the text to one word a line (a four-line, 84 px blob over the page). It is one line, and the
+     text wraps only when the screen can't hold that (a narrow phone, large system text). */
+  width: max-content;
   max-width: calc(100vw - 24px);
-  padding: 8px 8px 8px 16px;
+  box-sizing: border-box;
+  padding: 6px 6px 6px 16px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
   color: var(--ink);
   font-size: 13px;
   font-weight: 600;
   animation: kx-fade var(--dur) var(--ease-out) both;
 }
+.kx-refresh-pill > span { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
 .kx-refresh-go {
+  flex: none;
+  min-height: 36px;
   border: 0;
   border-radius: 999px;
-  padding: 7px 14px;
+  padding: 0 16px;
   background: var(--accent);
   color: #fff;
   font: inherit;
   font-weight: 700;
+  white-space: nowrap;
 }
-.kx-refresh-x { border: 0; background: none; color: var(--ink-3); font-size: 20px; line-height: 1; padding: 0 8px; }
+.kx-refresh-x {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+}

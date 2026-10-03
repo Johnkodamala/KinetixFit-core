@@ -1,0 +1,8 @@
+# what the scripts write while they run (screenshots, sweeps, a Pillow venv, logs) and the test account's login
+inter/
+inter-and/
+sweep/
+venv/
+*.png
+*.log
+.testacct
