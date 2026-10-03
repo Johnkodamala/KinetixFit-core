@@ -44,7 +44,7 @@ import {
   noteLocalChange, isDirty, localMtime, registerSingleton, pushSingleton, pullSingleton,
   syncAllOnLogin, flushOutbox, clearAllDomainData, type SingletonDomain,
   noteKeyedChange, registerKeyed, pushKeyed, pullKeyed, type KeyedDomain, unsyncedDomains, syncKeepingThisPhone,
-  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint, syncOnAppState,
+  syncWithAccount, pullIfDue, pullOnLaunch, onAccountDataChanged, fingerprint, syncOnAppState, cancelFlushRetry,
 } from './sync';
 
 const USER_ID = 'user-1';
@@ -75,6 +75,7 @@ beforeEach(() => {
   failUpsertForTable = null;
   onUpsert = null;
   selectCalls = 0;
+  cancelFlushRetry(); // a failed flush in an earlier test must not fire in a later one
 });
 
 describe('outbox bookkeeping', () => {

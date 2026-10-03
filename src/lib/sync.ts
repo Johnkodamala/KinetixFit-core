@@ -254,7 +254,7 @@ export async function pullIfDue(minGapMs = 60_000, now = Date.now()): Promise<{ 
  * reads the account (at most once a minute) and says whether it had news. Never throws: offline, it all stays queued.
  */
 export async function syncOnAppState(isActive: boolean, now = Date.now()): Promise<{ changed: boolean } | null> {
-  try { await flushOutbox(); } catch { /* offline: stays queued for the next time */ }
+  await flushWithRetry();
   return isActive ? pullIfDue(60_000, now) : null;
 }
 
@@ -317,6 +317,28 @@ export async function flushOutbox(): Promise<void> {
       if (await pushAllKeyed(domain)) setBackfilled(domain.name);
     }
   }
+}
+
+const FLUSH_RETRY_DELAYS_MS = [10_000, 30_000, 90_000];
+let flushRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Stops a pending retry (logging out: there is nothing left to send). */
+export function cancelFlushRetry() {
+  clearTimeout(flushRetryTimer);
+  flushRetryTimer = undefined;
+}
+
+/**
+ * flushOutbox, and when something is still unsent afterwards (the phone said "connected" a moment before the connection
+ * carried traffic, or the account was briefly unreachable) try again a little later: after 10 s, 30 s, then 90 s. Until
+ * now a failed flush waited for the next time the app was opened. A newer attempt replaces the pending one. Never throws.
+ */
+export async function flushWithRetry(delays: number[] = FLUSH_RETRY_DELAYS_MS, attempt = 0): Promise<void> {
+  cancelFlushRetry();
+  try { await flushOutbox(); } catch { /* offline: stays queued */ }
+  if (unsyncedDomains().length === 0 || attempt >= delays.length) return;
+  cancelFlushRetry(); // another attempt may have set its own timer while this one was waiting on the network
+  flushRetryTimer = setTimeout(() => { flushRetryTimer = undefined; void flushWithRetry(delays, attempt + 1); }, delays[attempt]);
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -498,6 +520,7 @@ const ALL_DOMAIN_NAMES = [
 ];
 
 export function clearAllDomainData() {
+  cancelFlushRetry();
   for (const key of ACCOUNT_DATA_KEYS) {
     try { localStorage.removeItem(key); } catch { /* storage blocked */ }
   }

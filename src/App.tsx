@@ -7,7 +7,7 @@ import { Purchases, type CustomerInfo, type PurchasesPackage } from '@revenuecat
 import { Health, type HealthSample, type HealthDataType } from '@capgo/capacitor-health';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase, isSupabaseConfigured, openedFromRecoveryLink, openedLinkError } from './lib/supabase';
-import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, clearAllDomainData, unsyncedDomains, onAccountDataChanged } from './lib/sync';
+import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, flushWithRetry, clearAllDomainData, unsyncedDomains, onAccountDataChanged } from './lib/sync';
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
@@ -722,7 +722,8 @@ export default function App() {
   // the website) don't have to wait for the next app-foreground to reach the server.
   useEffect(() => {
     const listener = Network.addListener('networkStatusChange', ({ connected }) => {
-      if (connected) flushOutbox().catch(() => { /* still offline, or a transient error: stays queued */ });
+      // tried again a few times if the first attempt lands before the connection carries traffic
+      if (connected) void flushWithRetry();
     });
     return () => { listener.then(l => l.remove()); };
   }, []);
