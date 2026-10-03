@@ -182,3 +182,22 @@ export function vitalTiles(readings: Partial<Record<VitalId, Reading | null>>, c
 /** Distance for the steps card: km, or miles where the country uses them. */
 export const distanceText = (meters: number, unit: 'km' | 'mi') =>
   unit === 'mi' ? `${fmtNumber(meters / 1609.344, 1)} mi` : `${fmtNumber(meters / 1000, 1)} km`;
+
+// A walking stride is about 41.5 % of a person's height (the onboarding's 10,000-step distance uses the same).
+const STRIDE_OF_HEIGHT = 0.415;
+// Fewer steps than this say too little about how much of the day a distance covers.
+const MIN_STEPS_TO_JUDGE_DISTANCE = 500;
+
+/**
+ * What to call the day's distance on the steps card. Samsung Health writes distance to Health Connect only for recorded
+ * workouts (a day of about 14,000 steps had 3.1 km: two walks), so next to the day's steps it would read as the whole day's
+ * distance and look wrong; Apple Health and Google Fit count the whole day. Calories get the same treatment
+ * (caloriesToday). A distance under half of what the day's steps cover at the person's stride can only be the workouts';
+ * strides vary far less than that, so a whole day's distance is never mistaken for a workout's. With too few steps, or
+ * no height, it isn't judged.
+ */
+export function distanceLabel(meters: number, steps: number | null, heightCm: number): 'Distance' | 'Workout distance' {
+  if (steps === null || steps < MIN_STEPS_TO_JUDGE_DISTANCE || !(heightCm > 0)) return 'Distance';
+  const coveredByStepsM = (steps * heightCm * STRIDE_OF_HEIGHT) / 100;
+  return meters < coveredByStepsM * 0.5 ? 'Workout distance' : 'Distance';
+}

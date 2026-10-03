@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caloriesToday, distanceText, heartDay, latestBucket, latestReading, latestSample, toReading, vitalTiles, whenTaken } from './vitals';
+import { caloriesToday, distanceLabel, distanceText, heartDay, latestBucket, latestReading, latestSample, toReading, vitalTiles, whenTaken } from './vitals';
 
 const at = (iso: string) => ({ startDate: iso, endDate: iso });
 
@@ -126,5 +126,41 @@ describe('distanceText', () => {
   it('uses the country’s unit', () => {
     expect(distanceText(4230, 'km')).toBe('4.2 km');
     expect(distanceText(4230, 'mi')).toBe('2.6 mi');
+  });
+});
+
+// Health Connect's distance from Samsung Health covers only recorded workouts: on a day of about 14,000 steps it can be
+// 3.1 km, which is two walks (0.9 km and 2.2 km). Beside the day's steps that reads as the whole day's distance and looks
+// wrong, so it's labelled for what it is, the way calories already are.
+describe('distanceLabel', () => {
+  it('says Workout distance when the distance is far less than the day\'s steps cover (Samsung: workouts only)', () => {
+    expect(distanceLabel(900 + 2200, 14200, 170)).toBe('Workout distance');
+  });
+
+  it('says Distance when the distance covers the day (Apple Health, Google Fit)', () => {
+    // 14,200 steps at a 41.5 % of height stride is about 10 km
+    expect(distanceLabel(10200, 14200, 170)).toBe('Distance');
+  });
+
+  it('says Distance for a short stride too: a whole day\'s distance is never judged a workout\'s', () => {
+    // stride 30 % of height instead of 41.5 %: 7.2 km for the same steps, still well over half of the 10 km model
+    expect(distanceLabel(7200, 14200, 170)).toBe('Distance');
+  });
+
+  it('says Distance when the distance is more than the steps explain (cycling, a treadmill)', () => {
+    expect(distanceLabel(20000, 3000, 170)).toBe('Distance');
+  });
+
+  it('only calls it workout distance below half of what the steps cover', () => {
+    const covered = 10000 * 170 * 0.415 / 100; // 7,055 m for 10,000 steps
+    expect(distanceLabel(covered * 0.49, 10000, 170)).toBe('Workout distance');
+    expect(distanceLabel(covered * 0.5, 10000, 170)).toBe('Distance');
+  });
+
+  it('does not judge on a few steps, an unknown step count or an unknown height', () => {
+    expect(distanceLabel(100, 300, 170)).toBe('Distance');
+    expect(distanceLabel(3100, null, 170)).toBe('Distance');
+    expect(distanceLabel(3100, 14200, 0)).toBe('Distance');
+    expect(distanceLabel(3100, 14200, NaN)).toBe('Distance');
   });
 });

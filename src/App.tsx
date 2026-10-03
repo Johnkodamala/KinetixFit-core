@@ -90,7 +90,7 @@ import { CORE_HEALTH_TYPES, healthPermissionRemoved } from './lib/healthPermissi
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
 import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS, usableScanAllowance } from './lib/plus';
-import { latestReading, latestBucket, heartDay, caloriesToday, whenTaken, vitalTiles, distanceText, VITAL_TYPES, type Reading, type HeartDay, type VitalId } from './lib/vitals';
+import { latestReading, latestBucket, heartDay, caloriesToday, whenTaken, vitalTiles, distanceText, distanceLabel, VITAL_TYPES, type Reading, type HeartDay, type VitalId } from './lib/vitals';
 
 // ============================================================================
 // KINETIXFIT ENTERPRISE BIOMETRIC PORTAL - FLAGSHIP ADVANCED VISION CORE (V12)
@@ -1463,7 +1463,7 @@ export default function App() {
           // distance and calories burned when the device shares them (Health Connect: Samsung Health writes total calories)
           details: { ...item.details, subMetrics: [
             { label: 'Steps today', value: fmtNumber(liveSteps), color: 'var(--accent)' },
-            ...(activityToday.meters !== null ? [{ label: 'Distance', value: distanceText(activityToday.meters, country.distance), color: 'var(--m-steps)' }] : []),
+            ...(activityToday.meters !== null ? [{ label: distanceLabel(activityToday.meters, liveSteps, profile.height), value: distanceText(activityToday.meters, country.distance), color: 'var(--m-steps)' }] : []),
             ...(activityToday.kcal !== null ? [{ label: { total: 'Calories burned', active: 'Active calories', workouts: 'Workout calories' }[activityToday.kcalKind], value: `${fmtNumber(activityToday.kcal)} kcal`, color: 'var(--warn)' }] : []),
           ] }
         };
@@ -1577,7 +1577,7 @@ export default function App() {
       return item;
     });
     return sexCard ? [...withLiveData, sexCard] : withLiveData;
-  }, [biometrics, liveBpm, liveBpmAt, heartToday, liveHrv, liveSteps, liveSleepMinutes, isLiveHealthData, sexCard, sleepWeek, vitals.restingHeartRate, activityToday, country.distance, healthTrends.heartRate, healthSource]);
+  }, [biometrics, liveBpm, liveBpmAt, heartToday, liveHrv, liveSteps, liveSleepMinutes, isLiveHealthData, sexCard, sleepWeek, vitals.restingHeartRate, activityToday, country.distance, profile.height, healthTrends.heartRate, healthSource]);
 
   // --- 8. GAMIFICATION ENGINE (With Custom Points & Quotas) ---
   const [xp, setXp] = useState<number>(() => parseInt(localStorage.getItem('kinetix_xp') || '0'));
