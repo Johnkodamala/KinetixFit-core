@@ -4488,6 +4488,7 @@ export default function App() {
                   chartType="bar"
                   isTrackable={isLiveHealthData}
                   minPoints={1}
+                  partialToday
                   expanded={expandedTrendId === 'BIO-1'}
                   onToggle={() => setExpandedTrendId(prev => prev === 'BIO-1' ? null : 'BIO-1')}
                   rangeDays={trendRangeDays}
@@ -4507,6 +4508,8 @@ export default function App() {
                   chartType="line"
                   isTrackable={isLiveHealthData}
                   minPoints={1}
+                  partialToday
+                  dayValueLabel="Average"
                   expanded={expandedTrendId === 'BIO-2'}
                   onToggle={() => setExpandedTrendId(prev => prev === 'BIO-2' ? null : 'BIO-2')}
                   rangeDays={trendRangeDays}

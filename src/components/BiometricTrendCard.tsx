@@ -1,5 +1,7 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { fmtNumber } from '../lib/countries';
+import { localDayKey } from '../lib/dates';
+import { trendAverage } from '../lib/trendAverage';
 import { BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { ChevronIcon } from './Icons';
 
@@ -49,6 +51,12 @@ interface BiometricTrendCardProps {
   buildingMessage?: string;
   minPoints?: number;
   trendFootnote?: string;
+  /** Today's point is a day still in progress (steps so far, the heart-rate average so far), so the average over the
+   *  period leaves it out: it would pull the average down in the morning (src/lib/trendAverage.ts). */
+  partialToday?: boolean;
+  /** What a day's value is when it is neither a total nor a single reading: 'Average' makes the readout say "Average on
+   *  4 Oct" instead of "Latest · 4 Oct", which a heart-rate card's daily average is not (its latest reading is above). */
+  dayValueLabel?: string;
   expanded: boolean;
   onToggle: () => void;
   rangeDays: 7 | 30;
@@ -117,7 +125,7 @@ const dayAtTap = (event: MouseEvent<HTMLDivElement>, count: number, chartType: '
 
 export default function BiometricTrendCard({
   icon, title, status, behavior, latestReading, subMetrics, trend, unit, color, chartType,
-  isTrackable, disconnectedMessage, buildingMessage, minPoints = 2, trendFootnote,
+  isTrackable, disconnectedMessage, buildingMessage, minPoints = 2, trendFootnote, partialToday = false, dayValueLabel,
   expanded, onToggle, rangeDays, onRangeChange, format, axisFormat, yTicks
 }: BiometricTrendCardProps) {
   const show = format ?? formatValue;
@@ -136,7 +144,8 @@ export default function BiometricTrendCard({
   const pickedIndex = pickedDate ? visibleData.findIndex(d => d.date === pickedDate && d.value !== null) : -1;
   const selectedIndex = expanded && pickedIndex >= 0 ? pickedIndex : lastRealIndex;
   const selected = selectedIndex >= 0 ? visibleData[selectedIndex] : null;
-  const average = realPointCount >= 2 ? realPoints.reduce((sum, d) => sum + (d.value ?? 0), 0) / realPointCount : null;
+  const averaged = trendAverage(realPoints, localDayKey(), partialToday);
+  const average = averaged?.value ?? null;
   const onChartTap = (event: MouseEvent<HTMLDivElement>) => {
     if (!expanded) return;
     const index = dayAtTap(event, visibleData.length, chartType);
@@ -164,8 +173,8 @@ export default function BiometricTrendCard({
         {expanded && selected && selected.value !== null && (
           <div className="btc-readout" aria-live="polite">
             <strong>{show(selected.value)}<small>{unit || (title === 'Steps' ? ' steps' : '')}</small></strong>
-            <span>{selectedIndex === lastRealIndex ? `Latest · ${selected.label}` : selected.label}
-              {average !== null && ` · ${rangeDays}-day average ${show(Math.round(average))}${unit}`}</span>
+            <span>{dayValueLabel ? `${dayValueLabel} on ${selected.label}` : selectedIndex === lastRealIndex ? `Latest · ${selected.label}` : selected.label}
+              {average !== null && ` · ${averaged?.days}-day average ${show(Math.round(average))}${unit}`}</span>
           </div>
         )}
         <div className="btc-chart-wrap" style={{ height: expanded ? 200 : 52 }} onClick={onChartTap}>
