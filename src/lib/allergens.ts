@@ -82,7 +82,7 @@ export function addTyped(selected: string[], typed: string): { next: string[]; a
 /* ----------------------------------------------------------------------------------------------- */
 
 // Words in a food's name (or ingredients) that mean a label allergen is in it
-const FOUND_IN: Record<string, string[]> = {
+export const FOUND_IN: Record<string, string[]> = {
   milk: ['milk', 'milks', 'dairy', 'cheese', 'cheeses', 'paneer', 'curd', 'curds', 'dahi', 'yogurt', 'yogurts', 'yoghurt', 'yoghurts',
     'ghee', 'butter', 'buttermilk', 'cream', 'creamy', 'lassi', 'raita', 'kheer', 'khoa', 'khoya', 'malai', 'whey', 'casein', 'chaas',
     'latte', 'cappuccino', 'custard', 'kulfi', 'rasmalai', 'milkshake', 'mozzarella', 'cheddar', 'parmesan', 'feta', 'ricotta',
@@ -107,12 +107,15 @@ const FOUND_IN: Record<string, string[]> = {
     'croissants', 'bagel', 'bagels', 'pizza', 'pita', 'pitta', 'sandwich', 'sandwiches', 'samosa', 'samosas', 'thepla', 'wrap', 'wraps'],
   celery: ['celery', 'celeriac'],
   mustard: ['mustard', 'sarson'],
-  sesame: ['sesame', 'tahini', 'hummus', 'houmous', 'gingelly'],
+  // tahini is ground sesame: hummus, baba ganoush, halva and za'atar are made with it or on it, and falafel often is
+  // ("za'atar" is read as "za" + "atar", the apostrophe splits it)
+  sesame: ['sesame', 'tahini', 'tahina', 'hummus', 'houmous', 'hommus', 'gingelly', 'halva', 'ganoush', 'ghanoush', 'zaatar', 'atar',
+    'dukkah', 'gomasio', 'gomashio', 'falafel'],
   'sulphur dioxide': ['sulphite', 'sulphites', 'sulfite', 'sulfites', 'wine'],
   lupin: ['lupin', 'lupine'],
 };
 // "coconut milk", "peanut butter": the word before says it isn't dairy
-const NOT_DAIRY_BEFORE = ['coconut', 'almond', 'soy', 'soya', 'oat', 'rice', 'cashew', 'peanut', 'cocoa', 'apple', 'nut', 'shea', 'plant', 'vegan'];
+export const NOT_DAIRY_BEFORE = ['coconut', 'almond', 'soy', 'soya', 'oat', 'rice', 'cashew', 'peanut', 'cocoa', 'apple', 'nut', 'shea', 'plant', 'vegan'];
 const FREE_OF = /\b(\w+)[- ]free\b|\bno (\w+)\b|\bwithout (\w+)\b/g;
 
 const wordsOf = (text: string) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z]+/g) ?? [];

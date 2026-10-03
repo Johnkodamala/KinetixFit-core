@@ -71,7 +71,8 @@ import { setupNotifications, styled, scheduleNotifications, nutritionAlert, remi
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
 import { updateWidgets, clearWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
 import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
-import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, avoidedThere, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
+import { keepSafeIdeas } from './lib/aiIdeas';
+import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
 import { APP_ICONS, DEFAULT_APP_ICON, appIconInfo, appIconPreview, appIconSupported, canUseIcon, changeAppIcon, currentAppIcon, shouldRevertIcon, type AppIconId } from './lib/appIcons';
 import WidgetGallery, { type WidgetData } from './components/WidgetGallery';
@@ -82,7 +83,7 @@ import WorkoutSheet, { WorkoutHistorySheet } from './components/WorkoutSheet';
 import CycleCard from './components/CycleCard';
 import VitalsCard from './components/VitalsCard';
 import AllergyPicker from './components/AllergyPicker';
-import { allergyName, flagAllergies, allergiesIn, customAllergies } from './lib/allergens';
+import { allergyName, flagAllergies } from './lib/allergens';
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
 import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS } from './lib/plus';
@@ -1955,11 +1956,10 @@ export default function App() {
       const data = await response.json();
       if (response.status === 403 && data.code === 'PLUS_REQUIRED') { setPlusFromServer(false); openPlusPage(); return; }
       if (!response.ok) { setMealIdeasError(data.error || 'Couldn’t make meal ideas this time.'); return; }
-      // allergies typed in by the person (not on any label list) and meats not eaten where they live (beef in India):
-      // the server checks both too once it has this build's rules, but older servers don't
-      const typedAllergies = customAllergies(profile.personalAllergens);
-      setMealIdeas({ ...data, suggestions: (data.suggestions ?? []).filter((i: MealIdea) =>
-        allergiesIn(`${i.name} ${i.description}`, typedAllergies).length === 0 && !avoidedThere(`${i.name} ${i.description}`, country.code)) });
+      // Only dishes this person can have: none with an allergy of theirs (what the server says, and the dish's own words: the
+      // model missed that hummus is tahini, which is sesame) and no meat that isn't eaten where they live (beef in India).
+      // The server checks too once it has this build's rules, but older servers don't.
+      setMealIdeas({ ...data, suggestions: keepSafeIdeas<MealIdea>(data.suggestions ?? [], profile.personalAllergens, country.code) });
       setAiPage(0);
       setAiShown(prev => [...prev, ...(data.suggestions ?? []).map((i: MealIdea) => i.name)]);
       setEatenIdeaNames([]);
