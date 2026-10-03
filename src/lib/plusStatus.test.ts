@@ -4,7 +4,7 @@ let headers: Record<string, string> = { Authorization: 'Bearer good-token' };
 vi.mock('./sessionToken', () => ({ bearerHeader: async () => headers }));
 vi.mock('./server', () => ({ serverUrl: (path: string) => `https://server.test${path}` }));
 
-import { billingNote, canManageSubscription, fetchPlusStatus, planLabel, type PlusStatus } from './plusStatus';
+import { billingNote, canManageSubscription, fetchPlusStatus, planFromAnswers, planLabel, type PlusStatus } from './plusStatus';
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -81,5 +81,35 @@ describe('what Plan & billing says about billing', () => {
     expect(billingNote(promoForever, 'Google Play', fmt)).toBe('Plus is yours for good. Nothing is billed.');
     expect(canManageSubscription(promoMonth)).toBe(false);
     expect(canManageSubscription(promoForever)).toBe(false);
+  });
+});
+
+describe('the plan for the billing note, from the server and the store SDK', () => {
+  const server = (over: Partial<PlusStatus> = {}): PlusStatus => ({ plus: true, lifetime: false, expiresAt: '2026-11-03T17:44:18Z', willRenew: false, promo: false, ...over });
+  const promoSdk = { expirationDate: '2026-11-03T17:44:18.000Z', willRenew: false, store: 'PROMOTIONAL' };
+  const storeSdk = { expirationDate: '2026-11-01T00:00:00.000Z', willRenew: true, store: 'PLAY_STORE' };
+
+  it('is the server’s answer when it has one', () => {
+    expect(planFromAnswers(server({ promo: true }), null)).toEqual(server({ promo: true }));
+    expect(planFromAnswers(server({ willRenew: true }), storeSdk)).toEqual(server({ willRenew: true }));
+  });
+
+  it('is a promo when the store SDK says so, even if a server that does not send the flag yet does not', () => {
+    // the server that was live on 3 Oct 2026: it knows the plan and the expiry, not whether it is a promo
+    expect(planFromAnswers(server({ promo: false }), promoSdk)?.promo).toBe(true);
+    expect(planFromAnswers(server({ promo: true }), storeSdk)?.promo).toBe(true);
+  });
+
+  it('is the store SDK’s plan when the server has said nothing (or said Free)', () => {
+    expect(planFromAnswers(null, promoSdk)).toEqual({ plus: true, lifetime: false, expiresAt: '2026-11-03T17:44:18.000Z', willRenew: false, promo: true });
+    expect(planFromAnswers(null, storeSdk)).toEqual({ plus: true, lifetime: false, expiresAt: '2026-11-01T00:00:00.000Z', willRenew: true, promo: false });
+    expect(planFromAnswers(null, { expirationDate: null, willRenew: false, store: 'PROMOTIONAL' })).toMatchObject({ lifetime: true, expiresAt: null, promo: true });
+    expect(planFromAnswers(server({ plus: false }), storeSdk)?.plus).toBe(true);
+  });
+
+  it('is nothing at all when neither knows of Plus', () => {
+    expect(planFromAnswers(null, null)).toBeNull();
+    expect(planFromAnswers(null, undefined)).toBeNull();
+    expect(planFromAnswers(server({ plus: false }), null)).toBeNull();
   });
 });

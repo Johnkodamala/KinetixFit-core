@@ -11,7 +11,7 @@ import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, flus
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
-import { billingNote, canManageSubscription, fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
+import { billingNote, canManageSubscription, fetchPlusStatus, planFromAnswers, planLabel, type PlusStatus } from './lib/plusStatus';
 import { requestDeletion, clearDeviceReminders, deleteDescription, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
@@ -2261,10 +2261,7 @@ export default function App() {
     : revenueCatStatus;
   // The plan for the billing note on Plan & billing: the server's answer, else what the RevenueCat SDK reported. A promo code's
   // grant has nothing to manage in a store and nothing billed (src/lib/plusStatus.ts billingNote).
-  const sdkEntitlement = customerInfo?.entitlements.active[PLUS_ENTITLEMENT];
-  const planStatus: PlusStatus | null = serverPlan?.plus ? serverPlan : sdkEntitlement
-    ? { plus: true, lifetime: !sdkEntitlement.expirationDate, expiresAt: sdkEntitlement.expirationDate ?? null, willRenew: !!sdkEntitlement.willRenew, promo: sdkEntitlement.store === 'PROMOTIONAL' }
-    : null;
+  const planStatus = planFromAnswers(serverPlan, customerInfo?.entitlements.active[PLUS_ENTITLEMENT]);
   const applyPlusStatus = (status: PlusStatus) => { setPlusFromServer(status.plus); setServerPlan(status); };
   const refreshPlusFromServer = async () => {
     const status = await fetchPlusStatus();

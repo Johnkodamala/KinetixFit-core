@@ -49,3 +49,17 @@ export function billingNote(status: PlusStatus, storeName: string, formatDate: (
 
 /** A store subscription is managed in its store (even one that was cancelled); a promo grant has no store account behind it. */
 export const canManageSubscription = (status: PlusStatus) => !status.promo;
+
+/** What the RevenueCat SDK reports for the Plus entitlement (the fields used here). */
+export interface SdkEntitlement { expirationDate: string | null | undefined; willRenew: boolean | undefined; store: string }
+
+/**
+ * The plan as far as it is known, for the billing note: the server's answer, with the promo flag from either side (a server that
+ * doesn't send it yet says "not a promo" for everyone), else what the RevenueCat SDK reported. Null when neither knows of Plus.
+ */
+export function planFromAnswers(server: PlusStatus | null, sdk: SdkEntitlement | null | undefined): PlusStatus | null {
+  const sdkPromo = sdk?.store === 'PROMOTIONAL';
+  if (server?.plus) return { ...server, promo: server.promo || sdkPromo };
+  if (sdk) return { plus: true, lifetime: !sdk.expirationDate, expiresAt: sdk.expirationDate ?? null, willRenew: !!sdk.willRenew, promo: sdkPromo };
+  return null;
+}
