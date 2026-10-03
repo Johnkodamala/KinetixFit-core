@@ -110,6 +110,9 @@ export function registeredSingleton(name: string): SingletonDomain<unknown> | un
   return singletonDomains.get(name);
 }
 
+/** Who is signed in. This asks the account's server (a network round trip), so a sync asks once and hands the answer to
+ * every step (`knownUid`). Asking again for each table was 18 lookups at ~280 ms each, more than half of a ~9 s launch
+ * pull (measured on an iPhone 13 mini). */
 async function currentUserId(): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
   const { data } = await supabase.auth.getUser();
@@ -121,8 +124,8 @@ export type PullResult = 'no-session' | 'empty' | 'applied' | 'local-newer';
 /** Told which domain a pull really changed here (see syncAllOnLogin). */
 export type ChangeReporter = (domainName: string) => void;
 
-export async function pullSingleton<T>(domain: SingletonDomain<T>, onChanged?: ChangeReporter): Promise<PullResult> {
-  const uid = await currentUserId();
+export async function pullSingleton<T>(domain: SingletonDomain<T>, onChanged?: ChangeReporter, knownUid?: string): Promise<PullResult> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return 'no-session';
   const { data, error } = await supabase.from(domain.table).select('*').eq('user_id', uid).maybeSingle();
   if (error || !data) return 'empty';
@@ -137,8 +140,8 @@ export async function pullSingleton<T>(domain: SingletonDomain<T>, onChanged?: C
   return 'applied';
 }
 
-export async function pushSingleton<T>(domain: SingletonDomain<T>): Promise<boolean> {
-  const uid = await currentUserId();
+export async function pushSingleton<T>(domain: SingletonDomain<T>, knownUid?: string): Promise<boolean> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return false;
   const value = domain.load();
   if (domain.isEmpty(value)) return false;
@@ -156,28 +159,30 @@ export async function pushSingleton<T>(domain: SingletonDomain<T>): Promise<bool
  * newer one (unflushed edits from before this login, or a stale remote row). Never drops local data.
  * `onChanged` hears the name of each domain whose data the account actually changed here. */
 export async function syncAllOnLogin(onChanged?: ChangeReporter): Promise<void> {
+  const uid = await currentUserId(); // asked once for the whole sync; nobody signed in = nothing to do
+  if (!uid) return;
   for (const domain of singletonDomains.values()) {
-    const result = await pullSingleton(domain, onChanged);
+    const result = await pullSingleton(domain, onChanged, uid);
     if (result === 'empty' || result === 'local-newer') {
-      await pushSingleton(domain);
+      await pushSingleton(domain, uid);
     }
   }
-  await syncKeyedOnLogin(onChanged);
+  await syncKeyedOnLogin(onChanged, uid);
 }
 
-async function syncKeyedOnLogin(onChanged?: ChangeReporter): Promise<void> {
+async function syncKeyedOnLogin(onChanged: ChangeReporter | undefined, uid: string): Promise<void> {
   for (const domain of keyedDomains.values()) {
     if (!isBackfilled(domain.name)) {
       // First sync for this domain: push everything local first (existing local-only data is never
       // lost), then pull down anything the server already had that this device doesn't. Only mark it
       // backfilled if every local record actually made it up — otherwise a failed push (e.g. the table
       // doesn't exist yet, or a transient network error) would permanently strand this user's local data.
-      const ok = await pushAllKeyed(domain);
-      await pullKeyed(domain, onChanged);
+      const ok = await pushAllKeyed(domain, uid);
+      await pullKeyed(domain, onChanged, uid);
       if (ok) setBackfilled(domain.name);
     } else {
-      await pullKeyed(domain, onChanged);
-      await pushKeyed(domain);
+      await pullKeyed(domain, onChanged, uid);
+      await pushKeyed(domain, uid);
     }
   }
 }
@@ -189,8 +194,10 @@ async function syncKeyedOnLogin(onChanged?: ChangeReporter): Promise<void> {
  * merged as usual: this phone's records go up first, then the account's come down.
  */
 export async function syncKeepingThisPhone(): Promise<void> {
-  for (const domain of singletonDomains.values()) await pushSingleton(domain);
-  await syncKeyedOnLogin();
+  const uid = await currentUserId();
+  if (!uid) return;
+  for (const domain of singletonDomains.values()) await pushSingleton(domain, uid);
+  await syncKeyedOnLogin(undefined, uid);
 }
 
 /**
@@ -332,8 +339,8 @@ export function registeredKeyed(name: string): KeyedDomain<unknown> | undefined 
 }
 
 /** Pushes only the records noted dirty since the last successful push — cheap, safe to call often. */
-export async function pushKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
-  const uid = await currentUserId();
+export async function pushKeyed<T>(domain: KeyedDomain<T>, knownUid?: string): Promise<void> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return;
   const records = domain.load() as Record<string, T>;
   const keys = dirtyKeysSet(domain.name);
@@ -351,8 +358,8 @@ export async function pushKeyed<T>(domain: KeyedDomain<T>): Promise<void> {
 /** Pushes every local record regardless of dirty state — only for the one-time backfill on first sync,
  * so a phone-only user's existing data is never lost even though it predates this file's bookkeeping.
  * Returns false if any upsert failed, so the caller knows not to mark this domain backfilled yet. */
-async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<boolean> {
-  const uid = await currentUserId();
+async function pushAllKeyed<T>(domain: KeyedDomain<T>, knownUid?: string): Promise<boolean> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return false;
   const records = domain.load() as Record<string, T>;
   let ok = true;
@@ -366,8 +373,8 @@ async function pushAllKeyed<T>(domain: KeyedDomain<T>): Promise<boolean> {
 /** Pulls every remote row and merges remote-only or remote-newer records into local storage. A record
  * whose key is still pending push (edited locally, not yet flushed) is left alone — local wins.
  * `onChanged` is told when the merge really changed what this phone holds (never for a `quiet` domain). */
-export async function pullKeyed<T>(domain: KeyedDomain<T>, onChanged?: ChangeReporter): Promise<'no-session' | 'empty' | 'applied'> {
-  const uid = await currentUserId();
+export async function pullKeyed<T>(domain: KeyedDomain<T>, onChanged?: ChangeReporter, knownUid?: string): Promise<'no-session' | 'empty' | 'applied'> {
+  const uid = knownUid ?? await currentUserId();
   if (!uid) return 'no-session';
   const { data, error } = await supabase.from(domain.table).select('*').eq('user_id', uid);
   if (error || !data || data.length === 0) return 'empty';

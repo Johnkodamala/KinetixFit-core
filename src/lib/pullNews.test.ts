@@ -104,9 +104,12 @@ function shape(table: string, input: Row, updatedAt?: string): Row {
 const account = {
   tables: new Map<string, Map<string, Row>>(),
   getUserCalls: 0,
-  /** runs inside every getUser(): the moment "while the pull is running" */
-  duringPull: null as null | ((call: number) => void),
-  reset() { this.tables.clear(); this.getUserCalls = 0; this.duringPull = null; },
+  steps: 0,
+  signedOut: false,
+  /** runs at every network step of a sync (who-is-this, a read, an upload) with its number: "while the pull is running" */
+  duringPull: null as null | ((step: number) => void),
+  step() { this.steps++; this.duringPull?.(this.steps); },
+  reset() { this.tables.clear(); this.getUserCalls = 0; this.steps = 0; this.duringPull = null; this.signedOut = false; },
   rows(table: string): Row[] { return [...(this.tables.get(table)?.values() ?? [])]; },
   /** An upsert as the client sends it, or one a different phone made (`updatedAt` chooses the server's clock). */
   upsert(table: string, row: Row, updatedAt?: string): { row: Row | null; error: { code: string; message: string } | null } {
@@ -135,18 +138,19 @@ vi.mock('./supabase', () => ({
     auth: {
       getUser: async () => {
         account.getUserCalls++;
-        account.duringPull?.(account.getUserCalls);
-        return { data: { user: { id: UID } } };
+        account.step();
+        return { data: { user: account.signedOut ? null : { id: UID } } };
       },
     },
     from: (table: string) => ({
       select: () => ({
         eq: () => ({
-          maybeSingle: async () => ({ data: account.rows(table)[0] ?? null, error: null }),
-          then: (resolve: (r: { data: Row[]; error: null }) => void) => resolve({ data: account.rows(table), error: null }),
+          maybeSingle: async () => { account.step(); return { data: account.rows(table)[0] ?? null, error: null }; },
+          then: (resolve: (r: { data: Row[]; error: null }) => void) => { account.step(); resolve({ data: account.rows(table), error: null }); },
         }),
       }),
       upsert: (row: Row) => {
+        account.step();
         const r = account.upsert(table, row);
         return {
           select: () => ({ maybeSingle: async () => (r.error ? { data: null, error: r.error } : { data: { updated_at: r.row!.updated_at }, error: null }) }),
@@ -227,6 +231,7 @@ beforeEach(async () => {
   await syncAllOnLogin(); // signing in: everything this phone has goes up to the account
   await syncAllOnLogin(); // the next launch: the "waiting to upload" marks of that first upload are cleared; from here on it is steady state
   account.getUserCalls = 0;
+  account.steps = 0;
 });
 
 describe('pulling back what this phone itself uploaded', () => {
@@ -342,6 +347,22 @@ describe('what another phone changed is news, once', () => {
     account.put('water_logs', keyed('water_logs').toRemote('1790000000999', { ml: 200, day: today(), deletedAt: null }, UID));
     account.duringPull = call => { if (call === 3) recordDailyVitalTotal('steps', today(), 5000); };
     expect((await syncWithAccount()).changed).toBe(true);
+  });
+});
+
+describe('a sync is quick on a phone connection', () => {
+  it('asks the account who this is once per sync, not once per table: each ask is a network round trip (~280 ms on the iPhone)', async () => {
+    await syncWithAccount();
+    expect(account.getUserCalls).toBe(1);
+  });
+
+  it('does nothing at all without a session: no pull, no upload, no news', async () => {
+    const held = () => JSON.stringify([...account.tables.entries()].map(([table, rows]) => [table, [...rows.values()]]));
+    const before = held();
+    account.signedOut = true;
+    expect((await syncWithAccount()).changed).toBe(false);
+    expect(account.getUserCalls).toBe(1);
+    expect(held()).toBe(before);
   });
 });
 

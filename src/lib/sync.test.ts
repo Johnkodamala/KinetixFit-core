@@ -444,6 +444,42 @@ describe('syncAllOnLogin says which domains the account changed (only what the p
   });
 });
 
+describe('a step that is given the account’s id does not ask for it again', () => {
+  beforeEach(() => {
+    selectManyResult.data = [];
+    selectManyResult.error = null;
+  });
+
+  it('pull and push, singleton and keyed', async () => {
+    const single = makeDomain({ name: 'known-uid-singleton', table: 'known_uid_singleton', load: () => ({ v: 'x' }) });
+    const keyedDomain = makeKeyedDomain({ name: 'known-uid-keyed', table: 'known_uid_keyed', load: () => ({ a: { v: '1' } }) });
+    noteKeyedChange('known-uid-keyed', 'a');
+    getUser.mockClear();
+    await pullSingleton(single, undefined, USER_ID);
+    await pushSingleton(single, USER_ID);
+    await pullKeyed(keyedDomain, undefined, USER_ID);
+    await pushKeyed(keyedDomain, USER_ID);
+    expect(getUser).not.toHaveBeenCalled();
+    expect(upsertCalls.some(r => r.user_id === USER_ID && r.id === 'a')).toBe(true); // and what it sent is stamped with that id
+  });
+
+  it('a whole sync asks once', async () => {
+    registerKeyed(makeKeyedDomain({ name: 'known-uid-sync', table: 'known_uid_sync', load: () => ({ a: { v: '1' } }) }));
+    getUser.mockClear();
+    await syncAllOnLogin();
+    expect(getUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('and stops there when nobody is signed in', async () => {
+    getUser.mockResolvedValue({ data: { user: null } });
+    const before = upsertCalls.length;
+    await syncAllOnLogin();
+    await syncKeepingThisPhone();
+    expect(upsertCalls.length).toBe(before);
+    expect(getUser).toHaveBeenCalledTimes(2); // once per sync
+  });
+});
+
 describe('pullIfDue: opening or returning to the app should not hammer the account', () => {
   it('pulls once, then not again within the gap', async () => {
     selectManyResult.data = [];
