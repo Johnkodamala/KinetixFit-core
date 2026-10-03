@@ -108,8 +108,10 @@ describe('check-in streak', () => {
   it('breaks after a whole day without a check-in', () => {
     const s = streakOf(['2026-09-24', '2026-09-25', '2026-09-26'], now);
     expect(s.current).toBe(0);
-    expect(s.best).toBe(0);
+    // the best is read off the history too (a phone that never saw that streak happen still knows it), as well as what was saved
+    expect(s.best).toBe(3);
     expect(streakOf(['2026-09-24', '2026-09-25', '2026-09-26'], now, 3).best).toBe(3);
+    expect(streakOf(['2026-09-24', '2026-09-25', '2026-09-26'], now, 5).best).toBe(5);
   });
 
   it('crosses months and the clock change', () => {

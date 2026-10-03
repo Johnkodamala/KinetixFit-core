@@ -41,7 +41,11 @@ vi.mock('../_lib/rewardConfig.js', () => ({ getRewardConfig: vi.fn(async () => (
 vi.mock('../_lib/auditLog.js', () => ({ logAuditEvent: vi.fn(async () => {}) }));
 // A verified session (null = none, as older builds) and a points_ledger whose key is (user, day, award id).
 let mockUserId = null;
-vi.mock('../_lib/supabaseAuth.js', () => ({ verifiedUserId: async () => mockUserId }));
+let mockUserEmail = null; // the verified session's email (null: a session that names none, like an older build's missing one)
+vi.mock('../_lib/supabaseAuth.js', () => ({
+  verifiedUserId: async () => mockUserId,
+  verifiedUser: async () => (mockUserId ? { id: mockUserId, email: mockUserEmail } : null),
+}));
 const ledger = [];
 let failLedger = false;
 vi.mock('../_lib/supabaseAdmin.js', () => ({
@@ -119,7 +123,8 @@ beforeEach(() => {
   vi.clearAllMocks(); // call history only; the fakes keep working
   store.clear();
   Object.assign(quota, { allowed: true, plus: false, limit: 2, used: 0 });
-  mockUserId = null; ledger.length = 0; failLedger = false;
+  mockUserId = null; mockUserEmail = null; ledger.length = 0; failLedger = false;
+  delete process.env.REQUIRE_SESSION;
   claude.reply = null;
   claude.requests.length = 0;
   usdaQueries.length = 0;
@@ -703,5 +708,48 @@ describe('errors keep their status codes and messages', () => {
   it('405 for anything but POST', async () => {
     const res = await call(undefined, { method: 'GET' });
     expect(res.statusCode).toBe(405);
+  });
+});
+
+// ------------------------------------------------------------------------------------------------------------------
+describe('who is calling', () => {
+  it('refuses a body that names another account than the signed-in one, and spends nothing of theirs', async () => {
+    mockUserId = 'u-me'; mockUserEmail = 'me@example.com';
+    claude.reply = () => claudeReply(APPLE_SLICES);
+    const res = await photo({ appUserId: 'victim@example.com' });
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toMatchObject({ code: 'WRONG_ACCOUNT' });
+    expect(recordScan).not.toHaveBeenCalled();
+    expect(claude.requests).toHaveLength(0); // no model call was paid for
+    expect([...store.keys()].filter(k => k.includes('victim'))).toEqual([]);
+  });
+
+  it('refuses it for a typed check too', async () => {
+    mockUserId = 'u-me'; mockUserEmail = 'me@example.com';
+    const res = await typed('banana', { appUserId: 'victim@example.com' });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('lets the signed-in account scan, whatever case its email was typed in', async () => {
+    mockUserId = 'u-me'; mockUserEmail = 'user@example.com';
+    claude.reply = () => claudeReply(APPLE_SLICES);
+    const res = await photo({ appUserId: 'User@Example.com' });
+    expect(res.statusCode).toBe(200);
+    expect(recordScan).toHaveBeenCalledWith('User@Example.com', expect.anything()); // the body's spelling: that is what Redis and RevenueCat know
+  });
+
+  it('keeps an older build with no session working', async () => {
+    claude.reply = () => claudeReply(APPLE_SLICES);
+    expect((await photo()).statusCode).toBe(200);
+  });
+
+  it('with REQUIRE_SESSION=1, a photo scan needs the session, and a typed check still does not', async () => {
+    process.env.REQUIRE_SESSION = '1';
+    claude.reply = () => claudeReply(APPLE_SLICES);
+    const res = await photo();
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toMatchObject({ code: 'AUTH_REQUIRED' });
+    expect(claude.requests).toHaveLength(0);
+    expect((await typed('banana')).statusCode).toBe(200);
   });
 });

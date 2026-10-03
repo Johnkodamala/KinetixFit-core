@@ -5,9 +5,11 @@
 // - Plus only, checked with RevenueCat here (api/_lib/plus.js) — the app hiding the button isn't enough.
 // - Up to DAILY_LIMIT fresh generations per day (the phone's time zone; UK time for older builds); asking again with the same inputs within 30 min returns the
 //   cached answer and doesn't count.
-// - Allergens and diet are hard rules twice over: the prompt excludes them, and any suggestion the model says contains
+// - Allergens and diet are hard rules three times over: the prompt excludes them, any suggestion the model says contains
 //   an allergen — or meat/fish for a vegetarian, or egg for a vegetarian who doesn't eat eggs — is dropped before it
-//   reaches the user. Allergies the person typed in themselves ("kiwi") count too, and are also checked by name.
+//   reaches the user, and the dish's own words are checked too (the model once suggested hummus, which is tahini, which is
+//   sesame, to someone allergic to sesame: api/_lib/ideaFilter.js, api/_lib/allergenWords.js). Allergies the person typed in
+//   themselves ("kiwi") count too, and are checked by name.
 // - Where they live decides the food (as the app's own list does, src/lib/mealIdeas.ts): India gets Indian dishes only
 //   and never beef; the UAE Middle Eastern first and never pork; Singapore its own dishes (COUNTRY_FOOD). Suggestions
 //   naming an avoided meat are dropped here too.
@@ -18,6 +20,8 @@ import { Redis } from '@upstash/redis';
 import { handleCors } from './_lib/cors.js';
 import { isPlusUser } from './_lib/plus.js';
 import { COUNTRY_REWARDS, dayKey, requestCountry } from './_lib/countries.js';
+import { keepSuggestions } from './_lib/ideaFilter.js';
+import { resolveCaller, callerProblem } from './_lib/caller.js';
 
 export const config = { maxDuration: 60 };
 
@@ -73,17 +77,6 @@ const COUNTRY_FOOD = {
   AE: { rule: 'Suggest what people in the UAE eat every day: Emirati and wider Middle Eastern home cooking first, then Mediterranean and Indian dishes. Never pork or pork products.', avoid: ['pork', 'ham', 'bacon', 'gammon', 'prosciutto', 'pancetta', 'chorizo'] },
   SG: { rule: 'Suggest Singaporean home and hawker favourites (Chinese, Malay and Indian), made lighter, plus other everyday Asian dishes.' },
 };
-const wordsOf = (text) => String(text).toLowerCase().match(/[a-z]+/g) ?? [];
-// singular, near enough: "strawberries" → "strawberry", "kiwis" → "kiwi"
-const stem = (w) => (w.length > 4 && w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.length > 4 && /(ches|shes|oes|sses|xes)$/.test(w) ? w.slice(0, -2)
-  : w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
-/** Whether every word of an allergy the person typed is in the text ("kiwi" also finds "kiwifruit"). */
-const mentions = (text, allergy) => {
-  const have = wordsOf(text).map(stem);
-  const wanted = wordsOf(allergy).map(stem);
-  return wanted.length > 0 && wanted.every(w => have.some(h => h === w || (w.length >= 4 && h.startsWith(w))));
-};
-const LABEL_ALLERGENS = ['celery', 'wheat', 'crustaceans', 'eggs', 'fish', 'lupin', 'milk', 'molluscs', 'mustard', 'nuts', 'peanuts', 'sesame', 'soya', 'sulphur dioxide'];
 
 // The user's country shapes the ingredients and the healthy-eating guidance (src/lib/countries.ts).
 const systemFor = (country, code) => `You are the meal-planning assistant inside Kinetix Fit, a fitness and nutrition app. This user lives in ${country}.
@@ -138,7 +131,12 @@ export default async function handler(req, res) {
   if (handleCors(req, res)) return;
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  const { appUserId } = req.body || {};
+  // Plus is checked for the signed-in session's account; a body naming another one (a Plus person's email) is refused: it would
+  // spend their ideas and a model call. Older builds send no session and are still served as before (api/_lib/caller.js).
+  const caller = await resolveCaller(req, req.body?.appUserId);
+  const problem = callerProblem(caller, { needsIdentity: true });
+  if (problem) return res.status(problem.status).json(problem.body);
+  const { appUserId } = caller;
   if (!appUserId) return res.status(401).json({ error: 'Sign in to get meal ideas.' });
 
   if (!(await isPlusUser(appUserId, { whenUnknown: false }))) {
@@ -181,18 +179,13 @@ export default async function handler(req, res) {
     if (!text || response.stop_reason === 'max_tokens') throw new Error(`Unusable response (stop_reason ${response.stop_reason})`);
 
     const parsed = JSON.parse(text);
-    const allergens = context.profile.allergens.map(a => a.toLowerCase());
-    const typed = allergens.filter(a => !LABEL_ALLERGENS.includes(a));
-    const avoid = COUNTRY_FOOD[countryCode]?.avoid ?? [];
-    const { diet } = context.profile;
-    const suggestions = (parsed.suggestions || [])
-      .filter(s => !(s.containsAllergens || []).some(a => allergens.includes(String(a).toLowerCase())))
-      .filter(s => !typed.some(a => mentions(`${s.name} ${s.description}`, a)))
-      .filter(s => !wordsOf(`${s.name} ${s.description}`).some(w => avoid.includes(w)))
-      .filter(s => !(diet !== 'everything' && s.containsMeatOrFish) && !(diet === 'vegetarian-no-egg' && s.containsEgg))
-      .filter(s => !context.alreadySuggested.some(n => n.toLowerCase() === String(s.name).toLowerCase()))
-      .slice(0, IDEAS)
-      .map(({ containsAllergens, containsMeatOrFish, containsEgg, ...s }) => ({ ...s, allergens: containsAllergens }));
+    const suggestions = keepSuggestions(parsed.suggestions, {
+      allergens: context.profile.allergens,
+      countryAvoid: COUNTRY_FOOD[countryCode]?.avoid ?? [],
+      diet: context.profile.diet,
+      alreadySuggested: context.alreadySuggested,
+      limit: IDEAS,
+    });
     if (suggestions.length === 0) throw new Error('Every suggestion broke an allergen or diet rule');
 
     const result = { headline: parsed.headline, mealSlot: context.mealSlot, suggestions, ideasLeft: Math.max(0, DAILY_LIMIT - used - 1) };

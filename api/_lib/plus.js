@@ -30,19 +30,22 @@ async function fetchPlusFromRevenueCat(appUserId) {
   return entitlementIsActive((await fetchSubscriber(appUserId)).entitlement);
 }
 
-// Plus for the Account page: whether it's active, when it ends and whether a store subscription will renew. Always asks
+// Plus for the Account page: whether it's active, when it ends, whether a store subscription will renew and whether it's a promo grant. Always asks
 // RevenueCat (a promo grant or a purchase must show straight away), then refreshes the cache the other endpoints read.
 // Throws if RevenueCat can't be reached, so the caller can tell "unknown" from "Free".
 export async function plusStatus(appUserId) {
   const { entitlement, subscription } = await fetchSubscriber(appUserId);
   const plus = entitlementIsActive(entitlement);
   try { await redis.set(`plus:${appUserId}`, plus ? 1 : 0, { ex: CACHE_SECONDS }); } catch { /* cache is optional */ }
-  if (!plus) return { plus: false, lifetime: false, expiresAt: null, willRenew: false };
+  if (!plus) return { plus: false, lifetime: false, expiresAt: null, willRenew: false, promo: false };
   const lifetime = entitlement.expires_date === null;
+  // A promo code (redeem-promo.js) is a free grant, not a store subscription: RevenueCat lists it as store "promotional" with a
+  // product named rc_promo_<entitlement>_<monthly|lifetime>. Nothing is billed for it and there is no store account behind it.
+  const promo = subscription?.store === 'promotional' || String(entitlement.product_identifier ?? '').startsWith('rc_promo_');
   // A store subscription renews unless the user cancelled it or the payment failed; a promo grant never does.
-  const willRenew = !lifetime && !!subscription && subscription.store !== 'promotional'
+  const willRenew = !lifetime && !promo && !!subscription
     && !subscription.unsubscribe_detected_at && !subscription.billing_issues_detected_at;
-  return { plus: true, lifetime, expiresAt: lifetime ? null : entitlement.expires_date, willRenew };
+  return { plus: true, lifetime, expiresAt: lifetime ? null : entitlement.expires_date, willRenew, promo };
 }
 
 // Returns true/false. When RevenueCat can't be reached, returns `whenUnknown` — callers choose: generous for

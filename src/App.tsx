@@ -11,8 +11,8 @@ import { syncAllOnLogin, syncKeepingThisPhone, syncOnAppState, flushOutbox, flus
 import { fetchTodaysClaimedQuestIds, mergeClaimedQuestIds } from './lib/questClaims';
 import { bearerHeader } from './lib/sessionToken';
 import { claimCheckIns, claimableCheckInDays } from './lib/checkinClaims';
-import { fetchPlusStatus, planLabel, type PlusStatus } from './lib/plusStatus';
-import { requestDeletion, clearDeviceReminders, type DeleteMode } from './lib/accountDeletion';
+import { billingNote, canManageSubscription, fetchPlusStatus, planFromAnswers, planLabel, type PlusStatus } from './lib/plusStatus';
+import { requestDeletion, clearDeviceReminders, deleteDescription, type DeleteMode } from './lib/accountDeletion';
 import { fetchServerBalance, reconcileBalance, readLocalBalance, writeLocalBalance, type Balance } from './lib/ledgerBalance';
 import { noteProfileChanged, readLocalProfile, profileAfterEdit } from './lib/profileSync';
 import './lib/preferencesSync';
@@ -71,7 +71,9 @@ import { setupNotifications, styled, scheduleNotifications, nutritionAlert, remi
 import { questsForToday, allQuestValues, type Quest } from './lib/quests';
 import { updateWidgets, clearWidgets, takeWidgetGlasses, takeWidgetCheckIns, takeWidgetWorkouts, flattenPrefs, loadWidgetPrefs, saveWidgetPrefs, type WidgetPrefs } from './lib/widgets';
 import { POINTS, LEVEL_XP, MONTHLY_POINTS_GUIDE, VOUCHER_POINTS, awardCheckIn, levelAfter, levelForXp, xpIntoLevel as xpIntoLevelOf } from './lib/points';
-import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, avoidedThere, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
+import { keepSafeIdeas } from './lib/aiIdeas';
+import { scanButtonAway } from './lib/scanButton';
+import { rankMeals, pageOf, pageCount, slotAt, loadHiddenMeals, hideMeal, unhideAllMeals, PAGE_SIZE, type RankedMeal } from './lib/mealIdeas';
 import { streakOf, runEndingOn, loadBestStreak, saveBestStreak, streakMessage, STREAK_BADGES } from './lib/streak';
 import { APP_ICONS, DEFAULT_APP_ICON, appIconInfo, appIconPreview, appIconSupported, canUseIcon, changeAppIcon, currentAppIcon, shouldRevertIcon, type AppIconId } from './lib/appIcons';
 import WidgetGallery, { type WidgetData } from './components/WidgetGallery';
@@ -82,10 +84,12 @@ import WorkoutSheet, { WorkoutHistorySheet } from './components/WorkoutSheet';
 import CycleCard from './components/CycleCard';
 import VitalsCard from './components/VitalsCard';
 import AllergyPicker from './components/AllergyPicker';
-import { allergyName, flagAllergies, allergiesIn, customAllergies } from './lib/allergens';
+import { allergyName, flagAllergies } from './lib/allergens';
+import { accountPageAllowed, promoCodesAllowedOn } from './lib/accountPages';
+import { CORE_HEALTH_TYPES, healthPermissionRemoved } from './lib/healthPermission';
 import { loadPeriods, addPeriod, removePeriod, cycleContext } from './lib/cycle';
 import { applyMoveReminders, MOVE_MINUTES_OPTIONS } from './lib/moveReminders';
-import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS } from './lib/plus';
+import { PLUS_ENTITLEMENT, FREE_DAILY_SCANS, PLUS_DAILY_SCANS, PLUS_BENEFITS, usableScanAllowance } from './lib/plus';
 import { latestReading, latestBucket, heartDay, caloriesToday, whenTaken, vitalTiles, distanceText, VITAL_TYPES, type Reading, type HeartDay, type VitalId } from './lib/vitals';
 
 // ============================================================================
@@ -185,7 +189,7 @@ function parseRoute(hash: string): { tab: string; page: AccountPage | null } | n
   const [rawTab, rawPage] = hash.replace('#', '').split('/');
   const tab = LEGACY_TABS[rawTab] ?? rawTab;
   if (!TAB_IDS.includes(tab)) return null;
-  const page = tab === 'account' && rawPage && rawPage in ACCOUNT_PAGE_TITLES ? rawPage as AccountPage : null;
+  const page = tab === 'account' && rawPage && rawPage in ACCOUNT_PAGE_TITLES && accountPageAllowed(rawPage, Capacitor.getPlatform()) ? rawPage as AccountPage : null;
   return { tab, page };
 }
 
@@ -730,7 +734,8 @@ export default function App() {
 
   // What the last health read found. 'no-data' means every read worked but came back empty — usually because
   // Samsung Health (or the user's tracker app) hasn't been allowed to share with Health Connect yet.
-  const [healthDataState, setHealthDataState] = useState<'unknown' | 'has-data' | 'no-data'>('unknown');
+  // 'permission-removed': Health Connect (Android) no longer lets the app read steps, heart rate or sleep (src/lib/healthPermission.ts)
+  const [healthDataState, setHealthDataState] = useState<'unknown' | 'has-data' | 'no-data' | 'permission-removed'>('unknown');
   // The app that actually wrote the data ("Samsung Health"), once a read tells us.
   const [healthSource, setHealthSource] = useState<string | null>(null);
   // Whether any heart rate arrived in the trend window (null until the first read finishes).
@@ -753,6 +758,16 @@ export default function App() {
 
     const fetchHealthTrends = async () => {
       if (!appActiveRef.current) return;
+      // Android can say whether reading is still allowed: the person can take the permission away in Health Connect at any time,
+      // and the reads below would only fail quietly, leaving "Synced" on screen. (Apple Health never says.)
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          const status = await Health.checkAuthorization({ read: [...CORE_HEALTH_TYPES] });
+          if (healthPermissionRemoved(status.readAuthorized)) { setHealthDataState('permission-removed'); return; }
+        } catch (err) {
+          console.warn('Health permission check failed:', err); // can't tell: read as before
+        }
+      }
       try {
         const now = new Date();
         const startDate = new Date(now);
@@ -1147,18 +1162,6 @@ export default function App() {
   const todayCheckIn = checkIns[localDayKey()] ?? null;
   const [checkInSleep, setCheckInSleep] = useState<number | null>(null);
   const [editingCheckIn, setEditingCheckIn] = useState(false);
-  const submitCheckIn = (energy: number, sleepHours: number | null) => {
-    hapticTap();
-    const first = !todayCheckIn;
-    const next = saveCheckIn(checkIns, { sleepHours, energy, at: Date.now() });
-    setCheckIns(next);
-    setCheckInSleep(null);
-    setEditingCheckIn(false);
-    if (first) {
-      rewardCheckIns(next, [localDayKey()]);
-      void claimCheckIns([localDayKey()]);
-    }
-  };
   // The check-in streak (src/lib/streak.ts): days in a row with a check-in, worked out from them; the best is saved.
   const [bestStreakSaved, setBestStreakSaved] = useState(() => loadBestStreak());
   const streak = streakOf(Object.keys(checkIns), new Date(), bestStreakSaved);
@@ -1658,6 +1661,20 @@ export default function App() {
     if (now.best > bestStreakSaved) setBestStreakSaved(saveBestStreak(now.best));
   }
 
+  // A check-in tapped on Today: saved, and its points filed (declared after rewardCheckIns, which it calls)
+  const submitCheckIn = (energy: number, sleepHours: number | null) => {
+    hapticTap();
+    const first = !todayCheckIn;
+    const next = saveCheckIn(checkIns, { sleepHours, energy, at: Date.now() });
+    setCheckIns(next);
+    setCheckInSleep(null);
+    setEditingCheckIn(false);
+    if (first) {
+      rewardCheckIns(next, [localDayKey()]);
+      void claimCheckIns([localDayKey()]);
+    }
+  };
+
   // Quests claimed today (saved, so a restart doesn't offer the same points again).
   const [claimedQuestIds, setClaimedQuestIds] = useState<string[]>(() => loadToday('kinetix_quests_claimed', [] as string[]));
   useEffect(() => {
@@ -1923,7 +1940,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/suggest-meals'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({
           appUserId: profile.email,
           mealSlot: currentMealSlot(),
@@ -1955,11 +1972,10 @@ export default function App() {
       const data = await response.json();
       if (response.status === 403 && data.code === 'PLUS_REQUIRED') { setPlusFromServer(false); openPlusPage(); return; }
       if (!response.ok) { setMealIdeasError(data.error || 'Couldn’t make meal ideas this time.'); return; }
-      // allergies typed in by the person (not on any label list) and meats not eaten where they live (beef in India):
-      // the server checks both too once it has this build's rules, but older servers don't
-      const typedAllergies = customAllergies(profile.personalAllergens);
-      setMealIdeas({ ...data, suggestions: (data.suggestions ?? []).filter((i: MealIdea) =>
-        allergiesIn(`${i.name} ${i.description}`, typedAllergies).length === 0 && !avoidedThere(`${i.name} ${i.description}`, country.code)) });
+      // Only dishes this person can have: none with an allergy of theirs (what the server says, and the dish's own words: the
+      // model missed that hummus is tahini, which is sesame) and no meat that isn't eaten where they live (beef in India).
+      // The server checks too once it has this build's rules, but older servers don't.
+      setMealIdeas({ ...data, suggestions: keepSafeIdeas<MealIdea>(data.suggestions ?? [], profile.personalAllergens, country.code) });
       setAiPage(0);
       setAiShown(prev => [...prev, ...(data.suggestions ?? []).map((i: MealIdea) => i.name)]);
       setEatenIdeaNames([]);
@@ -2098,7 +2114,7 @@ export default function App() {
       waterMlByDay: Object.fromEntries(reportDays(todayDateKey).map(d => [d, dayMl(waterLog, d)])), today: todayDateKey,
       sleepHoursByDay: lifestyle.sleepHoursByDay, activeByDay: lifestyle.activeByDay, hrvByDay: lifestyle.hrvByDay,
     });
-    return { favour: r.suggestions.map(sg => sg.food.name), avoid: r.goEasy.map(g => g.name), wantsFermented: r.foodDaysLogged >= 3 && r.fermentedDays <= 1 };
+    return r.rankHints;
   }, [gutChecks, foodDays, waterGoalMl, nhsTargets.fiber, profile.diet, profile.personalAllergens, country.code, waterLog, todayDateKey, lifestyle]);
   const recentFoodNames = [...(foodDays[todayDateKey] ?? []), ...(foodDays[localDayKeyDaysAgo(1)] ?? [])].map(e => e.name).join('|');
   const mealSlot = slotAt();
@@ -2113,6 +2129,8 @@ export default function App() {
 
   // --- 10. OPTICAL INGESTION SCANNER & DIETARY MATRICES ---
   const [mealInput, setMealInput] = useState<string>('');
+  // The scan window's own "Or type the ingredients" box: its own text, not the food search box's (a word typed in one used to show in the other)
+  const [ingredientsInput, setIngredientsInput] = useState<string>('');
   // "Did you mean avocado?" — asked instead of searching when a typed food looks like a typo of one we know
   const [typoAsk, setTypoAsk] = useState<{ typed: string; name: string; corrected: string } | null>(null);
   const [scanResult, setScanResult] = useState<MealScanResult | null>(null);
@@ -2123,6 +2141,22 @@ export default function App() {
   const typedMatches = useMemo(() => searchFoods(savedFoods, parseTypedPortion(mealInput).name), [savedFoods, mealInput]);
   const recent = useMemo(() => recentFoods(savedFoods), [savedFoods]);
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
+  // The scan button on Today steps aside while the page scrolls down, so it can't cover what passes under it (src/lib/scanButton.ts)
+  const [scanButtonIsAway, setScanButtonIsAway] = useState<boolean>(false);
+  useEffect(() => {
+    if (activeTab !== 'vitals') return;
+    const body = document.querySelector('.app-scroll-body');
+    if (!body) return;
+    let from = body.scrollTop;
+    const onScroll = () => {
+      // read both ends now: React runs the updater later, when `from` already holds the new position
+      const [prev, to] = [from, body.scrollTop];
+      from = to;
+      setScanButtonIsAway(away => scanButtonAway(away, prev, to));
+    };
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, [activeTab, isLoggedIn, onboardingStep]);
   // From anywhere (scan limit, locked vouchers) to Account → Your plan.
   const openPlusPage = () => {
     setShowCameraModal(false);
@@ -2225,6 +2259,9 @@ export default function App() {
   const planStatusText = serverPlan
     ? planLabel(serverPlan, d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
     : revenueCatStatus;
+  // The plan for the billing note on Plan & billing: the server's answer, else what the RevenueCat SDK reported. A promo code's
+  // grant has nothing to manage in a store and nothing billed (src/lib/plusStatus.ts billingNote).
+  const planStatus = planFromAnswers(serverPlan, customerInfo?.entitlements.active[PLUS_ENTITLEMENT]);
   const applyPlusStatus = (status: PlusStatus) => { setPlusFromServer(status.plus); setServerPlan(status); };
   const refreshPlusFromServer = async () => {
     const status = await fetchPlusStatus();
@@ -2244,6 +2281,8 @@ export default function App() {
   const [isBuyingPlus, setIsBuyingPlus] = useState(false);
   // Photo/barcode scans left today, as last reported by the server (null until the first scan).
   const [scanAllowance, setScanAllowance] = useState<{ left: number; limit: number } | null>(null);
+  // the count belongs to a plan: after upgrading, the free plan's "0 of 2 left" is not shown any more
+  const shownScanAllowance = usableScanAllowance(scanAllowance, isPlus);
 
   // The Plus widgets' settings (Account → Widgets → Customise), saved on the phone and handed to the widgets below
   const [widgetPrefs, setWidgetPrefs] = useState<WidgetPrefs>(() => loadWidgetPrefs());
@@ -2369,7 +2408,7 @@ export default function App() {
       setCustomerInfo(info);
       const entitlement = info.entitlements.active[PLUS_ENTITLEMENT];
       setRevenueCatStatus(planLabel(
-        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew },
+        { plus: !!entitlement, lifetime: !!entitlement && !entitlement.expirationDate, expiresAt: entitlement?.expirationDate ?? null, willRenew: !!entitlement?.willRenew, promo: entitlement?.store === 'PROMOTIONAL' },
         d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }),
       ));
     } catch (err) {
@@ -2677,9 +2716,14 @@ export default function App() {
       // 'local': a deleted account has no session left on the server to end, and there is nothing to wait for
       await signOutThisPhone(supabase.auth).catch(() => { /* wiped below anyway */ });
     }
-    if (forgetAccount) await clearDeviceReminders();
+    // The reminders belong to the operating system, not to the app's storage, so wiping the data below doesn't stop them: every
+    // way out cancels them (they are scheduled again when someone logs in and reaches Today)
+    await clearDeviceReminders();
     clearAllDomainData();
-    if (forgetAccount) { localStorage.removeItem(ONBOARDED_EMAIL_KEY); clearWidgets(); }
+    // The home-screen widgets showed the last account's numbers until someone logged in again: empty them on every way out
+    // (after the wipe above, so they come back as the defaults)
+    clearWidgets();
+    if (forgetAccount) localStorage.removeItem(ONBOARDED_EMAIL_KEY);
     // RevenueCat keeps the signed-in id; log it out so the next account starts from its own plan, not this one's.
     try {
       if (Capacitor.isNativePlatform() && (await Purchases.isConfigured()).isConfigured) await Purchases.logOut();
@@ -3250,7 +3294,7 @@ export default function App() {
     try {
       const response = await fetch(serverUrl('/api/lookup-barcode'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await bearerHeader()) },
         body: JSON.stringify({ barcode, appUserId: profile.email, timeZone: deviceTimeZone() })
       });
       const data = await response.json();
@@ -3431,7 +3475,6 @@ export default function App() {
 
   const triggerCameraScan = (item: string) => {
     setIsCameraScanning(true);
-    setMealInput(item);
     handleMealScan(item).finally(() => {
       setIsCameraScanning(false);
       setShowCameraModal(false);
@@ -3642,9 +3685,11 @@ export default function App() {
           <p className="kx-hero-status">
             {!profile.smartDeviceConnected
               ? 'Connect a device to see your steps, heart rate and sleep.'
-              : healthDataState === 'no-data'
-                ? `Connected to ${profile.smartDeviceConnected} — no data yet.`
-                : `Synced with ${healthSource ?? profile.smartDeviceConnected}`}
+              : healthDataState === 'permission-removed'
+                ? `Kinetix Fit isn’t allowed to read ${profile.smartDeviceConnected} — allow it to sync.`
+                : healthDataState === 'no-data'
+                  ? `Connected to ${profile.smartDeviceConnected} — no data yet.`
+                  : `Synced with ${healthSource ?? profile.smartDeviceConnected}`}
           </p>
         </div>
         <div className="kx-hero-targets" aria-label="Today's targets">
@@ -4038,7 +4083,7 @@ export default function App() {
   // Account menu: grouped rows, each opening its own page; the value is a short summary of what's inside.
   const accountEmail = session?.user?.email || profile.email;
   // The App Store only lets us unlock paid features with its own offer codes, so our promo codes are for Android and the web
-  const promoCodesAllowed = Capacitor.getPlatform() !== 'ios';
+  const promoCodesAllowed = promoCodesAllowedOn(Capacitor.getPlatform());
   const accountSections: { title: string; rows: { page: AccountPage; value?: string }[] }[] = [
     { title: 'Profile', rows: [
       { page: 'details' },
@@ -4123,6 +4168,26 @@ export default function App() {
                 onAddGlass={addGlass}
                 onOpen={() => setShowHydration(true)}
               />
+
+              {/* The person took Kinetix Fit's permission away in Health Connect (src/lib/healthPermission.ts) */}
+              {isLiveHealthData && healthDataState === 'permission-removed' && Capacitor.getPlatform() === 'android' && (
+                <div className="hub-support-card kx-setup-card">
+                  <span className="vitals-label">Permission removed</span>
+                  <h3 className="card-header-title">Allow Kinetix Fit in Health Connect</h3>
+                  <p className="card-header-desc">
+                    Health Connect no longer lets Kinetix Fit read your steps, heart rate or sleep, so these cards can’t update. Turn it back on and they will.
+                  </p>
+                  <ol className="kx-steps">
+                    <li>Tap <strong>Open Health Connect</strong>, then <strong>App permissions</strong>.</li>
+                    <li>Choose <strong>Kinetix Fit</strong> and turn on <strong>Allow all</strong>.</li>
+                    <li>Come back here.</li>
+                  </ol>
+                  <div className="kx-setup-actions">
+                    <button type="button" className="primary-btn" onClick={openHealthConnectSettings}>Open Health Connect</button>
+                    <button type="button" className="edit-bio-btn" onClick={() => setForegroundTick(t => t + 1)}>Check again</button>
+                  </div>
+                </div>
+              )}
 
               {/* Connected, but Health Connect is empty — almost always a tracker app that isn't allowed to share yet */}
               {isLiveHealthData && healthDataState === 'no-data' && Capacitor.getPlatform() === 'android' && (
@@ -4346,6 +4411,9 @@ export default function App() {
                           ? `Best in the evening — it’s about your whole day.${gutReminderOn && Capacitor.isNativePlatform() ? ` We’ll remind you at ${formatHour(GUT_REMINDER_HOUR)}.` : ''}`
                           : 'One tap for today. Saved to your account when you sign in.'}
                     </p>
+                    {gutStatus.ready && !gutDraft && !gutForYesterday && (
+                      <button type="button" className="ob-link kx-gut-yesterday kx-gut-report-link" onClick={() => setShowGutReport(true)}>Your gut report is ready — see it</button>
+                    )}
                     {!todayGut && !gutDraft && !gutForYesterday && canLogYesterdaysGut && (
                       <button type="button" className="ob-link kx-gut-yesterday" onClick={() => setGutForYesterday(true)}>Missed last night? Add yesterday’s</button>
                     )}
@@ -5430,6 +5498,8 @@ export default function App() {
                   <p className="validator-desc">
                     {!profile.smartDeviceConnected
                       ? 'Connect your wearable device to sync your activity, heart rate, and sleep data automatically.'
+                      : healthDataState === 'permission-removed'
+                        ? 'Kinetix Fit isn’t allowed to read Health Connect any more, so nothing can sync. Open Health Connect settings, choose App permissions → Kinetix Fit, and turn on Allow all.'
                       : healthDataState === 'no-data'
                         ? (Capacitor.getPlatform() === 'ios'
                           ? `Connected to ${profile.smartDeviceConnected}, but nothing has arrived yet — check Kinetix Fit is allowed to read your data in the Health app (profile picture → Apps → Kinetix Fit).`
@@ -5617,7 +5687,7 @@ export default function App() {
                   </div>
 
                   {isPlus ? (
-                    <button onClick={handleManageSubscription} className="edit-bio-btn">Manage subscription</button>
+                    (!planStatus || canManageSubscription(planStatus)) && <button onClick={handleManageSubscription} className="edit-bio-btn">Manage subscription</button>
                   ) : Capacitor.isNativePlatform() ? (
                     <button onClick={handleBuyPlus} disabled={isBuyingPlus} className="primary-btn">
                       {isBuyingPlus ? 'Opening the store…' : plusPackage?.product.introPrice ? 'Start your free trial' : 'Get Kinetix Fit Plus'}
@@ -5627,7 +5697,9 @@ export default function App() {
                   )}
                   {Capacitor.isNativePlatform() && (
                     <p className="billing-disclaimer">
-                      Billed through your {Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} account; cancel any time.{' '}
+                      {isPlus && planStatus
+                        ? billingNote(planStatus, Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play', d => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }))
+                        : `Billed through your ${Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} account; cancel any time.`}{' '}
                       {!isPlus && <button type="button" className="ob-link" onClick={handleRestorePurchases}>Restore purchase</button>}
                     </p>
                   )}
@@ -5744,7 +5816,7 @@ export default function App() {
               handleTabChange('nourish');
               setShowCameraModal(true);
             }}
-            className="floating-hud-camera-fab"
+            className={`floating-hud-camera-fab${scanButtonIsAway ? ' is-away' : ''}`}
             title="Scan food"
             aria-label="Scan food"
           >
@@ -5974,12 +6046,7 @@ export default function App() {
         <div className="portal-overlay-modal" onClick={() => { if (!isDeleting) setDeleteMode(null); }}>
           <div className="modal-content-card kx-confirm" role="alertdialog" aria-modal="true" aria-labelledby="kx-delete-title" aria-describedby="kx-delete-desc" onClick={e => e.stopPropagation()}>
             <h3 id="kx-delete-title" className="modal-title">{deleteMode === 'account' ? 'Delete your account and all your data?' : 'Delete all your data?'}</h3>
-            <p id="kx-delete-desc" className="modal-desc">
-              {deleteMode === 'account'
-                ? 'Your account, profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. You’ll need to sign up again to use Kinetix Fit.'
-                : 'Your profile, food and water logs, workouts, check-ins, gut checks, period data, health readings, points and rewards are deleted from your phone and from our servers. Your account stays, so you can log in again and start fresh.'}
-              {' '}If you pay for Kinetix Fit Plus, this doesn’t cancel it: cancel in your App Store or Google Play subscriptions.
-            </p>
+            <p id="kx-delete-desc" className="modal-desc">{deleteDescription(deleteMode)}</p>
             {deleteError && <p className="promo-response-msg response-error" role="alert">{deleteError}</p>}
             <div className="kx-confirm-actions">
               <button type="button" className="modal-close-btn" onClick={() => setDeleteMode(null)} disabled={isDeleting} autoFocus>Cancel</button>
@@ -6029,8 +6096,8 @@ export default function App() {
                 {/* Photo + barcode scans are limited per day; typed checks aren't (the server enforces this) */}
                 <div className="kx-scan-allowance">
                   <span>
-                    {scanAllowance
-                      ? `${scanAllowance.left} of ${scanAllowance.limit} photo or barcode scans left today`
+                    {shownScanAllowance
+                      ? `${shownScanAllowance.left} of ${shownScanAllowance.limit} photo or barcode scans left today`
                       : `${isPlus ? PLUS_DAILY_SCANS : FREE_DAILY_SCANS} photo or barcode scans a day${isPlus ? ' with Plus' : ' on the free plan'}`}
                     {' · typed checks are unlimited'}
                   </span>
@@ -6125,13 +6192,13 @@ export default function App() {
                     rows={2}
                     id="kx-ingredients"
                     placeholder="e.g. wheat, milk, eggs, peanuts"
-                    value={mealInput}
-                    onChange={(e) => setMealInput(e.target.value)}
+                    value={ingredientsInput}
+                    onChange={(e) => setIngredientsInput(e.target.value)}
                     className="support-textarea"
                   />
                   <button
-                    onClick={() => triggerCameraScan(mealInput)}
-                    disabled={!mealInput.trim()}
+                    onClick={() => triggerCameraScan(ingredientsInput)}
+                    disabled={!ingredientsInput.trim()}
                     className="primary-btn"
                     style={{ width: '100%', marginTop: '10px' }}
                   >

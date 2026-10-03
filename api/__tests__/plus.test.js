@@ -81,13 +81,13 @@ describe('isPlusUser', () => {
 describe('plusStatus', () => {
   it('reports a lifetime grant', async () => {
     entitlement = { expires_date: null };
-    expect(await plusStatus('u@example.com')).toEqual({ plus: true, lifetime: true, expiresAt: null, willRenew: false });
+    expect(await plusStatus('u@example.com')).toEqual({ plus: true, lifetime: true, expiresAt: null, willRenew: false, promo: false });
   });
 
   it('reports the expiry and renewal of a subscription or a promo month', async () => {
     entitlement = { expires_date: FUTURE };
     const status = await plusStatus('u@example.com');
-    expect(status).toEqual({ plus: true, lifetime: false, expiresAt: FUTURE, willRenew: false });
+    expect(status).toEqual({ plus: true, lifetime: false, expiresAt: FUTURE, willRenew: false, promo: false });
   });
 
   it('says a store subscription renews unless it was cancelled, had a billing problem, or is a promo grant', async () => {
@@ -102,11 +102,28 @@ describe('plusStatus', () => {
     expect((await plusStatus('u@example.com')).willRenew).toBe(false);
   });
 
+  it('says whether the grant is a promo code (nothing is billed) or a store subscription', async () => {
+    // as RevenueCat reports a 30-day code redeemed on 3 Oct 2026: rc_promo_<entitlement>_monthly, store PROMOTIONAL
+    entitlement = { expires_date: FUTURE, product_identifier: 'rc_promo_kinetixfit_pro_monthly' };
+    subscription = { store: 'promotional', unsubscribe_detected_at: null, billing_issues_detected_at: null };
+    expect(await plusStatus('u@example.com')).toEqual({ plus: true, lifetime: false, expiresAt: FUTURE, willRenew: false, promo: true });
+    // a lifetime code: the product name alone is enough if the subscription isn't listed
+    entitlement = { expires_date: null, product_identifier: 'rc_promo_kinetixfit_pro_lifetime' };
+    subscription = undefined;
+    expect(await plusStatus('u@example.com')).toEqual({ plus: true, lifetime: true, expiresAt: null, willRenew: false, promo: true });
+    // a real subscription, cancelled or not, is not a promo
+    entitlement = { expires_date: FUTURE, product_identifier: 'plus_monthly' };
+    subscription = { store: 'play_store', unsubscribe_detected_at: PAST, billing_issues_detected_at: null };
+    expect((await plusStatus('u@example.com')).promo).toBe(false);
+    subscription = { store: 'app_store', unsubscribe_detected_at: null, billing_issues_detected_at: null };
+    expect((await plusStatus('u@example.com')).promo).toBe(false);
+  });
+
   it('is Free with no expiry for an expired grant or no entitlement', async () => {
     entitlement = { expires_date: PAST };
-    expect(await plusStatus('u@example.com')).toEqual({ plus: false, lifetime: false, expiresAt: null, willRenew: false });
+    expect(await plusStatus('u@example.com')).toEqual({ plus: false, lifetime: false, expiresAt: null, willRenew: false, promo: false });
     entitlement = undefined;
-    expect(await plusStatus('v@example.com')).toEqual({ plus: false, lifetime: false, expiresAt: null, willRenew: false });
+    expect(await plusStatus('v@example.com')).toEqual({ plus: false, lifetime: false, expiresAt: null, willRenew: false, promo: false });
   });
 
   it('always asks RevenueCat (never the cache) and refreshes the cache for the other endpoints', async () => {

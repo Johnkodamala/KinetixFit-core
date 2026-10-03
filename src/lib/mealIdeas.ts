@@ -26,6 +26,7 @@ import { ZERO, type Nutrients } from './foodLog';
 import { tagFits, type Diet, type DietTag } from './diet';
 import type { CountryCode } from './countries';
 import { allergiesIn, customAllergies } from './allergens';
+import { notePreferencesChanged } from './preferencesSync';
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Cuisine = 'uk' | 'indian' | 'med' | 'asian' | 'american' | 'mideast' | 'sg';
@@ -233,7 +234,7 @@ export const MEALS: Meal[] = [
     LD, 'veg', ['wheat', 'milk'], 'indian', 25, 'moong', [['Moong (mung beans), cooked', 200], ['Ghee', 5], ['Roti / chapati', 136]]),
   m('fish-curry-rice', 'Fish curry with rice', 'A bowl of fish curry (250 g) and 150 g rice',
     LD, 'meat', ['fish'], 'indian', 35, 'fish', [['Fish curry', 250], ['Rice, white, cooked', 150]]),
-  m('surmai-dal-rice', 'Grilled surmai with dal and rice', 'A surmai (king mackerel) steak, 120 g, a bowl of dal and 120 g rice',
+  m('surmai-dal-rice', 'Grilled surmai with dal and rice', 'A surmai (king mackerel) fillet, 120 g, a bowl of dal and 120 g rice',
     LD, 'meat', ['fish'], 'indian', 30, 'fish', [['Surmai (king mackerel), cooked', 120], ['Olive oil', 5], ['Dal', 150], ['Rice, white, cooked', 120]]),
   m('egg-curry-roti', 'Egg curry with two rotis', 'Two boiled eggs in onion and tomato gravy (120 g) and two rotis',
     LD, 'egg', ['eggs', 'wheat'], 'indian', 25, 'egg', [['Egg, hard-boiled', 100], ['Curry sauce', 120], ['Roti / chapati', 136]]),
@@ -350,10 +351,12 @@ export interface RankInput {
   recentFoods: string[];
   /** meal ids the person said "not for me" to */
   hidden: string[];
-  /** from this week's gut report, if there is one: plant/food words to favour, and possible triggers to avoid */
-  gutFavour?: string[];
-  gutAvoid?: string[];
-  /** the gut report found few fermented foods this week */
+  /** From this week's gut report, if there is one (GutRankHints in src/lib/gut.ts): foods to favour, and possible triggers to go
+   * easy on. Each is a phrase: words that must ALL be in one ingredient's name or in the meal's name, so [['brown', 'rice']] is
+   * brown rice and never white rice, and a lone "cooked" can't match anything. */
+  gutFavour?: string[][];
+  gutAvoid?: string[][];
+  /** the gut report found few fermented foods this week, and the gut can take them */
   wantsFermented?: boolean;
 }
 
@@ -408,8 +411,8 @@ export function rankMeals(input: RankInput): RankedMeal[] {
   const proteinFor = Math.max(input.slot === 'snack' ? 5 : 15, proteinNeed * share);
   const fibreFor = Math.max(input.slot === 'snack' ? 2 : 5, fibreNeed * share);
   const recent = new Set(input.recentFoods.flatMap(words));
-  const favour = new Set((input.gutFavour ?? []).flatMap(words));
-  const avoid = new Set((input.gutAvoid ?? []).flatMap(words));
+  const favour = input.gutFavour ?? [];
+  const avoid = input.gutAvoid ?? [];
   const local = CUISINES_BY_COUNTRY[input.country] ?? CUISINES_BY_COUNTRY.GB;
   const typedAllergies = customAllergies(input.allergens);
 
@@ -424,8 +427,10 @@ export function rankMeals(input: RankInput): RankedMeal[] {
     if (avoidedThere(text, input.country)) continue;
     if (typedAllergies.length && allergiesIn(text, typedAllergies).length) continue;
     const n = mealNutrients(meal);
-    const mealWords = new Set([...words(meal.name), ...meal.ingredients.flatMap(([name]) => words(name))]);
-    const favoured = [...mealWords].some(w => favour.has(w));
+    // the meal's name and each ingredient's name, as words: a hint phrase has to be whole inside one of them
+    const parts: string[][] = [words(meal.name), ...meal.ingredients.map(([name]) => words(name))];
+    const hasPhrase = (phrases: string[][]) => phrases.some(phrase => phrase.length > 0 && parts.some(part => phrase.every(w => part.includes(w))));
+    const favoured = hasPhrase(favour);
 
     // calories: close to this meal's budget; going well over it costs more than coming in under
     const over = n.kcal - budget;
@@ -454,7 +459,7 @@ export function rankMeals(input: RankInput): RankedMeal[] {
     score += place === 0 ? 1.5 : place === 1 ? 0.5 : 0;
     if (favoured) score += 0.35;
     if (input.wantsFermented && meal.fermented) score += 0.3;
-    if ([...mealWords].some(w => avoid.has(w))) score -= 1.5;
+    if (hasPhrase(avoid)) score -= 1.5;
     if (words(meal.base).some(w => recent.has(w))) score -= 0.35;
     if (input.slot !== 'dinner' && meal.prepMinutes <= 10) score += 0.1;
 
@@ -508,7 +513,7 @@ export function pageOf<T>(list: T[], page: number): T[] {
   return list.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE);
 }
 
-// "Not for me": meal ids the person never wants suggested (on the phone)
+// "Not for me": meal ids the person never wants suggested (kept on the phone and synced with the account's settings)
 const HIDDEN_KEY = 'kx_meals_hidden';
 export function loadHiddenMeals(): string[] {
   try {
@@ -521,9 +526,12 @@ export function loadHiddenMeals(): string[] {
 export function hideMeal(hidden: string[], id: string): string[] {
   const next = [...new Set([...hidden, id])].slice(-200);
   localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+  notePreferencesChanged(); // the list follows the account (src/lib/preferencesSync.ts)
   return next;
 }
 export function unhideAllMeals(): string[] {
-  localStorage.removeItem(HIDDEN_KEY);
+  // an empty list, not a removed key: the account's other phones only change what the saved settings say
+  localStorage.setItem(HIDDEN_KEY, '[]');
+  notePreferencesChanged();
   return [];
 }

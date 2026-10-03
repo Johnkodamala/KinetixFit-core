@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PREF_KEYS, setPref } from './preferencesSync';
+import { hideMeal, loadHiddenMeals, unhideAllMeals } from './mealIdeas';
 import { isDirty, registeredSingleton } from './sync';
 
 const prefs = () => {
@@ -34,5 +35,32 @@ describe('reminder settings travel with the account', () => {
     expect(localStorage.getItem('kx_gut_reminder')).toBe('off');
     expect(localStorage.getItem('kinetix_shift_start')).toBe('7');
     expect(localStorage.getItem('kinetix_shift_end')).toBe('21');
+  });
+});
+
+describe('meals hidden with "Not for me" travel with the account', () => {
+  it('are one of the synced settings', () => {
+    expect(PREF_KEYS).toContain('kx_meals_hidden');
+  });
+
+  it('hiding a meal marks the preferences as waiting to be sent, and showing them all again does too', () => {
+    expect(isDirty('preferences')).toBe(false);
+    const hidden = hideMeal([], 'upma');
+    expect(hidden).toEqual(['upma']);
+    expect(isDirty('preferences')).toBe(true);
+    expect(prefs().load().kx_meals_hidden).toBe(JSON.stringify(['upma']));
+  });
+
+  it('unhiding all travels too, as an empty list (not by leaving the key out: the other phone would keep its list)', () => {
+    hideMeal([], 'upma');
+    expect(unhideAllMeals()).toEqual([]);
+    expect(prefs().load().kx_meals_hidden).toBe('[]');
+    expect(isDirty('preferences')).toBe(true);
+    expect(loadHiddenMeals()).toEqual([]);
+  });
+
+  it('a list pulled from the account is the one this phone shows', () => {
+    prefs().save({ kx_meals_hidden: JSON.stringify(['poha', 'upma']) });
+    expect(loadHiddenMeals()).toEqual(['poha', 'upma']);
   });
 });

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   GUT_FOODS, addDays, buildGutReport, daysBetween, gutReportStatus, gutPatterns, isFermented, loadGutChecks, plantsIn, possibleTriggers,
-  reportDays, reportProgressText, saveGutCheck, type GutCheck, type GutChecks, type GutReportInput, type SymptomId,
+  reportDays, reportProgressText, saveGutCheck, tellingWords, type GutCheck, type GutChecks, type GutReportInput, type SymptomId,
 } from './gut';
 import { ZERO, type FoodDays, type LogEntry } from './foodLog';
 
@@ -331,5 +331,103 @@ describe('lifestyle patterns', () => {
   it('is part of the weekly report', () => {
     const activeByDay = Object.fromEntries(Array.from({ length: 14 }, (_, i) => [day(i), i % 2 === 1]));
     expect(buildGutReport(input({ checks: fortnight, activeByDay })).patterns[0]).toMatch(/on quieter days/);
+  });
+});
+
+describe('foods eaten almost every day', () => {
+  const days = reportDays(TODAY);
+  // rough on 5, 3, 2 and 0 days ago (4 of 7)
+  const checks = week([check(4), check(2), check(4), check(2), check(2), check(4), check(2)]);
+
+  it('are not flagged as a trigger: with no days without it there is nothing to compare', () => {
+    // rice on 6 of the 7 days, so a rough day or the day before one was always going to have rice
+    const sixDays: FoodDays = Object.fromEntries([0, 1, 2, 3, 5, 6].map(n => [day(n), [food('Rice, white, cooked')]]));
+    expect(possibleTriggers(checks, sixDays, days)).toEqual([]);
+  });
+
+  it('but a food that leaves two days to compare against still can be', () => {
+    const fiveDays: FoodDays = Object.fromEntries([0, 2, 3, 5, 6].map(n => [day(n), [food('Rice, white, cooked')]]));
+    expect(possibleTriggers(checks, fiveDays, days).map(t => t.name)).toEqual(['rice, white, cooked']);
+  });
+
+  it('counts only the days the gut can be told: in a short week "almost every day" is fewer days', () => {
+    const short: GutChecks = { [day(6)]: check(4), [day(5)]: check(2), [day(4)]: check(2), [day(3)]: check(2), [day(2)]: check(4) };
+    const rice: FoodDays = Object.fromEntries([6, 5, 4, 3].map(n => [day(n), [food('Rice')]])); // 4 of the 5 days that can tell
+    const dal: FoodDays = Object.fromEntries([5, 4, 3].map(n => [day(n), [food('Dal')]])); // 3 of the 5
+    expect(possibleTriggers(short, rice, days)).toEqual([]);
+    expect(possibleTriggers(short, dal, days).map(t => t.name)).toEqual(['dal']);
+  });
+});
+
+describe('words for the meal ideas', () => {
+  const FILLER = ['a', 'an', 'the', 'of', 'or', 'and', 'with', 'to', 'up', 'on', 'day', 'two', 'few', 'tbsp', 'tsp', 'cup', 'glass', 'handful', 'small', 'plain', 'ground'];
+
+  it('names a food by the words that say what it is: amounts and joining words go', () => {
+    expect(tellingWords('Kiwi (two a day)')).toEqual(['kiwi']);
+    expect(tellingWords('Strawberries or blueberries')).toEqual(['strawberries', 'blueberries']);
+    expect(tellingWords('Ground linseeds (up to 1 tbsp a day)')).toEqual(['ground', 'linseeds']);
+    expect(tellingWords('A handful of almonds')).toEqual(['almonds']);
+  });
+
+  it('splits a name the way the meal ideas read their own ingredient names (hyphens split)', () => {
+    expect(tellingWords('Egg, hard-boiled')).toEqual(['egg', 'hard', 'boiled']);
+    expect(tellingWords('Rice, white, cooked')).toEqual(['rice', 'white', 'cooked']);
+  });
+
+  it('every food to try says how meals name it, in lower-case words and never filler', () => {
+    for (const f of GUT_FOODS) {
+      expect(f.inMeals.length, f.id).toBeGreaterThan(0);
+      for (const phrase of f.inMeals) {
+        expect(phrase.length, f.id).toBeGreaterThan(0);
+        for (const w of phrase) {
+          expect(w, f.id).toMatch(/^[a-z]+$/);
+          expect(FILLER, `${f.id}: ${w}`).not.toContain(w);
+        }
+      }
+    }
+  });
+
+  const constipated = () => buildGutReport(input({
+    checks: week([check(3, ['constipation']), check(2, ['constipation']), check(3), check(3, ['constipation']), check(4), check(3), check(3)]),
+    foodDays: {
+      [day(6)]: [food('White bread', 2), food('Rice, white, cooked', 0.4)],
+      [day(5)]: [food('Rice, white, cooked', 0.4), food('Dal', 3)],
+      [day(4)]: [food('White bread', 2)],
+      [day(3)]: [food('Rice, white, cooked', 0.4)],
+    },
+    diet: 'vegetarian',
+  }));
+
+  it('hands the meal ideas the suggested foods’ meal words, and only those', () => {
+    const report = constipated();
+    expect(report.suggestions.length).toBeGreaterThan(0);
+    const expected = report.suggestions.flatMap(s => s.food.inMeals);
+    expect(report.rankHints.favour).toEqual(expect.arrayContaining(expected));
+    expect(report.rankHints.favour.length).toBe(new Set(expected.map(p => p.join(' '))).size);
+    for (const w of report.rankHints.favour.flat()) expect(FILLER, w).not.toContain(w);
+  });
+
+  it('asks them to go easy on a food by all the words of its name, so "cooked" or "white" alone never match', () => {
+    // dal on 3 of the 4 rough-ish days: a possible trigger, named the way it was logged
+    const checks = week([check(4), check(2, ['constipation']), check(4), check(2, ['bloating']), check(4), check(2, ['bloating']), check(4)]);
+    const foodDays: FoodDays = {
+      [day(5)]: [food('Rice, white, cooked'), food('Dal')], [day(3)]: [food('Rice, white, cooked'), food('Dal')],
+      [day(1)]: [food('Dal')], [day(2)]: [food('Pasta, cooked')],
+    };
+    const report = buildGutReport(input({ checks, foodDays, diet: 'vegetarian' }));
+    expect(report.goEasy.map(g => g.name)).toContain('Dal');
+    expect(report.rankHints.avoid).toContainEqual(['dal']);
+    // a lone modifier ("cooked", "white") would match half the meals: a phrase is the food's whole name
+    for (const phrase of report.rankHints.avoid) if (phrase.length === 1) expect(['cooked', 'white', 'black', 'plain', 'brown']).not.toContain(phrase[0]);
+  });
+
+  it('only nudges towards fermented meals when the report would suggest fermented food: not while bloated', () => {
+    const foods: FoodDays = { [day(6)]: [food('Rice')], [day(5)]: [food('Rice')], [day(4)]: [food('Rice')] };
+    const calm = buildGutReport(input({ checks: week([check(4), check(4), check(4), check(4), check(4), check(4), check(4)]), foodDays: foods }));
+    const bloated = buildGutReport(input({ checks: week([check(3, ['bloating']), check(2, ['bloating']), check(4), check(4), check(4), check(4), check(4)]), foodDays: foods }));
+    expect(calm.rankHints.wantsFermented).toBe(true);
+    expect(bloated.rankHints.wantsFermented).toBe(false);
+    // the same rule as the report's own list: no fermented food suggested while bloated either
+    expect(bloated.suggestions.some(s => s.food.fermented)).toBe(false);
   });
 });
