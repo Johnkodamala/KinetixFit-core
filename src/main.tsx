@@ -14,9 +14,9 @@ import './styles/glass.css' // the liquid-glass layer restyles surfaces defined 
 import './styles/plus.css' // the gold PLUS label, the opening screen's PLUS and the celebration
 import './styles/widgets.css' // Account → Widgets / App icon, the streak card, the workout sheet's extras
 import './styles/responsive.css' // last: adapts everything above to small, short, landscape and tablet screens
-import App from './App.tsx'
 import LaunchIntro from './components/LaunchIntro.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
+import Boot from './components/Boot.tsx'
 import { applyTheme, followSystemTheme } from './lib/theme'
 import { setupKeyboard } from './lib/keyboard'
 
@@ -43,7 +43,7 @@ if (Capacitor.isNativePlatform()) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <Boot />
     </ErrorBoundary>
     <LaunchIntro />
   </StrictMode>,
