@@ -8,7 +8,7 @@
 import { getRewardConfig, reserveVoucherSlot, releaseVoucherSlot } from './_lib/rewardConfig.js';
 import { logAuditEvent } from './_lib/auditLog.js';
 import { handleCors } from './_lib/cors.js';
-import { COUNTRY_REWARDS, requestCountry } from './_lib/countries.js';
+import { COUNTRY_REWARDS, requestCountry, requestDay } from './_lib/countries.js';
 import { isPlusUser } from './_lib/plus.js';
 import { verifiedUser } from './_lib/supabaseAuth.js';
 import { supabaseAdmin } from './_lib/supabaseAdmin.js';
@@ -58,7 +58,8 @@ export default async function handler(req, res) {
   }
 
   // 2. Stage 2 Anti-Cheat: Validate effort thresholds
-  const today = new Date().toISOString().slice(0, 10);
+  // today's quests are the ones filed under the phone's own day (api/complete-quest.js), else the UTC date
+  const today = requestDay(req.body.timeZone);
   const claimedToday = await claimedQuestIds(admin, userId, today);
   const balance = await ledgerBalance(admin, userId);
   if (!claimedToday || !balance) {

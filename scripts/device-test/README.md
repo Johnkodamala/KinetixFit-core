@@ -41,7 +41,19 @@ Copy the iPhone's `localstorage.sqlite3` (+ `-wal`), `VACUUM INTO` a new file, d
 simulator's WebKit LocalStorage folder; on Android `localStorage.setItem` every key over CDP. Back the phone up first
 (`xcrun devicectl device copy from ... --domain-type appDataContainer`, see the CLAUDE.md note on how the iPhone's data was inspected) and restore it afterwards.
 
+## Test on a phone you must not disturb: the isolated test app (4 Oct 2026; recipe in CLAUDE.md, 'The isolated test app')
+A debug build with its own package id (`com.jnglobalventures.kinetixfit.a55check`) installs *beside* the phone's own Kinetix Fit, so the
+owner's app, session and data are never replaced or read. Built offline (server and Supabase point at `offlinesandbox.invalid`, no RevenueCat key).
+- `a55check.init.gradle` adds the package suffix (`./gradlew -I ../scripts/device-test/a55check.init.gradle assembleDebug`, run in `android/`; the repo is untouched).
+- `a55check.mjs <port> guard|seed|raw|check|net|faked <iso>` drives it over CDP: `seed` fakes a logged-in "Health Connect" profile in the *test app's own*
+  storage; `check` opens the Steps and Heart rate cards and compares them with Health Connect (prints verdicts and day counts, never raw health values);
+  `net` lists the `/api` requests (is `timeZone` sent?) and the console warnings; `faked` moves only the page's JS clock to a past evening, so a night-time run
+  can see a partial "today" and the "Workout distance" label; `raw` only reads. Everything that writes or clicks refuses to run unless the app id ends `.a55check`.
+- `a55check.lib.mjs` the script's copy of the app's rules (`trendAverage`, `distanceLabel`); `a55check.parity.ts` proves it equals the app's own on random
+  inputs: `npx vite-node scripts/device-test/a55check.parity.ts` (40,003 cases, 0 mismatches on 4 Oct).
+
 ## Tricks that cost time once
+- `adb shell` inside a `while read ... done < file` loop swallows the rest of the file from stdin: add `</dev/null`. zsh does not word-split an unquoted `$VAR`.
 - Android: a photo for the scan goes in with `adb push x.jpg /sdcard/Pictures/` + a MediaStore scan broadcast; **Choose from gallery**, find the thumbnail
   with `uiautomator dump` (the picker sorts by `date_modified`, newest first), tap it, then **Done**. Delete the file afterwards.
 - Samsung's first tap on **Log in** right after `input text` + Back often does not register: tap it again.

@@ -2,14 +2,17 @@
 // (service role) and is owner-readable under RLS, so the phone can read its own rows to learn about claims made
 // elsewhere — another phone, or before this device's data was wiped by a logout.
 import { supabase, isSupabaseConfigured } from './supabase';
+import { localDayKey } from './dates';
 
-/** The day the server files a claim under: api/complete-quest.js uses the UTC date for both its dedup and
- * the quest_claims row, so this must too — the phone's local day can differ for hours either side of midnight. */
-export const serverDayKey = (date: Date = new Date()): string => date.toISOString().slice(0, 10);
+/** The day a claim is filed under: the phone's own date. The phone sends its time zone with every claim and
+ * api/complete-quest.js files it under that date (requestDay in api/_lib/countries.js). It used to be the UTC date, which
+ * in India (UTC+5:30) is the previous day until 05:30: last evening's claims then marked the new day's quests as
+ * claimed, and a quest done at 01:00 answered "already claimed" with no points. */
+export const claimDayKey = (date: Date = new Date()): string => localDayKey(date);
 
 /** Quest ids the server has recorded as claimed today. [] when signed out, offline, or on any error — a
  * failed lookup must never block sign-in or hide a claim the phone already knows about. */
-export async function fetchTodaysClaimedQuestIds(day: string = serverDayKey()): Promise<string[]> {
+export async function fetchTodaysClaimedQuestIds(day: string = claimDayKey()): Promise<string[]> {
   if (!isSupabaseConfigured) return [];
   try {
     const { data, error } = await supabase.from('quest_claims').select('quest_id').eq('day', day);
